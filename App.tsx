@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, I18nManager } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +7,14 @@ import { useFonts } from 'expo-font';
 import { SQLiteProvider } from 'expo-sqlite';
 import { CustomLightTheme, QuranColors } from './src/core/theme/theme';
 import { MushafPageView } from './src/features/mushaf/components/MushafPageView';
+
+// Force RTL layout so native text engines align Arabic last lines to the right
+try {
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+} catch (e) {
+  console.warn('I18nManager error:', e);
+}
 
 export default function App() {
   const [fontsLoaded] = useFonts({

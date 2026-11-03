@@ -35,7 +35,7 @@ export const SurahBanner: React.FC<SurahBannerProps> = ({ surahName, suraNo }) =
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 6,
+    marginVertical: 4,
     alignItems: 'center',
     width: '100%',
   },
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 16,
+    paddingVertical: 3,
+    paddingHorizontal: 12,
     borderRadius: 5,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -60,21 +60,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF9',
   },
   cornerOrnament: {
-    fontSize: 16,
+    fontSize: 14,
     color: QuranColors.gold,
   },
   titleText: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
     textAlign: 'center',
   },
   basmalaContainer: {
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 2,
   },
   basmalaText: {
-    fontSize: 22,
+    fontSize: 18,
     color: QuranColors.textDark,
     textAlign: 'center',
     fontFamily: 'HafsSmart',

@@ -6,9 +6,10 @@ import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 interface PageHeaderProps {
   surahName: string;
   jozzNumber: number;
+  pageNumber?: number;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ surahName, jozzNumber }) => {
+export const PageHeader: React.FC<PageHeaderProps> = ({ surahName, jozzNumber, pageNumber }) => {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -24,10 +25,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ surahName, jozzNumber })
           </Text>
         </View>
 
-        {/* Placeholder for symmetry / Bookmark indicator */}
+        {/* Page Number (Clear in all modes) */}
         <Text style={styles.textSide}>
-          {/* يمكن إضافة الحزب هنا لاحقاً */}
-          الحزب {toArabicNumerals(Math.ceil(jozzNumber * 2))}
+          {pageNumber ? `صفحة ${toArabicNumerals(pageNumber)}` : `الحزب ${toArabicNumerals(Math.ceil(jozzNumber * 2))}`}
         </Text>
       </View>
 
@@ -44,8 +44,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ surahName, jozzNumber })
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: 6,
+    paddingBottom: 2,
     backgroundColor: 'transparent',
   },
   row: {
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   textSide: {
-    fontSize: 14,
+    fontSize: 13,
     color: QuranColors.textMuted,
     fontFamily: 'System',
     fontWeight: '600',
@@ -68,15 +68,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(31, 81, 63, 0.15)',
   },
   surahText: {
-    fontSize: 16,
+    fontSize: 15,
     color: QuranColors.emerald,
     fontWeight: 'bold',
   },
   separatorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 2,
   },
   line: {
     flex: 1,
@@ -91,4 +91,3 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
 });
-

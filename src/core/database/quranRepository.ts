@@ -4,7 +4,28 @@ import { Surah, JuzItem, AyahSearchResult } from '../../features/surah-list/type
 
 export class QuranRepository {
   private static pageCache = new Map<number, Ayah[]>();
+  private static surahAyahCounts = new Map<number, number>();
   private static isWarmedUp = false;
+
+  /**
+   * Returns total ayah count for a Surah (1-114) from cache or synchronous query.
+   */
+  static getSurahAyahCount(db: SQLiteDatabase, suraNo: number): number {
+    if (QuranRepository.surahAyahCounts.has(suraNo)) {
+      return QuranRepository.surahAyahCounts.get(suraNo)!;
+    }
+    try {
+      const rows = db.getAllSync<{ sura_no: number; ayahs_count: number }>(
+        'SELECT sura_no, ayahs_count FROM surahs'
+      );
+      for (let i = 0; i < rows.length; i++) {
+        QuranRepository.surahAyahCounts.set(rows[i].sura_no, rows[i].ayahs_count);
+      }
+      return QuranRepository.surahAyahCounts.get(suraNo) || 0;
+    } catch {
+      return 0;
+    }
+  }
 
   /**
    * Proactively warm up the cache for ALL 604 pages in a single fast synchronous query (~45ms).
