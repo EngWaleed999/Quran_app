@@ -1,20 +1,50 @@
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useFonts } from 'expo-font';
+import { SQLiteProvider } from 'expo-sqlite';
+import { CustomLightTheme, QuranColors } from './src/core/theme/theme';
+import { MushafPageView } from './src/features/mushaf/components/MushafPageView';
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    HafsSmart: require('./assets/fonts/HafsSmart_08.ttf'),
+  });
+
+  // No landing page - seamless direct transition into the Mushaf page
+  if (!fontsLoaded) {
+    return <View style={styles.blankBackground} />;
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <PaperProvider theme={CustomLightTheme}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.safeArea}>
+          <SQLiteProvider
+            databaseName="quran.db"
+            assetSource={{
+              assetId: require('./assets/data/quran.db'),
+              forceOverwrite: true,
+            }}
+          >
+            <MushafPageView />
+          </SQLiteProvider>
+        </SafeAreaView>
+      </PaperProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: QuranColors.parchment,
+  },
+  blankBackground: {
+    flex: 1,
+    backgroundColor: QuranColors.parchment,
   },
 });
