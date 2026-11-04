@@ -30,7 +30,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "quran:build-pages": "node scripts/build-qcf-v2-pages.js",
-    "quran:validate-pages": "node scripts/validate-qcf-v2-pages.js"
+    "quran:validate-pages": "node scripts/validate-qcf-v2-pages.js",
+    "prestart": "node scripts/ensure-qcf-v2-fonts.js",
+    "preandroid": "node scripts/ensure-qcf-v2-fonts.js",
+    "preios": "node scripts/ensure-qcf-v2-fonts.js",
+    "preweb": "node scripts/ensure-qcf-v2-fonts.js",
+    "quran:ensure-fonts": "node scripts/ensure-qcf-v2-fonts.js"
   },
   "private": true
 }
