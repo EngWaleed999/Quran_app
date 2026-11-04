@@ -8,6 +8,7 @@ import { PageBottomBar } from './PageBottomBar';
 import { MushafPageItem } from './MushafPageItem';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
+import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -17,18 +18,9 @@ export const MushafPageView: React.FC = () => {
   const db = useSQLiteContext();
   const pagerRef = useRef<PagerView>(null);
 
-  const { height: screenHeight } = useWindowDimensions();
-
-  // Optimal default font size so all 15 Quran lines fit on mobile screen with ZERO vertical scroll
-  const defaultFontSize = useMemo(() => {
-    if (screenHeight >= 900) return 20;
-    if (screenHeight >= 780) return 18.5;
-    return 17;
-  }, [screenHeight]);
-
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isReady, setIsReady] = useState<boolean>(false);
-  const [fontSize, setFontSize] = useState<number>(defaultFontSize);
+  const [userFontDelta, setUserFontDelta] = useState<number>(0);
 
   // Full Screen Immersion Mode: Automatically hides interactive controls after 2 seconds
   const [isControlsVisible, setIsControlsVisible] = useState<boolean>(true);
@@ -78,6 +70,7 @@ export const MushafPageView: React.FC = () => {
 
         // Preload target and adjacent pages into cache synchronously
         QuranRepository.preloadPages(db, target, 5);
+        QcfFontManager.preloadSurroundingPageFonts(target, 2);
         const ayahs = QuranRepository.getPageAyahsSync(db, target);
 
         if (isMounted) {
@@ -111,6 +104,7 @@ export const MushafPageView: React.FC = () => {
 
     // Proactively preload surrounding pages in the background
     QuranRepository.preloadPages(db, pageNum, 5);
+    QcfFontManager.preloadSurroundingPageFonts(pageNum, 2);
 
     // Update header metadata synchronously from in-memory cache
     const data = QuranRepository.getPageAyahsSync(db, pageNum);
@@ -134,8 +128,13 @@ export const MushafPageView: React.FC = () => {
     }
   }, [currentPage]);
 
-  const increaseFontSize = () => setFontSize((prev) => Math.min(prev + 2, 26));
-  const decreaseFontSize = () => setFontSize((prev) => Math.max(prev - 2, 15));
+  const increaseFontSize = useCallback(() => {
+    setUserFontDelta((prev) => Math.min(prev + 2, 8));
+  }, []);
+
+  const decreaseFontSize = useCallback(() => {
+    setUserFontDelta((prev) => Math.max(prev - 2, -6));
+  }, []);
 
   if (!isReady) {
     return <View style={styles.blankContainer} />;
@@ -169,9 +168,8 @@ export const MushafPageView: React.FC = () => {
                 <MushafPageItem
                   page={pageNum}
                   db={db}
-                  fontSize={fontSize}
+                  userFontDelta={userFontDelta}
                   isNear={isNear}
-                  isFullScreen={!isControlsVisible}
                   onToggleControls={toggleControls}
                 />
               </View>
@@ -203,7 +201,7 @@ export const MushafPageView: React.FC = () => {
           totalPages={TOTAL_PAGES}
           onNextPage={handleNextPage}
           onPrevPage={handlePrevPage}
-          fontSize={fontSize}
+          fontSize={20 + userFontDelta}
           onIncreaseFontSize={increaseFontSize}
           onDecreaseFontSize={decreaseFontSize}
         />

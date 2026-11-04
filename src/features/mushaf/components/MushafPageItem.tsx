@@ -1,128 +1,155 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions, GestureResponderEvent } from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
-import { QuranRepository } from '../../../core/database/quranRepository';
 import { SurahBanner } from './SurahBanner';
-import { Ayah } from '../types/mushaf.types';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
+import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
+import { QcfPageRepository, QcfPageRow } from '../../../core/database/qcfPageRepository';
 
 interface MushafPageItemProps {
   page: number;
   db: SQLiteDatabase;
-  fontSize: number;
+  userFontDelta: number;
   isNear: boolean;
-  isFullScreen?: boolean;
   onToggleControls?: () => void;
   onPageDataLoaded?: (page: number, surahName: string, jozz: number) => void;
 }
 
-const RLM = '\u200F'; // Unicode Right-to-Left Mark forces trailing text/last line to align strictly to the Right
-
 const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   page,
   db,
-  fontSize,
+  userFontDelta,
   isNear,
-  isFullScreen = false,
   onToggleControls,
-  onPageDataLoaded,
 }) => {
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
-  // Dynamically calculate frame height so the Mushaf paper fills the available screen
-  const availableContentHeight = isFullScreen
-    ? windowHeight - 20
-    : Math.max(480, windowHeight - 128);
+  // Invariant reading height: Frame height is FIXED and never changes when controls toggle.
+  // Overlays (Header and BottomBar) float on top without resizing the reading surface (Zero Layout Shift).
+  const availablePageHeight = windowHeight - 56;
 
-  // Synchronous initial fetch: 0-latency instant page render
-  const [ayahs, setAyahs] = useState<Ayah[]>(() => {
-    if (isNear) {
-      return QuranRepository.getPageAyahsSync(db, page);
-    }
-    return [];
+  // Font family name for this specific QCF V2 page (e.g. QCF_P1, QCF_P2, ... QCF_P604)
+  const fontName = useMemo(() => QcfFontManager.getFontFamilyName(page), [page]);
+
+  // Track font loading state for this page
+  const [isFontReady, setIsFontReady] = useState<boolean>(() => {
+    return QcfFontManager.isPageFontLoaded(page);
   });
 
+  // Load font asynchronously when page is near the active viewport
   useEffect(() => {
-    if (isNear && ayahs.length === 0) {
-      const data = QuranRepository.getPageAyahsSync(db, page);
-      if (data.length > 0) {
-        setAyahs(data);
-        if (onPageDataLoaded) {
-          onPageDataLoaded(page, data[0].sura_name_ar || '', data[0].jozz);
+    let isMounted = true;
+    if (isNear && !isFontReady) {
+      QcfFontManager.loadPageFont(page).then(() => {
+        if (isMounted) {
+          setIsFontReady(true);
         }
-      }
+      });
     }
-  }, [isNear, ayahs.length, db, page, onPageDataLoaded]);
+    return () => {
+      isMounted = false;
+    };
+  }, [isNear, isFontReady, page]);
 
-  // Group ayahs by sura_no with memoization
-  const surahGroups = useMemo(() => {
-    const groups: { suraNo: number; suraName: string; ayahs: Ayah[] }[] = [];
-    ayahs.forEach((ayah) => {
-      const last = groups[groups.length - 1];
-      if (last && last.suraNo === ayah.sura_no) {
-        last.ayahs.push(ayah);
-      } else {
-        groups.push({
-          suraNo: ayah.sura_no,
-          suraName: ayah.sura_name_ar || '',
-          ayahs: [ayah],
-        });
-      }
-    });
-    return groups;
-  }, [ayahs]);
+  // Retrieve the authentic 15-row physical Medina Mushaf layout for this page
+  const pageRows: QcfPageRow[] = useMemo(() => {
+    return QcfPageRepository.getPageRows(db, page);
+  }, [db, page]);
 
-  if (!isNear || ayahs.length === 0) {
+  // Touch gesture disambiguation: distinguish stationary direct taps from horizontal swipe page flips
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  const handleTouchStart = (e: GestureResponderEvent) => {
+    touchStartRef.current = {
+      x: e.nativeEvent.pageX,
+      y: e.nativeEvent.pageY,
+      time: Date.now(),
+    };
+  };
+
+  const handleTouchEnd = (e: GestureResponderEvent) => {
+    if (!touchStartRef.current) return;
+    const dx = Math.abs(e.nativeEvent.pageX - touchStartRef.current.x);
+    const dy = Math.abs(e.nativeEvent.pageY - touchStartRef.current.y);
+    const dt = Date.now() - touchStartRef.current.time;
+    touchStartRef.current = null;
+
+    // Disambiguation threshold: Only stationary direct tap (< 10px move within 300ms) toggles controls.
+    // Horizontal swipe gestures to flip pages (> 10px) will NEVER interrupt full screen!
+    if (dx < 10 && dy < 10 && dt < 300) {
+      onToggleControls?.();
+    }
+  };
+
+  // Base optimal font size calibrated for phone screens and Medina 15-line grid
+  const baseFontSize = useMemo(() => {
+    if (page === 1 || page === 2) {
+      return Math.min(25, Math.floor(windowWidth / 14.5));
+    }
+    // Standard 15-line pages: calibrated so glyphs stretch and fill the line row
+    return Math.min(22.5, Math.floor(windowWidth / 15.8));
+  }, [page, windowWidth]);
+
+  const finalFontSize = baseFontSize + userFontDelta;
+
+  const isSpecialCenterPage = page === 1 || page === 2;
+
+  if (!isNear || !isFontReady) {
     return <View style={styles.placeholder} />;
   }
-
-  // Only opening pages (Al-Fatihah and Al-Baqarah 1-5) are centered by classical tradition
-  const isSpecialCenterPage = page === 1 || page === 2;
 
   return (
     <ScrollView
       style={styles.pageScrollView}
       contentContainerStyle={[
         styles.scrollContainer,
-        { minHeight: availableContentHeight },
+        userFontDelta > 0 ? { minHeight: availablePageHeight } : { height: availablePageHeight },
       ]}
+      scrollEnabled={userFontDelta > 0} // Strictly NO scrolling by default; scrolling activates only on user zoom
       showsVerticalScrollIndicator={false}
       bounces={false}
     >
-      <Pressable
-        onPress={onToggleControls}
-        style={[styles.paperFrame, { minHeight: availableContentHeight }]}
+      <View
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={[
+          styles.paperFrame,
+          userFontDelta > 0 ? { minHeight: availablePageHeight } : { height: availablePageHeight },
+        ]}
       >
-        {/* Content ALWAYS starts from the top of the page under the header */}
-        <View style={styles.contentArea}>
-          {surahGroups.map((group) => {
-            const startsNewSurah = group.ayahs.some((a) => a.aya_no === 1);
+        {/* Authentic 15-Row Physical Medina Mushaf Layout */}
+        <View
+          style={[
+            styles.contentArea,
+            isSpecialCenterPage ? styles.contentAreaSpecial : styles.contentAreaStandard,
+          ]}
+        >
+          {pageRows.map((row, index) => {
+            if (row.type === 'banner') {
+              return (
+                <View key={`banner-${index}`} style={styles.bannerRow}>
+                  <SurahBanner surahName={row.suraName || ''} suraNo={row.suraNo || 1} />
+                </View>
+              );
+            }
 
             return (
-              <View key={`page-${page}-sura-${group.suraNo}`} style={styles.surahBlock}>
-                {startsNewSurah && (
-                  <SurahBanner surahName={group.suraName} suraNo={group.suraNo} />
-                )}
-
-                {/* Flowing Quran Text: Lines justified with last line strictly ending on the Right */}
+              <View key={`line-${index}`} style={styles.lineRow}>
                 <Text
                   style={[
-                    styles.ayahFlowText,
+                    styles.lineText,
                     {
-                      fontSize,
-                      // Tight, balanced line height so all 15 lines fit cleanly on mobile screen
-                      lineHeight: Math.round(fontSize * 1.76),
-                      textAlign: isSpecialCenterPage ? 'center' : 'justify',
+                      fontFamily: fontName,
+                      fontSize: finalFontSize,
                     },
                   ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.7}
+                  allowFontScaling={false}
                 >
-                  {group.ayahs.map((ayah) => (
-                    <Text key={`ayah-${ayah.id}`}>
-                      {ayah.aya_text}{' '}
-                    </Text>
-                  ))}
-                  {RLM}
+                  {row.text}
                 </Text>
               </View>
             );
@@ -135,7 +162,7 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
             {toArabicNumerals(page)}
           </Text>
         </View>
-      </Pressable>
+      </View>
     </ScrollView>
   );
 };
@@ -143,9 +170,8 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
 export const MushafPageItem = React.memo(MushafPageItemComponent, (prevProps, nextProps) => {
   return (
     prevProps.page === nextProps.page &&
-    prevProps.fontSize === nextProps.fontSize &&
-    prevProps.isNear === nextProps.isNear &&
-    prevProps.isFullScreen === nextProps.isFullScreen
+    prevProps.userFontDelta === nextProps.userFontDelta &&
+    prevProps.isNear === nextProps.isNear
   );
 });
 
@@ -170,7 +196,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: QuranColors.parchmentBorder,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingTop: 4,
     paddingBottom: 2,
     justifyContent: 'space-between',
@@ -181,25 +207,40 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   contentArea: {
-    flexGrow: 1,
-    justifyContent: 'flex-start', // All ayahs start strictly from the top of the page
+    flex: 1,
+    width: '100%',
   },
-  surahBlock: {
-    marginBottom: 4,
+  contentAreaStandard: {
+    justifyContent: 'space-between', // Distributes all 15 rows evenly from top to bottom
   },
-  ayahFlowText: {
-    fontFamily: 'HafsSmart',
-    color: QuranColors.textDark,
-    writingDirection: 'rtl',
-    paddingHorizontal: 4,
+  contentAreaSpecial: {
+    justifyContent: 'center', // Opening pages 1 & 2 centered within the frame
+  },
+  bannerRow: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 1,
+  },
+  lineRow: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  lineText: {
+    color: QuranColors.textDark,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    includeFontPadding: false,
+    width: '100%',
   },
   pageNumberBadge: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 2,
     paddingBottom: 2,
-    marginTop: 2,
     borderTopWidth: 0.5,
     borderTopColor: 'rgba(197, 155, 39, 0.25)',
   },

@@ -40,3 +40,7 @@ yarn-error.*
 /ios
 /android
 new.txt
+
+v2
+assets/fonts/qcf_v2/
+.agents

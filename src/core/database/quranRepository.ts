@@ -5,7 +5,46 @@ import { Surah, JuzItem, AyahSearchResult } from '../../features/surah-list/type
 export class QuranRepository {
   private static pageCache = new Map<number, Ayah[]>();
   private static surahAyahCounts = new Map<number, number>();
+  private static surahCatalogCache: Surah[] | null = null;
+  private static surahPageMap = new Map<number, number>();
   private static isWarmedUp = false;
+
+  /**
+   * Retrieves the starting page number for a given Surah (1-114) synchronously.
+   */
+  static getSurahStartPage(db: SQLiteDatabase, suraNo: number): number {
+    if (QuranRepository.surahPageMap.has(suraNo)) {
+      return QuranRepository.surahPageMap.get(suraNo)!;
+    }
+    try {
+      const row = db.getFirstSync<{ page_start: number }>(
+        'SELECT page_start FROM surahs WHERE sura_no = ?',
+        [suraNo]
+      );
+      const page = row?.page_start ?? 1;
+      QuranRepository.surahPageMap.set(suraNo, page);
+      return page;
+    } catch {
+      return 1;
+    }
+  }
+
+  /**
+   * Retrieves all Surahs synchronously with in-memory memoization.
+   */
+  static getAllSurahsSync(db: SQLiteDatabase): Surah[] {
+    if (QuranRepository.surahCatalogCache) {
+      return QuranRepository.surahCatalogCache;
+    }
+    try {
+      const rows = db.getAllSync<Surah>('SELECT * FROM surahs ORDER BY sura_no ASC');
+      QuranRepository.surahCatalogCache = rows;
+      rows.forEach((s) => QuranRepository.surahPageMap.set(s.sura_no, s.page_start));
+      return rows;
+    } catch {
+      return [];
+    }
+  }
 
   /**
    * Returns total ayah count for a Surah (1-114) from cache or synchronous query.
