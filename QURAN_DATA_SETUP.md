@@ -2,12 +2,12 @@
 
 ## Normal development
 
-1. Install dependencies with the package manager used by the project.
-2. Start through the package script (`npm start`, `npm run android`, or `npm run ios`).
+1. Install dependencies with the project package manager (`pnpm install`).
+2. Start through the package script (`pnpm start`, `pnpm android`, or `pnpm ios`).
 
-The pre-start hooks verify the single Unicode Hafs font and all 604 page-specific QCF V2 fonts. Missing or invalid TTF files are downloaded from the official Quran Foundation font CDN. Once bundled into the app, reading does not require an internet connection.
+The repository enables pnpm pre/post scripts explicitly, so the pre-start hooks run reliably. They verify the single Unicode Hafs font and all 604 page-specific QCF V2 fonts. Missing or invalid TTF files are downloaded from the official Quran Foundation font CDN. Once bundled into the app, reading does not require an internet connection.
 
-Do not start with a bare `npx expo start` when the local font directory is incomplete; that bypasses the pre-start font verification.
+Do not start with a bare `npx expo start` when the local font directory is incomplete; it bypasses the pre-start font verification. Use `pnpm start`.
 
 ## QCF V2 data generation
 
