@@ -202,8 +202,9 @@ async function fetchPage(pageNumber) {
   const lineCount = pageNumber <= 2 ? 8 : 15;
   const url = new URL(API_BASE + '/verses/by_page/' + pageNumber);
   url.searchParams.set('words', 'true');
-  url.searchParams.set('word_fields', 'code_v2,text_qpc_hafs');
+  url.searchParams.set('word_fields', 'code_v2,text_qpc_hafs,line_number,page_number');
   url.searchParams.set('mushaf', '1');
+  url.searchParams.set('per_page', '50');
 
   let lastError;
 
@@ -215,9 +216,48 @@ async function fetchPage(pageNumber) {
         headers['x-client-id'] = QF_CLIENT_ID;
       }
 
-      const response = await requestJson(url, { headers });
+      // Follow the endpoint's pagination metadata even when per_page=50
+      // is sufficient for the usual Mushaf page.
+      const allVerses = [];
+      let apiPage = 1;
+      let totalApiPages = 1;
 
-      if (!Array.isArray(response.verses) || response.verses.length === 0) {
+      while (apiPage <= totalApiPages) {
+        const requestUrl = new URL(url);
+        requestUrl.searchParams.set('page', String(apiPage));
+
+        const response = await requestJson(requestUrl, { headers });
+        if (!Array.isArray(response.verses)) {
+          throw new Error(
+            'Page ' + pageNumber + ', API result page ' + apiPage +
+            ': response has no verses array.'
+          );
+        }
+
+        allVerses.push(...response.verses);
+
+        const pagination = response.pagination || {};
+        totalApiPages = Math.max(
+          totalApiPages,
+          Number(pagination.total_pages) || 1
+        );
+
+        if (pagination.next_page !== null && pagination.next_page !== undefined) {
+          apiPage = Number(pagination.next_page);
+        } else if (apiPage < totalApiPages) {
+          apiPage += 1;
+        } else {
+          break;
+        }
+
+        if (!Number.isInteger(apiPage) || apiPage < 1 || apiPage > 20) {
+          throw new Error(
+            'Page ' + pageNumber + ': invalid or excessive API pagination sequence.'
+          );
+        }
+      }
+
+      if (allVerses.length === 0) {
         throw new Error('Page ' + pageNumber + ': API returned no verses.');
       }
 
@@ -226,7 +266,7 @@ async function fetchPage(pageNumber) {
       const seenTokens = new Set();
       let acceptedTokenCount = 0;
 
-      for (const verse of response.verses) {
+      for (const verse of allVerses) {
         if (!verse || typeof verse.verse_key !== 'string') {
           throw new Error('Page ' + pageNumber + ': a verse is missing verse_key.');
         }
