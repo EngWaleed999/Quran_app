@@ -1,0 +1,67 @@
+name: Build and verify Quran QCF V2 data
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/quran-data-build.yml"
+      - "scripts/build-qcf-v2-pages.js"
+      - "scripts/validate-qcf-v2-pages.js"
+      - "src/core/database/qcfPageRepository.ts"
+      - "src/core/fonts/qcfFontManager.ts"
+      - "src/features/mushaf/components/MushafPageItem.tsx"
+      - "src/features/mushaf/components/SurahBanner.tsx"
+      - "App.tsx"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quran-qcf-v2-main
+  cancel-in-progress: false
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install project dependencies
+        run: npm install --ignore-scripts --no-package-lock --no-audit --no-fund
+
+      - name: Regenerate all 604 QCF V2 pages
+        env:
+          QF_CLIENT_ID: ${{ secrets.QF_CLIENT_ID }}
+          QF_CLIENT_SECRET: ${{ secrets.QF_CLIENT_SECRET }}
+          QF_ENV: production
+        run: node scripts/build-qcf-v2-pages.js
+
+      - name: Validate all pages and ayah coverage
+        run: node scripts/validate-qcf-v2-pages.js
+
+      - name: Type-check the application
+        run: npx tsc --noEmit
+
+      - name: Commit the verified dataset to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/data/qcf_v2_pages.json
+          if git diff --cached --quiet; then
+            echo "The generated QCF V2 dataset is unchanged."
+            exit 0
+          fi
+          git commit -m "data(quran): regenerate verified 604-page QCF V2 dataset"
+          git push origin HEAD:main
