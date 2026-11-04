@@ -28,7 +28,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "quran:build-pages": "node scripts/build-qcf-v2-pages.js",
+    "quran:validate-pages": "node scripts/validate-qcf-v2-pages.js"
   },
   "private": true
 }
