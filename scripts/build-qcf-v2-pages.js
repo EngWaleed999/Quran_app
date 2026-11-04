@@ -3,10 +3,11 @@ const path = require('path');
 const https = require('https');
 
 const PAGE_COUNT = 604;
+const CHAPTER_COUNT = 114;
 const TARGET_PATH = path.join(__dirname, '..', 'assets', 'data', 'qcf_v2_pages.json');
 const REQUEST_TIMEOUT_MS = 45000;
 const MAX_RETRIES = 5;
-const BATCH_SIZE = 10;
+const CHAPTER_BATCH_SIZE = 8;
 const QF_CLIENT_ID = process.env.QF_CLIENT_ID;
 const QF_CLIENT_SECRET = process.env.QF_CLIENT_SECRET;
 const HAS_QF_CREDENTIALS = Boolean(QF_CLIENT_ID && QF_CLIENT_SECRET);
@@ -24,7 +25,7 @@ const OAUTH_BASE = QF_ENV === 'prelive'
 
 const AGENT = new https.Agent({
   keepAlive: true,
-  maxSockets: BATCH_SIZE,
+  maxSockets: CHAPTER_BATCH_SIZE * 2,
   timeout: REQUEST_TIMEOUT_MS,
 });
 
@@ -52,7 +53,7 @@ function requestJson(url, options = {}) {
         agent: AGENT,
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'QuranApp-QCFv2-PageBuilder/2.1',
+          'User-Agent': 'QuranApp-QCFv2-PageBuilder/3.0',
           ...(options.headers || {}),
         },
       },
@@ -139,11 +140,46 @@ async function getAccessToken(forceRefresh = false) {
   return accessToken;
 }
 
-function createToken(word, verseKey, pageNumber, lineNumber) {
-  const charTypeName = word.char_type_name || 'word';
+function createToken(word, verseKey, chapterNumber) {
+  const charTypeName = word.char_type_name;
+  if (typeof charTypeName !== 'string' || charTypeName.length === 0) {
+    throw new Error(verseKey + ' contains a word without char_type_name.');
+  }
+
   const unicodeText =
     typeof word.text_qpc_hafs === 'string' ? word.text_qpc_hafs : null;
   const qcfText = typeof word.code_v2 === 'string' ? word.code_v2 : null;
+
+  const pageNumber = Number(word.page_number);
+  const lineNumber = Number(word.line_number);
+  const position = Number(word.position);
+  const expectedLineCount = pageNumber <= 2 ? 8 : 15;
+
+  if (
+    !Number.isInteger(pageNumber) ||
+    pageNumber < 1 ||
+    pageNumber > PAGE_COUNT
+  ) {
+    throw new Error(
+      verseKey + ' word ' + word.position + ' has invalid page_number: ' +
+      word.page_number
+    );
+  }
+
+  if (
+    !Number.isInteger(lineNumber) ||
+    lineNumber < 1 ||
+    lineNumber > expectedLineCount
+  ) {
+    throw new Error(
+      verseKey + ' word ' + word.position + ' has invalid line_number: ' +
+      word.line_number
+    );
+  }
+
+  if (!Number.isInteger(position) || position < 1) {
+    throw new Error(verseKey + ' contains an invalid word position.');
+  }
 
   let renderMode;
   let text;
@@ -152,21 +188,20 @@ function createToken(word, verseKey, pageNumber, lineNumber) {
     renderMode = 'qcf';
     text = assertCleanText(
       qcfText,
-      verseKey + ' word ' + word.position + ' code_v2'
+      verseKey + ' word ' + position + ' code_v2'
     );
     assertCleanText(
       unicodeText,
-      verseKey + ' word ' + word.position + ' text_qpc_hafs'
+      verseKey + ' word ' + position + ' text_qpc_hafs'
     );
   } else if (charTypeName === 'end') {
-    // Quran Foundation requires Unicode/Uthmanic Hafs for verse-end markers.
+    // QCF documentation explicitly requires Uthmanic Hafs for ayah-end markers.
     renderMode = 'unicode';
     text = assertCleanText(
       unicodeText,
       verseKey + ' verse-end marker text_qpc_hafs'
     );
   } else if (unicodeText) {
-    // Pause, sajdah and rub-el-hizb marks are kept using their Unicode form.
     renderMode = 'unicode';
     text = assertCleanText(
       unicodeText,
@@ -178,11 +213,6 @@ function createToken(word, verseKey, pageNumber, lineNumber) {
       qcfText,
       verseKey + ' ' + charTypeName + ' code_v2'
     );
-  }
-
-  const position = Number(word.position);
-  if (!Number.isInteger(position) || position < 1) {
-    throw new Error(verseKey + ' contains an invalid word position.');
   }
 
   return {
@@ -197,12 +227,13 @@ function createToken(word, verseKey, pageNumber, lineNumber) {
   };
 }
 
-async function fetchPage(pageNumber) {
-  // The two opening pages use the decorated eight-line QCF layout.
-  const lineCount = pageNumber <= 2 ? 8 : 15;
-  const url = new URL(API_BASE + '/verses/by_page/' + pageNumber);
+async function fetchChapter(chapterNumber) {
+  const url = new URL(API_BASE + '/verses/by_chapter/' + chapterNumber);
   url.searchParams.set('words', 'true');
-  url.searchParams.set('word_fields', 'code_v2,text_qpc_hafs,char_type_name,position,line_number,page_number');
+  url.searchParams.set(
+    'word_fields',
+    'code_v2,text_qpc_hafs,char_type_name,position,line_number,page_number'
+  );
   url.searchParams.set('mushaf', '1');
   url.searchParams.set('per_page', '50');
 
@@ -212,13 +243,14 @@ async function fetchPage(pageNumber) {
     try {
       const headers = {};
       if (HAS_QF_CREDENTIALS) {
-        headers['x-auth-token'] = await getAccessToken(attempt > 0 && lastError?.statusCode === 401);
+        headers['x-auth-token'] = await getAccessToken(
+          attempt > 0 && lastError && lastError.statusCode === 401
+        );
         headers['x-client-id'] = QF_CLIENT_ID;
       }
 
-      // Follow the endpoint's pagination metadata even when per_page=50
-      // is sufficient for the usual Mushaf page.
-      const allVerses = [];
+      const chapterTokens = [];
+      const seenTokens = new Set();
       let apiPage = 1;
       let totalApiPages = 1;
 
@@ -227,14 +259,47 @@ async function fetchPage(pageNumber) {
         requestUrl.searchParams.set('page', String(apiPage));
 
         const response = await requestJson(requestUrl, { headers });
+
         if (!Array.isArray(response.verses)) {
           throw new Error(
-            'Page ' + pageNumber + ', API result page ' + apiPage +
+            'Chapter ' + chapterNumber + ', API page ' + apiPage +
             ': response has no verses array.'
           );
         }
 
-        allVerses.push(...response.verses);
+        for (const verse of response.verses) {
+          if (
+            !verse ||
+            typeof verse.verse_key !== 'string' ||
+            !verse.verse_key.startsWith(chapterNumber + ':')
+          ) {
+            throw new Error(
+              'Chapter ' + chapterNumber + ': response contains an invalid verse key.'
+            );
+          }
+
+          if (!Array.isArray(verse.words) || verse.words.length === 0) {
+            throw new Error(
+              'Chapter ' + chapterNumber + ': ' + verse.verse_key +
+              ' has no word records.'
+            );
+          }
+
+          for (const word of verse.words) {
+            const token = createToken(word, verse.verse_key, chapterNumber);
+            const tokenKey =
+              token.verseKey + ':' + token.position + ':' + token.charTypeName;
+
+            if (seenTokens.has(tokenKey)) {
+              throw new Error(
+                'Chapter ' + chapterNumber + ': duplicate token ' + tokenKey + '.'
+              );
+            }
+
+            seenTokens.add(tokenKey);
+            chapterTokens.push(token);
+          }
+        }
 
         const pagination = response.pagination || {};
         totalApiPages = Math.max(
@@ -242,7 +307,10 @@ async function fetchPage(pageNumber) {
           Number(pagination.total_pages) || 1
         );
 
-        if (pagination.next_page !== null && pagination.next_page !== undefined) {
+        if (
+          pagination.next_page !== null &&
+          pagination.next_page !== undefined
+        ) {
           apiPage = Number(pagination.next_page);
         } else if (apiPage < totalApiPages) {
           apiPage += 1;
@@ -252,67 +320,17 @@ async function fetchPage(pageNumber) {
 
         if (!Number.isInteger(apiPage) || apiPage < 1 || apiPage > 20) {
           throw new Error(
-            'Page ' + pageNumber + ': invalid or excessive API pagination sequence.'
+            'Chapter ' + chapterNumber +
+            ': invalid or excessive API pagination sequence.'
           );
         }
       }
 
-      if (allVerses.length === 0) {
-        throw new Error('Page ' + pageNumber + ': API returned no verses.');
+      if (chapterTokens.length === 0) {
+        throw new Error('Chapter ' + chapterNumber + ': API returned no words.');
       }
 
-      // Null is a real physical line slot reserved for headings/basmalas.
-      const lines = Array.from({ length: lineCount }, () => null);
-      const seenTokens = new Set();
-      let acceptedTokenCount = 0;
-
-      for (const verse of allVerses) {
-        if (!verse || typeof verse.verse_key !== 'string') {
-          throw new Error('Page ' + pageNumber + ': a verse is missing verse_key.');
-        }
-        if (!Array.isArray(verse.words)) {
-          throw new Error(
-            'Page ' + pageNumber + ': ' + verse.verse_key + ' has no words array.'
-          );
-        }
-
-        for (const word of verse.words) {
-          // A verse may span two pages. The endpoint can return boundary words
-          // from both; only retain tokens assigned to the requested page.
-          if (Number(word.page_number) !== pageNumber) continue;
-
-          const lineNumber = Number(word.line_number);
-          if (
-            !Number.isInteger(lineNumber) ||
-            lineNumber < 1 ||
-            lineNumber > lineCount
-          ) {
-            throw new Error(
-              'Page ' + pageNumber + ': ' + verse.verse_key +
-              ' has invalid line_number ' + word.line_number + '.'
-            );
-          }
-
-          const token = createToken(word, verse.verse_key, pageNumber, lineNumber);
-          const tokenKey =
-            token.verseKey + ':' + token.position + ':' + token.charTypeName;
-
-          if (seenTokens.has(tokenKey)) {
-            throw new Error('Page ' + pageNumber + ': duplicate token ' + tokenKey + '.');
-          }
-          seenTokens.add(tokenKey);
-
-          if (!lines[lineNumber - 1]) lines[lineNumber - 1] = [];
-          lines[lineNumber - 1].push(token);
-          acceptedTokenCount += 1;
-        }
-      }
-
-      if (acceptedTokenCount === 0) {
-        throw new Error('Page ' + pageNumber + ': no words belong to this page.');
-      }
-
-      return lines;
+      return chapterTokens;
     } catch (error) {
       lastError = error;
       const statusCode = error.statusCode;
@@ -326,7 +344,7 @@ async function fetchPage(pageNumber) {
 
       const waitMs = Math.min(1000 * 2 ** attempt, 16000);
       console.warn(
-        'Page ' + pageNumber + ' attempt ' + (attempt + 1) +
+        'Chapter ' + chapterNumber + ' attempt ' + (attempt + 1) +
         ' failed: ' + error.message + '. Retrying in ' + waitMs + 'ms.'
       );
       await delay(waitMs);
@@ -339,14 +357,14 @@ async function fetchPage(pageNumber) {
     (lastError.statusCode === 401 || lastError.statusCode === 403)
   ) {
     throw new Error(
-      'The legacy public endpoint rejected the request. Create production Content API credentials ' +
-      'and set QF_CLIENT_ID and QF_CLIENT_SECRET in the environment, then retry.'
+      'The legacy public endpoint rejected the request. Configure production ' +
+      'Content API credentials using QF_CLIENT_ID and QF_CLIENT_SECRET.'
     );
   }
 
   throw new Error(
-    'Failed to build page ' + pageNumber + ' after ' + (MAX_RETRIES + 1) +
-    ' attempts: ' + (lastError && lastError.message)
+    'Failed to build chapter ' + chapterNumber + ' after ' +
+    (MAX_RETRIES + 1) + ' attempts: ' + (lastError && lastError.message)
   );
 }
 
@@ -367,30 +385,66 @@ async function run() {
     );
   }
 
-  console.log('Building QCF V2 pages. Existing cached page data will not be reused.');
+  console.log(
+    'Building QCF V2 pages from all 114 chapters. ' +
+    'Words are assigned to their own page_number/line_number, including cross-page ayahs.'
+  );
 
   const pages = {};
+  for (let page = 1; page <= PAGE_COUNT; page += 1) {
+    const lineCount = page <= 2 ? 8 : 15;
+    pages[String(page)] = Array.from({ length: lineCount }, () => null);
+  }
 
-  for (let start = 1; start <= PAGE_COUNT; start += BATCH_SIZE) {
-    const end = Math.min(start + BATCH_SIZE - 1, PAGE_COUNT);
-    const results = await Promise.all(
+  const seenTokens = new Set();
+  let tokenCount = 0;
+
+  for (
+    let start = 1;
+    start <= CHAPTER_COUNT;
+    start += CHAPTER_BATCH_SIZE
+  ) {
+    const end = Math.min(start + CHAPTER_BATCH_SIZE - 1, CHAPTER_COUNT);
+    const chapterResults = await Promise.all(
       Array.from({ length: end - start + 1 }, (_, index) =>
-        fetchPage(start + index)
+        fetchChapter(start + index)
       )
     );
 
-    results.forEach((lines, index) => {
-      pages[String(start + index)] = lines;
-    });
+    // Promise.all preserves chapter order; each chapter response preserves verse
+    // and word order. This keeps physical line reading order deterministic.
+    for (const chapterTokens of chapterResults) {
+      for (const token of chapterTokens) {
+        const tokenKey =
+          token.verseKey + ':' + token.position + ':' + token.charTypeName;
 
-    console.log('Generated ' + end + '/' + PAGE_COUNT + ' pages.');
-    await delay(350);
+        if (seenTokens.has(tokenKey)) {
+          throw new Error('Duplicate Quran token detected: ' + tokenKey + '.');
+        }
+        seenTokens.add(tokenKey);
+
+        const line = pages[String(token.pageNumber)][token.lineNumber - 1];
+        if (line === null) {
+          pages[String(token.pageNumber)][token.lineNumber - 1] = [token];
+        } else {
+          line.push(token);
+        }
+
+        tokenCount += 1;
+      }
+    }
+
+    console.log(
+      'Fetched chapters ' + start + '-' + end + '/' + CHAPTER_COUNT +
+      '; collected ' + tokenCount + ' word/marker tokens.'
+    );
+    await delay(250);
   }
 
-  if (Object.keys(pages).length !== PAGE_COUNT) {
-    throw new Error(
-      'Expected ' + PAGE_COUNT + ' pages but generated ' + Object.keys(pages).length + '.'
-    );
+  for (let page = 1; page <= PAGE_COUNT; page += 1) {
+    if (!pages[String(page)].some((line) => Array.isArray(line) && line.length > 0)) {
+      throw new Error('QCF page ' + page + ' contains no word tokens.');
+    }
   }
 
   const output = {
@@ -399,15 +453,18 @@ async function run() {
     pageCount: PAGE_COUNT,
     generatedAt: new Date().toISOString(),
     source: HAS_QF_CREDENTIALS
-      ? 'Quran Foundation Content API v4 / QCF V2'
-      : 'Quran.com Content API v4 legacy endpoint / QCF V2',
+      ? 'Quran Foundation Content API v4 / by_chapter / QCF V2'
+      : 'Quran.com Content API v4 legacy endpoint / by_chapter / QCF V2',
     pages,
   };
 
-  // Write only after all 604 pages have passed validation. A failed fetch never
-  // replaces the last known-good file with a partial dataset.
+  // Do not touch the old dataset until every chapter and every token succeeds.
   writeAtomically(TARGET_PATH, JSON.stringify(output, null, 2));
-  console.log('Saved ' + PAGE_COUNT + ' QCF V2 pages to ' + TARGET_PATH + '.');
+
+  console.log(
+    'Saved all 604 QCF V2 pages (' + tokenCount +
+    ' tokens) to ' + TARGET_PATH + '.'
+  );
   console.log('Run "npm run quran:validate-pages" before launching the app.');
 }
 
