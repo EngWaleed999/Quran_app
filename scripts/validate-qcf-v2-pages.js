@@ -153,6 +153,84 @@ function validate() {
       .prepare('SELECT sura_no, aya_no FROM ayahs ORDER BY sura_no, aya_no')
       .all();
 
+    // Independently verify that the reserved empty lines can be assigned to
+    // all 114 surah names and 112 basmalas, including cross-page headings.
+    const surahStarts = db
+      .prepare(`SELECT a.sura_no, a.page, a.line_start
+              FROM ayahs a
+              WHERE a.aya_no = 1
+              ORDER BY a.page ASC, a.line_start ASC, a.sura_no ASC`)
+      .all();
+
+    if (surahStarts.length !== 114) {
+      fail('Expected 114 surah starts in SQLite, found ' + surahStarts.length + '.');
+    }
+
+    const pageOffsets = new Map();
+    const reservedSlots = [];
+    let absoluteOffset = 0;
+
+    for (let page = 1; page <= PAGE_COUNT; page += 1) {
+      pageOffsets.set(page, absoluteOffset);
+      dataset.pages[String(page)].forEach((line, index) => {
+        if (line === null) {
+          reservedSlots.push({
+            page,
+            lineNumber: index + 1,
+            absolute: absoluteOffset + index,
+          });
+        }
+      });
+      absoluteOffset += dataset.pages[String(page)].length;
+    }
+
+    const assignedHeadingSlots = new Set();
+    let previousSurahStart = -1;
+
+    for (const surah of surahStarts) {
+      const pageOffset = pageOffsets.get(surah.page);
+      const lineStart = Number(surah.line_start);
+      const lineCount = surah.page <= 2 ? 8 : 15;
+
+      if (
+        pageOffset === undefined ||
+        !Number.isInteger(lineStart) ||
+        lineStart < 1 ||
+        lineStart > lineCount
+      ) {
+        fail('Invalid first-ayah page/line metadata for surah ' + surah.sura_no + '.');
+      }
+
+      const firstAyahAbsolute = pageOffset + lineStart - 1;
+      const requiredSlots = surah.sura_no === 1 || surah.sura_no === 9 ? 1 : 2;
+      const candidates = reservedSlots.filter(
+        (slot) =>
+          slot.absolute > previousSurahStart &&
+          slot.absolute < firstAyahAbsolute &&
+          !assignedHeadingSlots.has(slot.page + ':' + slot.lineNumber)
+      );
+
+      if (candidates.length < requiredSlots) {
+        fail(
+          'Not enough reserved physical lines before surah ' + surah.sura_no +
+          '. Found ' + candidates.length + ', expected ' + requiredSlots + '.'
+        );
+      }
+
+      candidates.slice(-requiredSlots).forEach((slot) => {
+        assignedHeadingSlots.add(slot.page + ':' + slot.lineNumber);
+      });
+      previousSurahStart = firstAyahAbsolute;
+    }
+
+    if (assignedHeadingSlots.size !== EXPECTED_EMPTY_SLOTS) {
+      fail(
+        'Only ' + assignedHeadingSlots.size +
+        ' of ' + EXPECTED_EMPTY_SLOTS +
+        ' reserved line slots could be matched to surah headings/basmalas.'
+      );
+    }
+
     const expectedVerseKeys = new Set(
       ayahs.map((ayah) => ayah.sura_no + ':' + ayah.aya_no)
     );
