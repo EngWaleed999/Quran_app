@@ -2,127 +2,273 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const targetPath = path.join(__dirname, '..', 'assets', 'data', 'qcf_v2_pages.json');
+const PAGE_COUNT = 604;
+const API_BASE = 'https://api.quran.com/api/v4/verses/by_page';
+const TARGET_PATH = path.join(__dirname, '..', 'assets', 'data', 'qcf_v2_pages.json');
+const AGENT = new https.Agent({ keepAlive: true, maxSockets: 10, timeout: 45000 });
+const REQUEST_TIMEOUT_MS = 45000;
+const MAX_RETRIES = 5;
+const BATCH_SIZE = 10;
 
-const agent = new https.Agent({
-  keepAlive: true,
-  maxSockets: 25,
-  timeout: 30000,
-});
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Load existing progress if any
-let allPages = {};
-if (fs.existsSync(targetPath)) {
-  try {
-    const existing = JSON.parse(fs.readFileSync(targetPath, 'utf8'));
-    // Only keep pages that have true code_v2 (starts with 0xfc41 or similar, not 0xfb51)
-    for (const [p, lines] of Object.entries(existing)) {
-      if (lines && lines.length > 0 && lines[0].charCodeAt(0) >= 0xfc00) {
-        allPages[p] = lines;
-      }
-    }
-  } catch {}
+function assertCleanText(value, label) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(label + ' is missing or empty.');
+  }
+  if (/[\uFFFD?]/u.test(value)) {
+    throw new Error(label + ' contains a replacement character or question mark.');
+  }
+  return value;
 }
 
-console.log(`Starting with ${Object.keys(allPages).length} already valid pages.`);
-
-function fetchPage(pageNumber, retries = 5) {
+function requestJson(url) {
   return new Promise((resolve, reject) => {
-    const url = `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true&word_fields=code_v2,line_number,page_number&mushaf=1`;
-    const req = https.get(url, { agent }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          if (retries > 0) {
-            return setTimeout(() => fetchPage(pageNumber, retries - 1).then(resolve).catch(reject), 1000);
+    const request = https.get(
+      url,
+      {
+        agent: AGENT,
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'QuranApp-QCFv2-PageBuilder/2.0',
+        },
+      },
+      (response) => {
+        let body = '';
+        response.setEncoding('utf8');
+
+        response.on('data', (chunk) => {
+          body += chunk;
+        });
+
+        response.on('end', () => {
+          const statusCode = response.statusCode || 0;
+
+          if (statusCode !== 200) {
+            const error = new Error(
+              'Quran API returned HTTP ' + statusCode + ': ' + body.slice(0, 300)
+            );
+            error.statusCode = statusCode;
+            reject(error);
+            return;
           }
-          return reject(new Error(`Status ${res.statusCode} on page ${pageNumber}`));
-        }
-        try {
-          const json = JSON.parse(body);
-          const linesMap = {};
-          if (json.verses) {
-            json.verses.forEach(v => {
-              if (v.words) {
-                v.words.forEach(w => {
-                  if (!linesMap[w.line_number]) {
-                    linesMap[w.line_number] = [];
-                  }
-                  linesMap[w.line_number].push(w.code_v2);
-                });
-              }
-            });
+
+          try {
+            resolve(JSON.parse(body));
+          } catch (error) {
+            reject(new Error('Invalid JSON response: ' + error.message));
           }
-          const lines = [];
-          for (let l = 1; l <= 15; l++) {
-            if (linesMap[l]) {
-              lines.push(linesMap[l].join(' '));
-            }
-          }
-          resolve({ pageNumber, lines });
-        } catch (err) {
-          if (retries > 0) {
-            return setTimeout(() => fetchPage(pageNumber, retries - 1).then(resolve).catch(reject), 1000);
-          }
-          reject(err);
-        }
-      });
+        });
+      }
+    );
+
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      request.destroy(new Error('Request timed out after ' + REQUEST_TIMEOUT_MS + 'ms.'));
     });
 
-    req.on('error', (err) => {
-      if (retries > 0) {
-        setTimeout(() => fetchPage(pageNumber, retries - 1).then(resolve).catch(reject), 1000);
-      } else {
-        reject(err);
-      }
-    });
-
-    req.setTimeout(30000, () => {
-      req.destroy();
-      if (retries > 0) {
-        setTimeout(() => fetchPage(pageNumber, retries - 1).then(resolve).catch(reject), 1000);
-      } else {
-        reject(new Error(`Timeout page ${pageNumber}`));
-      }
-    });
+    request.on('error', reject);
   });
 }
 
-async function run() {
-  const missing = [];
-  for (let p = 1; p <= 604; p++) {
-    if (!allPages[p.toString()]) {
-      missing.push(p);
-    }
+function createToken(word, verseKey, pageNumber, lineNumber) {
+  const charTypeName = word.char_type_name || 'word';
+  const unicodeText =
+    typeof word.text_qpc_hafs === 'string' ? word.text_qpc_hafs : null;
+  const qcfText = typeof word.code_v2 === 'string' ? word.code_v2 : null;
+
+  let renderMode;
+  let text;
+
+  if (charTypeName === 'word') {
+    renderMode = 'qcf';
+    text = assertCleanText(qcfText, verseKey + ' word ' + word.position + ' code_v2');
+    assertCleanText(unicodeText, verseKey + ' word ' + word.position + ' text_qpc_hafs');
+  } else if (charTypeName === 'end') {
+    // Quran Foundation specifies Unicode/QPC Hafs for verse-end markers in QCF views.
+    renderMode = 'unicode';
+    text = assertCleanText(unicodeText, verseKey + ' verse-end marker text_qpc_hafs');
+  } else if (unicodeText) {
+    // Preserve pause/sajdah/rub-el-hizb marks using Unicode when the API provides it.
+    renderMode = 'unicode';
+    text = assertCleanText(unicodeText, verseKey + ' ' + charTypeName + ' text_qpc_hafs');
+  } else {
+    renderMode = 'qcf';
+    text = assertCleanText(qcfText, verseKey + ' ' + charTypeName + ' code_v2');
   }
 
-  console.log(`Need to fetch ${missing.length} missing pages.`);
-
-  const BATCH_SIZE = 20;
-  for (let i = 0; i < missing.length; i += BATCH_SIZE) {
-    const chunk = missing.slice(i, i + BATCH_SIZE);
-    const promises = chunk.map(p => fetchPage(p));
-    const results = await Promise.all(promises);
-    for (const r of results) {
-      allPages[r.pageNumber.toString()] = r.lines;
-    }
-    const doneCount = Object.keys(allPages).length;
-    process.stdout.write(`\rProgress: ${doneCount}/604 (${Math.round((doneCount / 604) * 100)}%)`);
-
-    // Save checkpoint every 60 pages
-    if (doneCount % 60 === 0 || doneCount === 604) {
-      fs.writeFileSync(targetPath, JSON.stringify(allPages, null, 2), 'utf8');
-    }
+  const position = Number(word.position);
+  if (!Number.isInteger(position) || position < 1) {
+    throw new Error(verseKey + ' contains an invalid word position.');
   }
 
-  fs.writeFileSync(targetPath, JSON.stringify(allPages, null, 2), 'utf8');
-  console.log(`\nSuccessfully saved all 604 authentic QCF V2 pages to ${targetPath}!`);
-
-  // Verify page 135
-  const p135 = allPages['135'];
-  console.log('Page 135 lines count:', p135.length);
-  console.log('Page 135 Line 1:', p135[0]);
+  return {
+    renderMode,
+    text,
+    fallbackText: unicodeText,
+    charTypeName,
+    verseKey,
+    position,
+    pageNumber,
+    lineNumber,
+  };
 }
 
-run().catch(console.error);
+async function fetchPage(pageNumber) {
+  const lineCount = pageNumber <= 2 ? 8 : 15;
+  const url = new URL(API_BASE + '/' + pageNumber);
+  url.searchParams.set('words', 'true');
+  url.searchParams.set(
+    'word_fields',
+    'code_v2,text_qpc_hafs,line_number,page_number'
+  );
+  url.searchParams.set('mushaf', '1');
+
+  let lastError;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await requestJson(url);
+
+      if (!Array.isArray(response.verses) || response.verses.length === 0) {
+        throw new Error('Page ' + pageNumber + ': API returned no verses.');
+      }
+
+      // Null entries are intentional physical slots reserved for headings/basmalas.
+      const lines = Array.from({ length: lineCount }, () => null);
+      const seenTokens = new Set();
+      let acceptedTokenCount = 0;
+
+      for (const verse of response.verses) {
+        if (!verse || typeof verse.verse_key !== 'string') {
+          throw new Error('Page ' + pageNumber + ': a verse is missing verse_key.');
+        }
+
+        if (!Array.isArray(verse.words)) {
+          throw new Error('Page ' + pageNumber + ': ' + verse.verse_key + ' has no words array.');
+        }
+
+        for (const word of verse.words) {
+          // by_page may include words on an adjacent page for a boundary verse.
+          // Never let those words leak into this page's glyph stream.
+          const wordPage = Number(word.page_number);
+          if (wordPage !== pageNumber) continue;
+
+          const lineNumber = Number(word.line_number);
+          if (
+            !Number.isInteger(lineNumber) ||
+            lineNumber < 1 ||
+            lineNumber > lineCount
+          ) {
+            throw new Error(
+              'Page ' + pageNumber + ': ' + verse.verse_key +
+              ' has invalid line_number ' + word.line_number + '.'
+            );
+          }
+
+          const token = createToken(word, verse.verse_key, pageNumber, lineNumber);
+          const tokenKey =
+            token.verseKey + ':' + token.position + ':' + token.charTypeName;
+
+          if (seenTokens.has(tokenKey)) {
+            throw new Error('Page ' + pageNumber + ': duplicate token ' + tokenKey + '.');
+          }
+          seenTokens.add(tokenKey);
+
+          if (!lines[lineNumber - 1]) {
+            lines[lineNumber - 1] = [];
+          }
+
+          // The API returns words in Mushaf order. Keep that order; a line may
+          // contain words from several verses and word.position resets per verse.
+          lines[lineNumber - 1].push(token);
+          acceptedTokenCount += 1;
+        }
+      }
+
+      if (acceptedTokenCount === 0) {
+        throw new Error('Page ' + pageNumber + ': no words belong to this page.');
+      }
+
+      return lines;
+    } catch (error) {
+      lastError = error;
+      const statusCode = error.statusCode;
+      const isPermanentClientError =
+        statusCode >= 400 && statusCode < 500 && statusCode !== 429;
+
+      if (attempt >= MAX_RETRIES || isPermanentClientError) {
+        break;
+      }
+
+      const waitMs = Math.min(1000 * 2 ** attempt, 16000);
+      console.warn(
+        'Page ' + pageNumber + ' attempt ' + (attempt + 1) +
+        ' failed: ' + error.message + '. Retrying in ' + waitMs + 'ms.'
+      );
+      await delay(waitMs);
+    }
+  }
+
+  throw new Error(
+    'Failed to build page ' + pageNumber + ' after ' + (MAX_RETRIES + 1) +
+    ' attempts: ' + (lastError && lastError.message)
+  );
+}
+
+function writeAtomically(filePath, content) {
+  const tempPath = filePath + '.tmp';
+  fs.writeFileSync(tempPath, content, 'utf8');
+  fs.renameSync(tempPath, filePath);
+}
+
+async function run() {
+  console.log(
+    'Building QCF V2 pages from the Quran API. Existing page data will not be reused.'
+  );
+
+  const pages = {};
+
+  for (let start = 1; start <= PAGE_COUNT; start += BATCH_SIZE) {
+    const end = Math.min(start + BATCH_SIZE - 1, PAGE_COUNT);
+    const batch = [];
+
+    for (let page = start; page <= end; page += 1) {
+      batch.push(fetchPage(page));
+    }
+
+    const results = await Promise.all(batch);
+
+    results.forEach((lines, index) => {
+      const pageNumber = start + index;
+      pages[String(pageNumber)] = lines;
+    });
+
+    console.log('Generated ' + end + '/' + PAGE_COUNT + ' pages.');
+    await delay(350);
+  }
+
+  const pageNumbers = Object.keys(pages);
+  if (pageNumbers.length !== PAGE_COUNT) {
+    throw new Error(
+      'Expected ' + PAGE_COUNT + ' pages but generated ' + pageNumbers.length + '.'
+    );
+  }
+
+  const output = {
+    schemaVersion: 2,
+    mushafId: 1,
+    pageCount: PAGE_COUNT,
+    generatedAt: new Date().toISOString(),
+    source: 'Quran.com Content API v4 / QCF V2',
+    pages,
+  };
+
+  writeAtomically(TARGET_PATH, JSON.stringify(output, null, 2));
+  console.log('Saved ' + PAGE_COUNT + ' QCF V2 pages to ' + TARGET_PATH + '.');
+  console.log('Next: run "npm run quran:validate-pages" before opening the app.');
+}
+
+run().catch((error) => {
+  console.error('[QCF V2 generation failed]', error);
+  process.exitCode = 1;
+});
