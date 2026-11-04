@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions, GestureResponderEvent } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  useWindowDimensions,
+  GestureResponderEvent,
+} from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { SurahBanner } from './SurahBanner';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
-import { QcfPageRepository, QcfPageRow } from '../../../core/database/qcfPageRepository';
+import {
+  QcfPageRepository,
+  QcfPageRow,
+  QcfPageToken,
+} from '../../../core/database/qcfPageRepository';
 
 interface MushafPageItemProps {
   page: number;
@@ -13,8 +24,9 @@ interface MushafPageItemProps {
   userFontDelta: number;
   isNear: boolean;
   onToggleControls?: () => void;
-  onPageDataLoaded?: (page: number, surahName: string, jozz: number) => void;
 }
+
+const BASMALA = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ';
 
 const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   page,
@@ -24,78 +36,113 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   onToggleControls,
 }) => {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const availablePageHeight = Math.max(320, windowHeight - 56);
 
-  // Invariant reading height: Frame height is FIXED and never changes when controls toggle.
-  // Overlays (Header and BottomBar) float on top without resizing the reading surface (Zero Layout Shift).
-  const availablePageHeight = windowHeight - 56;
+  const fontName = useMemo(
+    () => QcfFontManager.getFontFamilyName(page),
+    [page]
+  );
 
-  // Font family name for this specific QCF V2 page (e.g. QCF_P1, QCF_P2, ... QCF_P604)
-  const fontName = useMemo(() => QcfFontManager.getFontFamilyName(page), [page]);
+  const [isFontReady, setIsFontReady] = useState(() =>
+    QcfFontManager.isPageFontLoaded(page)
+  );
+  const [fontLoadError, setFontLoadError] = useState<string | null>(null);
 
-  // Track font loading state for this page
-  const [isFontReady, setIsFontReady] = useState<boolean>(() => {
-    return QcfFontManager.isPageFontLoaded(page);
-  });
-
-  // Load font asynchronously when page is near the active viewport
   useEffect(() => {
     let isMounted = true;
-    if (isNear && !isFontReady) {
-      QcfFontManager.loadPageFont(page).then(() => {
+
+    if (!isNear || isFontReady) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setFontLoadError(null);
+
+    QcfFontManager.loadPageFont(page)
+      .then(() => {
         if (isMounted) {
           setIsFontReady(true);
+          setFontLoadError(null);
         }
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) return;
+
+        const message =
+          error instanceof Error ? error.message : String(error);
+        setFontLoadError(message);
+        console.error(
+          '[MushafPageItem] QCF font failed for page ' + page + '. Unicode fallback is active.',
+          error
+        );
       });
-    }
+
     return () => {
       isMounted = false;
     };
   }, [isNear, isFontReady, page]);
 
-  // Retrieve the authentic 15-row physical Medina Mushaf layout for this page
-  const pageRows: QcfPageRow[] = useMemo(() => {
-    return QcfPageRepository.getPageRows(db, page);
-  }, [db, page]);
+  const pageRows: QcfPageRow[] = useMemo(
+    () => QcfPageRepository.getPageRows(db, page),
+    [db, page]
+  );
 
-  // Touch gesture disambiguation: distinguish stationary direct taps from horizontal swipe page flips
-  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const touchStartRef = useRef<{
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
 
-  const handleTouchStart = (e: GestureResponderEvent) => {
+  const handleTouchStart = (event: GestureResponderEvent) => {
     touchStartRef.current = {
-      x: e.nativeEvent.pageX,
-      y: e.nativeEvent.pageY,
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY,
       time: Date.now(),
     };
   };
 
-  const handleTouchEnd = (e: GestureResponderEvent) => {
+  const handleTouchEnd = (event: GestureResponderEvent) => {
     if (!touchStartRef.current) return;
-    const dx = Math.abs(e.nativeEvent.pageX - touchStartRef.current.x);
-    const dy = Math.abs(e.nativeEvent.pageY - touchStartRef.current.y);
-    const dt = Date.now() - touchStartRef.current.time;
+
+    const deltaX = Math.abs(event.nativeEvent.pageX - touchStartRef.current.x);
+    const deltaY = Math.abs(event.nativeEvent.pageY - touchStartRef.current.y);
+    const elapsed = Date.now() - touchStartRef.current.time;
     touchStartRef.current = null;
 
-    // Disambiguation threshold: Only stationary direct tap (< 10px move within 300ms) toggles controls.
-    // Horizontal swipe gestures to flip pages (> 10px) will NEVER interrupt full screen!
-    if (dx < 10 && dy < 10 && dt < 300) {
+    if (deltaX < 10 && deltaY < 10 && elapsed < 300) {
       onToggleControls?.();
     }
   };
 
-  // Base optimal font size calibrated for phone screens and Medina 15-line grid
-  const baseFontSize = useMemo(() => {
-    if (page === 1 || page === 2) {
-      return Math.min(25, Math.floor(windowWidth / 14.5));
-    }
-    // Standard 15-line pages: calibrated so glyphs stretch and fill the line row
-    return Math.min(22.5, Math.floor(windowWidth / 15.8));
-  }, [page, windowWidth]);
+  // A single page-level font size is used for every physical text line.
+  // QCF words are never independently shrunk to fit their row.
+  const baseFontSize = useMemo(
+    () => Math.min(22.5, Math.max(18, windowWidth / 17)),
+    [windowWidth]
+  );
+  const finalFontSize = Math.max(14, baseFontSize + userFontDelta);
 
-  const finalFontSize = baseFontSize + userFontDelta;
+  const renderToken = (token: QcfPageToken, index: number) => {
+    const useQcfGlyph = token.renderMode === 'qcf' && isFontReady;
+    const text =
+      useQcfGlyph
+        ? token.text
+        : (token.fallbackText || token.text);
 
-  const isSpecialCenterPage = page === 1 || page === 2;
+    const fontFamily = useQcfGlyph ? fontName : 'UthmanicHafs';
 
-  if (!isNear || !isFontReady) {
+    return (
+      <React.Fragment key={
+        token.verseKey + ':' + token.position + ':' + token.charTypeName + ':' + index
+      }>
+        {index > 0 ? ' ' : null}
+        <Text style={{ fontFamily }}>{text}</Text>
+      </React.Fragment>
+    );
+  };
+
+  if (!isNear) {
     return <View style={styles.placeholder} />;
   }
 
@@ -104,9 +151,11 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
       style={styles.pageScrollView}
       contentContainerStyle={[
         styles.scrollContainer,
-        userFontDelta > 0 ? { minHeight: availablePageHeight } : { height: availablePageHeight },
+        userFontDelta > 0
+          ? { minHeight: availablePageHeight }
+          : { height: availablePageHeight },
       ]}
-      scrollEnabled={userFontDelta > 0} // Strictly NO scrolling by default; scrolling activates only on user zoom
+      scrollEnabled={userFontDelta > 0}
       showsVerticalScrollIndicator={false}
       bounces={false}
     >
@@ -115,65 +164,89 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
         onTouchEnd={handleTouchEnd}
         style={[
           styles.paperFrame,
-          userFontDelta > 0 ? { minHeight: availablePageHeight } : { height: availablePageHeight },
+          userFontDelta > 0
+            ? { minHeight: availablePageHeight }
+            : { height: availablePageHeight },
         ]}
       >
-        {/* Authentic 15-Row Physical Medina Mushaf Layout */}
-        <View
-          style={[
-            styles.contentArea,
-            isSpecialCenterPage ? styles.contentAreaSpecial : styles.contentAreaStandard,
-          ]}
-        >
+        <View style={styles.contentArea}>
           {pageRows.map((row, index) => {
-            if (row.type === 'banner') {
+            if (row.type === 'surah') {
               return (
-                <View key={`banner-${index}`} style={styles.bannerRow}>
-                  <SurahBanner surahName={row.suraName || ''} suraNo={row.suraNo || 1} />
+                <View key={'surah-' + index} style={styles.physicalRow}>
+                  <SurahBanner
+                    surahName={row.suraName}
+                    suraNo={row.suraNo}
+                  />
                 </View>
               );
             }
 
+            if (row.type === 'basmala') {
+              return (
+                <View key={'basmala-' + index} style={styles.physicalRow}>
+                  <Text
+                    style={[
+                      styles.basmalaText,
+                      { fontSize: Math.min(20, finalFontSize) },
+                    ]}
+                    allowFontScaling={false}
+                    numberOfLines={1}
+                  >
+                    {BASMALA}
+                  </Text>
+                </View>
+              );
+            }
+
+            if (row.type === 'blank') {
+              return (
+                <View
+                  key={'blank-' + index}
+                  style={styles.physicalRow}
+                />
+              );
+            }
+
             return (
-              <View key={`line-${index}`} style={styles.lineRow}>
+              <View key={'line-' + index} style={styles.physicalRow}>
                 <Text
                   style={[
                     styles.lineText,
-                    {
-                      fontFamily: fontName,
-                      fontSize: finalFontSize,
-                    },
+                    { fontSize: finalFontSize },
                   ]}
                   numberOfLines={1}
-                  adjustsFontSizeToFit={true}
-                  minimumFontScale={0.7}
                   allowFontScaling={false}
                 >
-                  {row.text}
+                  {row.tokens.map(renderToken)}
                 </Text>
               </View>
             );
           })}
         </View>
 
-        {/* Bottom page number badge anchored within the authentic Mushaf frame */}
         <View style={styles.pageNumberBadge}>
           <Text style={styles.pageNumberText}>
             {toArabicNumerals(page)}
           </Text>
         </View>
+        {fontLoadError ? (
+          <View style={styles.fontFallbackBadge}>
+            <Text style={styles.fontFallbackText}>عرض احتياطي للنص</Text>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
 };
 
-export const MushafPageItem = React.memo(MushafPageItemComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.page === nextProps.page &&
-    prevProps.userFontDelta === nextProps.userFontDelta &&
-    prevProps.isNear === nextProps.isNear
-  );
-});
+export const MushafPageItem = React.memo(
+  MushafPageItemComponent,
+  (previous, next) =>
+    previous.page === next.page &&
+    previous.userFontDelta === next.userFontDelta &&
+    previous.isNear === next.isNear
+);
 
 const styles = StyleSheet.create({
   placeholder: {
@@ -209,32 +282,30 @@ const styles = StyleSheet.create({
   contentArea: {
     flex: 1,
     width: '100%',
+    justifyContent: 'space-between',
   },
-  contentAreaStandard: {
-    justifyContent: 'space-between', // Distributes all 15 rows evenly from top to bottom
-  },
-  contentAreaSpecial: {
-    justifyContent: 'center', // Opening pages 1 & 2 centered within the frame
-  },
-  bannerRow: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 1,
-  },
-  lineRow: {
+  physicalRow: {
     flex: 1,
     width: '100%',
+    minHeight: 0,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 2,
   },
   lineText: {
+    width: '100%',
     color: QuranColors.textDark,
     textAlign: 'center',
     writingDirection: 'rtl',
     includeFontPadding: false,
-    width: '100%',
+  },
+  basmalaText: {
+    maxWidth: '100%',
+    color: QuranColors.textDark,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    includeFontPadding: false,
+    fontFamily: 'UthmanicHafs',
   },
   pageNumberBadge: {
     alignItems: 'center',
@@ -249,5 +320,18 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontFamily: 'System',
     fontWeight: '600',
+  },
+  fontFallbackBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(197, 155, 39, 0.12)',
+  },
+  fontFallbackText: {
+    color: QuranColors.textMuted,
+    fontSize: 9,
   },
 });
