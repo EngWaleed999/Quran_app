@@ -114,12 +114,12 @@ function createToken(word, verseKey, pageNumber, lineNumber) {
 }
 
 async function fetchPage(pageNumber) {
-  const lineCount = pageNumber <= 2 ? 8 : 15;
+  const lineCount = 15;
   const url = new URL(API_BASE + '/' + pageNumber);
   url.searchParams.set('words', 'true');
   url.searchParams.set(
     'word_fields',
-    'code_v2,text_qpc_hafs,line_number,page_number'
+    'code_v2,text_qpc_hafs,char_type_name,line_number,page_number'
   );
   url.searchParams.set('mushaf', '1');
 
