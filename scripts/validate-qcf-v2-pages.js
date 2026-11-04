@@ -43,6 +43,7 @@ function validate() {
   let emptySlots = 0;
   let tokenCount = 0;
   let wordCount = 0;
+  const emptyLinesByPage = [];
 
   for (let pageNumber = 1; pageNumber <= PAGE_COUNT; pageNumber += 1) {
     const lines = dataset.pages[String(pageNumber)];
@@ -55,11 +56,13 @@ function validate() {
       );
     }
 
+    const emptyLineNumbers = [];
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex];
 
       if (line === null) {
         emptySlots += 1;
+        emptyLineNumbers.push(lineIndex + 1);
         continue;
       }
       if (!Array.isArray(line) || line.length === 0) {
@@ -136,12 +139,38 @@ function validate() {
       }
     }
 
+    if (emptyLineNumbers.length > 0) {
+      emptyLinesByPage.push({
+        page: pageNumber,
+        emptyLineNumbers,
+        emptyCount: emptyLineNumbers.length,
+      });
+    }
+
     if (!lines.some((line) => Array.isArray(line) && line.length > 0)) {
       fail('Page ' + pageNumber + ' contains no Quran words.');
     }
   }
 
   if (emptySlots !== EXPECTED_EMPTY_SLOTS) {
+    console.error(
+      'Pages with empty physical lines (page: line numbers): ' +
+      JSON.stringify(
+        emptyLinesByPage
+          .filter((entry) => entry.emptyCount > 1)
+          .sort((a, b) => b.emptyCount - a.emptyCount)
+          .slice(0, 80)
+          .map((entry) => [entry.page, entry.emptyLineNumbers])
+      )
+    );
+    console.error(
+      'Pages with exactly one empty physical line: ' +
+      JSON.stringify(
+        emptyLinesByPage
+          .filter((entry) => entry.emptyCount === 1)
+          .map((entry) => entry.page)
+      )
+    );
     fail(
       'Expected ' + EXPECTED_EMPTY_SLOTS + ' reserved surah/basmala slots, found ' +
       emptySlots + '. The physical layout is incomplete.'
