@@ -7,37 +7,29 @@ interface SurahBannerProps {
   suraNo: number;
 }
 
-export const SurahBanner: React.FC<SurahBannerProps> = ({ surahName, suraNo }) => {
-  const showBasmala = suraNo !== 1 && suraNo !== 9;
-
-  return (
-    <View style={styles.container}>
-      {/* Decorative Ornate Header Box */}
-      <View style={styles.bannerOuter}>
-        <View style={styles.bannerInner}>
-          <Text style={styles.cornerOrnament}>✤</Text>
-          <Text style={styles.titleText}>سُورَةُ {surahName}</Text>
-          <Text style={styles.cornerOrnament}>✤</Text>
-        </View>
+/**
+ * Renders only the surah-name physical line.
+ * The basmala is a separate QCF reserved line and is positioned independently,
+ * which also handles headings that cross a page boundary.
+ */
+export const SurahBanner: React.FC<SurahBannerProps> = ({ surahName }) => (
+  <View style={styles.container}>
+    <View style={styles.bannerOuter}>
+      <View style={styles.bannerInner}>
+        <Text style={styles.cornerOrnament}>✤</Text>
+        <Text style={styles.titleText}>سُورَةُ {surahName}</Text>
+        <Text style={styles.cornerOrnament}>✤</Text>
       </View>
-
-      {/* Basmala */}
-      {showBasmala && (
-        <View style={styles.basmalaContainer}>
-          <Text style={styles.basmalaText}>
-            بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
-          </Text>
-        </View>
-      )}
     </View>
-  );
-};
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 4,
-    alignItems: 'center',
+    flex: 1,
     width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bannerOuter: {
     width: '96%',
@@ -51,7 +43,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 3,
+    paddingVertical: 2,
     paddingHorizontal: 12,
     borderRadius: 5,
     borderWidth: 1,
@@ -69,15 +61,4 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     textAlign: 'center',
   },
-  basmalaContainer: {
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  basmalaText: {
-    fontSize: 18,
-    color: QuranColors.textDark,
-    textAlign: 'center',
-    fontFamily: 'HafsSmart',
-  },
 });
-
