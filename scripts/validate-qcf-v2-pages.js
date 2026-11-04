@@ -123,14 +123,19 @@ function validate() {
         }
         seenTokenKeys.add(tokenKey);
 
-        const previousPosition = lastPositionByVerse.get(token.verseKey) || 0;
-        if (token.position <= previousPosition) {
-          fail(
-            'Word order is not strictly increasing for ' + token.verseKey +
-            ' at page ' + pageNumber + ', line ' + (lineIndex + 1) + '.'
-          );
+        // Only normal Quran words participate in word-position ordering.
+        // End markers and pause/sajdah symbols may reuse the adjacent word's
+        // position in the API and are validated separately by their type.
+        if (token.charTypeName === 'word') {
+          const previousPosition = lastPositionByVerse.get(token.verseKey) || 0;
+          if (token.position <= previousPosition) {
+            fail(
+              'Word order is not strictly increasing for ' + token.verseKey +
+              ' at page ' + pageNumber + ', line ' + (lineIndex + 1) + '.'
+            );
+          }
+          lastPositionByVerse.set(token.verseKey, token.position);
         }
-        lastPositionByVerse.set(token.verseKey, token.position);
         seenVerseKeys.add(token.verseKey);
       }
     }
