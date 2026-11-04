@@ -38,7 +38,7 @@ function validate() {
 
   const seenVerseKeys = new Set();
   const seenTokenKeys = new Set();
-  const lastPositionByVerse = new Map();
+  const wordPositionsByVerse = new Map();
   const endMarkerCountByVerse = new Map();
   let emptySlots = 0;
   let tokenCount = 0;
@@ -123,18 +123,14 @@ function validate() {
         }
         seenTokenKeys.add(tokenKey);
 
-        // Only normal Quran words participate in word-position ordering.
-        // End markers and pause/sajdah symbols may reuse the adjacent word's
-        // position in the API and are validated separately by their type.
+        // Position values are a verse-local word index. Verify their complete
+        // set below rather than enforcing page-line traversal order here:
+        // a verse may wrap across page/line boundaries and special markers are
+        // separate tokens.
         if (token.charTypeName === 'word') {
-          const previousPosition = lastPositionByVerse.get(token.verseKey) || 0;
-          if (token.position <= previousPosition) {
-            fail(
-              'Word order is not strictly increasing for ' + token.verseKey +
-              ' at page ' + pageNumber + ', line ' + (lineIndex + 1) + '.'
-            );
-          }
-          lastPositionByVerse.set(token.verseKey, token.position);
+          const positions = wordPositionsByVerse.get(token.verseKey) || [];
+          positions.push(token.position);
+          wordPositionsByVerse.set(token.verseKey, positions);
         }
         seenVerseKeys.add(token.verseKey);
       }
@@ -262,6 +258,31 @@ function validate() {
       fail(
         'Expected exactly one ayah-end marker for every ayah. Affected verses: ' +
         missingEndMarkers.slice(0, 20).join(', ') + '.'
+      );
+    }
+
+    const invalidWordSequences = [];
+    for (const verseKey of expectedVerseKeys) {
+      const positions = wordPositionsByVerse.get(verseKey) || [];
+      positions.sort((a, b) => a - b);
+
+      if (positions.length === 0) {
+        invalidWordSequences.push(verseKey + ' (no words)');
+        continue;
+      }
+
+      for (let index = 0; index < positions.length; index += 1) {
+        if (positions[index] !== index + 1) {
+          invalidWordSequences.push(verseKey + ' (missing word position ' + (index + 1) + ')');
+          break;
+        }
+      }
+    }
+
+    if (invalidWordSequences.length) {
+      fail(
+        'Incomplete or non-contiguous word positions detected: ' +
+        invalidWordSequences.slice(0, 20).join(', ') + '.'
       );
     }
 
