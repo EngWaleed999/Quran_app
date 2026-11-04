@@ -202,7 +202,7 @@ async function fetchPage(pageNumber) {
   const lineCount = pageNumber <= 2 ? 8 : 15;
   const url = new URL(API_BASE + '/verses/by_page/' + pageNumber);
   url.searchParams.set('words', 'true');
-  url.searchParams.set('word_fields', 'code_v2,text_qpc_hafs,line_number,page_number');
+  url.searchParams.set('word_fields', 'code_v2,text_qpc_hafs,char_type_name,position,line_number,page_number');
   url.searchParams.set('mushaf', '1');
   url.searchParams.set('per_page', '50');
 
