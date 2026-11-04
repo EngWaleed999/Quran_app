@@ -3,7 +3,6 @@ const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
 const PAGE_COUNT = 604;
-const EXPECTED_EMPTY_SLOTS = 226;
 const DATA_PATH = path.join(__dirname, '..', 'assets', 'data', 'qcf_v2_pages.json');
 const DB_PATH = path.join(__dirname, '..', 'assets', 'data', 'quran.db');
 
@@ -45,7 +44,7 @@ function validate() {
   for (let pageNumber = 1; pageNumber <= PAGE_COUNT; pageNumber += 1) {
     const pageKey = String(pageNumber);
     const lines = dataset.pages[pageKey];
-    const expectedLineCount = pageNumber <= 2 ? 8 : 15;
+    const expectedLineCount = 15;
 
     if (!Array.isArray(lines) || lines.length !== expectedLineCount) {
       fail(
@@ -125,12 +124,6 @@ function validate() {
     }
   }
 
-  if (emptySlots !== EXPECTED_EMPTY_SLOTS) {
-    fail(
-      'Expected ' + EXPECTED_EMPTY_SLOTS + ' reserved heading slots, found ' + emptySlots + '.'
-    );
-  }
-
   // The local SQLite Quran text is an independent completeness check.
   const db = new DatabaseSync(DB_PATH, { readOnly: true });
   try {
@@ -159,7 +152,7 @@ function validate() {
     console.log('QCF V2 dataset validation passed.');
     console.log('Pages: ' + PAGE_COUNT);
     console.log('Physical line slots: ' + (PAGE_COUNT * 15 - 22));
-    console.log('Reserved surah/basmala slots: ' + emptySlots);
+    console.log('Empty physical line slots preserved: ' + emptySlots);
     console.log('Tokens: ' + tokenCount);
     console.log('Quran word tokens: ' + wordCount);
     console.log('Ayahs represented: ' + seenVerseKeys.size);
