@@ -277,7 +277,10 @@ async function fetchPage(pageNumber) {
       lastError = error;
       const statusCode = error.statusCode;
       const isPermanentClientError =
-        statusCode >= 400 && statusCode < 500 && statusCode !== 429;
+        statusCode >= 400 &&
+        statusCode < 500 &&
+        statusCode !== 429 &&
+        !(HAS_QF_CREDENTIALS && statusCode === 401);
 
       if (attempt >= MAX_RETRIES || isPermanentClientError) break;
 
