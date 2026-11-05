@@ -9,9 +9,6 @@ interface PageBottomBarProps {
   totalPages?: number;
   onNextPage: () => void;
   onPrevPage: () => void;
-  fontSize: number;
-  onIncreaseFontSize: () => void;
-  onDecreaseFontSize: () => void;
 }
 
 export const PageBottomBar: React.FC<PageBottomBarProps> = ({
@@ -19,9 +16,6 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
   totalPages = 604,
   onNextPage,
   onPrevPage,
-  fontSize,
-  onIncreaseFontSize,
-  onDecreaseFontSize,
 }) => {
   const progress = currentPage / totalPages;
 
@@ -37,13 +31,7 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
       </View>
 
       <View style={styles.barContent}>
-        {/* Left: Next Page Button (advances towards Page 604 on the left) */}
-       
-
-        {/* Center: Current Page indicator & Font sizing controls */}
-      
-
-        {/* Right: Previous Page Button (returns towards Page 1 on the right) */}
+        {/* Right: Previous Page Button (returns towards Page 1 on the right in RTL) */}
         <TouchableOpacity
           style={styles.navButton}
           onPress={onPrevPage}
@@ -51,44 +39,26 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
           accessibilityLabel="الصفحة السابقة"
         >
           <Text style={[styles.navButtonText, currentPage <= 1 && styles.disabledText]}>
-            السابقة 
+            السابقة
           </Text>
         </TouchableOpacity>
 
-
-          <View style={styles.centerInfo}>
+        {/* Center: Current Page indicator */}
+        <View style={styles.centerInfo}>
           <Text style={styles.pageText}>
             صفحة {toArabicNumerals(currentPage)} من {toArabicNumerals(totalPages)}
           </Text>
-
-          {/* Quick font sizing controls for elderly comfort */}
-          <View style={styles.fontSizeControls}>
-            <TouchableOpacity
-              style={styles.fontBtn}
-              onPress={onDecreaseFontSize}
-              disabled={fontSize <= 16}
-            >
-              <Text style={styles.fontBtnText}>أ-</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.fontBtn}
-              onPress={onIncreaseFontSize}
-              disabled={fontSize >= 36}
-            >
-              <Text style={styles.fontBtnText}>أ+</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
-         <TouchableOpacity
+        {/* Left: Next Page Button (advances towards Page 604 on the left in RTL) */}
+        <TouchableOpacity
           style={styles.navButton}
           onPress={onNextPage}
           disabled={currentPage >= totalPages}
           accessibilityLabel="الصفحة التالية"
         >
           <Text style={[styles.navButtonText, currentPage >= totalPages && styles.disabledText]}>
-             التالية
+            التالية
           </Text>
         </TouchableOpacity>
       </View>
@@ -125,7 +95,7 @@ const styles = StyleSheet.create({
   },
   navButton: {
     minWidth: 84,
-    minHeight: 44, // Generous touch target for elderly
+    minHeight: 44, // Generous touch target
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -147,23 +117,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: QuranColors.textDark,
-  },
-  fontSizeControls: {
-    flexDirection: 'row',
-    marginTop: 4,
-    gap: 8,
-  },
-  fontBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: QuranColors.parchment,
-    borderWidth: 1,
-    borderColor: QuranColors.parchmentBorder,
-  },
-  fontBtnText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: QuranColors.textMuted,
   },
 });

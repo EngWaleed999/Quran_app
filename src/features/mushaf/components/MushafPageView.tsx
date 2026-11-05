@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, useWindowDimensions, Animated } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSQLiteContext } from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +20,6 @@ export const MushafPageView: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isReady, setIsReady] = useState<boolean>(false);
-  const [userFontDelta, setUserFontDelta] = useState<number>(0);
 
   // Full Screen Immersion Mode: Automatically hides interactive controls after 2 seconds
   const [isControlsVisible, setIsControlsVisible] = useState<boolean>(true);
@@ -128,14 +127,6 @@ export const MushafPageView: React.FC = () => {
     }
   }, [currentPage]);
 
-  const increaseFontSize = useCallback(() => {
-    setUserFontDelta((prev) => Math.min(prev + 2, 8));
-  }, []);
-
-  const decreaseFontSize = useCallback(() => {
-    setUserFontDelta((prev) => Math.max(prev - 2, -6));
-  }, []);
-
   if (!isReady) {
     return <View style={styles.blankContainer} />;
   }
@@ -168,7 +159,6 @@ export const MushafPageView: React.FC = () => {
                 <MushafPageItem
                   page={pageNum}
                   db={db}
-                  userFontDelta={userFontDelta}
                   isNear={isNear}
                   onToggleControls={toggleControls}
                 />
@@ -178,7 +168,7 @@ export const MushafPageView: React.FC = () => {
         </PagerView>
       </View>
 
-      {/* Bottom Bar: Smooth animated slide and fade (التالية/السابقة، أ+/أ-) */}
+      {/* Bottom Bar: Smooth animated slide and fade (التالية / السابقة) */}
       <Animated.View
         style={[
           styles.bottomBarWrapper,
@@ -201,9 +191,6 @@ export const MushafPageView: React.FC = () => {
           totalPages={TOTAL_PAGES}
           onNextPage={handleNextPage}
           onPrevPage={handlePrevPage}
-          fontSize={20 + userFontDelta}
-          onIncreaseFontSize={increaseFontSize}
-          onDecreaseFontSize={decreaseFontSize}
         />
       </Animated.View>
     </View>
