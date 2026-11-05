@@ -6,9 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from './PageHeader';
 import { PageBottomBar } from './PageBottomBar';
 import { MushafPageItem } from './MushafPageItem';
+import { SearchModal } from '../../search/components/SearchModal';
+import { SurahDrawerModal } from '../../surah-list/components/SurahDrawerModal';
+import { SettingsModal } from '../../settings/components/SettingsModal';
+import { AyahActionModal, SelectedAyahInfo } from './AyahActionModal';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
+import { BookmarkService } from '../../bookmarks/services/bookmarkService';
+import { Bookmark } from '../../bookmarks/types/bookmark.types';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -21,6 +27,19 @@ export const MushafPageView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isReady, setIsReady] = useState<boolean>(false);
 
+  // Modals Visibility State (Floating Overlays)
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isSurahListOpen, setIsSurahListOpen] = useState<boolean>(false);
+
+  // Bookmark & Ayah Selection States
+  const [activeBookmark, setActiveBookmark] = useState<Bookmark | null>(null);
+  const [selectedAyah, setSelectedAyah] = useState<SelectedAyahInfo | null>(null);
+
+  // Search Ephemeral Highlight State
+  const [searchHighlightVerseKey, setSearchHighlightVerseKey] = useState<string | null>(null);
+  const searchHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Full Screen Immersion Mode: Automatically hides interactive controls after 2 seconds
   const [isControlsVisible, setIsControlsVisible] = useState<boolean>(true);
   const controlsAnim = useRef(new Animated.Value(1)).current;
@@ -30,6 +49,13 @@ export const MushafPageView: React.FC = () => {
     surahName: 'الفَاتِحة',
     jozz: 1,
   });
+
+  // Load persistent bookmark on mount
+  useEffect(() => {
+    BookmarkService.getActiveBookmark().then((bm) => {
+      setActiveBookmark(bm);
+    });
+  }, []);
 
   // Automatically transition to full-screen mode after 2 seconds
   useEffect(() => {
@@ -115,6 +141,93 @@ export const MushafPageView: React.FC = () => {
     }
   }, [db]);
 
+  const handleNavigateToPage = useCallback((targetPage: number, targetVerseKey?: string) => {
+    if (targetPage >= 1 && targetPage <= TOTAL_PAGES) {
+      if (pagerRef.current) {
+        pagerRef.current.setPage(targetPage - 1);
+      }
+      setCurrentPage(targetPage);
+      AsyncStorage.setItem(LAST_PAGE_KEY, targetPage.toString()).catch(() => {});
+
+      // Preload adjacent pages and font glyphs
+      QuranRepository.preloadPages(db, targetPage, 5);
+      QcfFontManager.preloadSurroundingPageFonts(targetPage, 2);
+
+      const data = QuranRepository.getPageAyahsSync(db, targetPage);
+      if (data.length > 0) {
+        setPageMetadata({
+          surahName: data[0].sura_name_ar || '',
+          jozz: data[0].jozz,
+        });
+      }
+
+      // Activate ephemeral highlight for target ayah if provided
+      if (targetVerseKey) {
+        setSearchHighlightVerseKey(targetVerseKey);
+        if (searchHighlightTimerRef.current) {
+          clearTimeout(searchHighlightTimerRef.current);
+        }
+        searchHighlightTimerRef.current = setTimeout(() => {
+          setSearchHighlightVerseKey(null);
+        }, 3500);
+      }
+    }
+  }, [db]);
+
+  // Ayah Long-Press Handler: Highlights the full Ayah and opens the half-screen bottom sheet
+  const handleAyahLongPress = useCallback(
+    (verseKey: string, pageNum: number) => {
+      const parts = verseKey.split(':');
+      if (parts.length !== 2) return;
+      const suraNo = parseInt(parts[0], 10);
+      const ayaNo = parseInt(parts[1], 10);
+
+      const pageAyahs = QuranRepository.getPageAyahsSync(db, pageNum);
+      const matchingAyah = pageAyahs.find(
+        (a) => a.sura_no === suraNo && a.aya_no === ayaNo
+      );
+
+      const suraName = matchingAyah?.sura_name_ar || pageMetadata.surahName;
+      const jozz = matchingAyah?.jozz || pageMetadata.jozz;
+      const ayahText = matchingAyah?.aya_text_emlaey || '';
+
+      setSelectedAyah({
+        verseKey,
+        suraNo,
+        ayaNo,
+        page: pageNum,
+        suraName,
+        jozz,
+        ayahText,
+      });
+    },
+    [db, pageMetadata]
+  );
+
+  // Toggle Bookmark: Sets or removes the persistent bookmark
+  const handleToggleBookmark = useCallback(
+    async (ayah: SelectedAyahInfo) => {
+      if (activeBookmark?.verseKey === ayah.verseKey) {
+        await BookmarkService.removeBookmark();
+        setActiveBookmark(null);
+      } else {
+        const newBookmark: Bookmark = {
+          verseKey: ayah.verseKey,
+          suraNo: ayah.suraNo,
+          ayaNo: ayah.ayaNo,
+          page: ayah.page,
+          suraName: ayah.suraName,
+          ayahText: ayah.ayahText || '',
+          createdAt: Date.now(),
+        };
+        await BookmarkService.saveBookmark(newBookmark);
+        setActiveBookmark(newBookmark);
+      }
+      setSelectedAyah(null);
+    },
+    [activeBookmark]
+  );
+
   const handleNextPage = useCallback(() => {
     if (currentPage < TOTAL_PAGES && pagerRef.current) {
       pagerRef.current.setPage(currentPage);
@@ -133,11 +246,16 @@ export const MushafPageView: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Top Header: Always clearly shows Surah name, Juz, and Page number even in full screen */}
+      {/* Top Header: Always clearly shows Surah name, Juz, and Page number with animated side actions */}
       <PageHeader
         surahName={pageMetadata.surahName}
         jozzNumber={pageMetadata.jozz}
         pageNumber={currentPage}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSurahList={() => setIsSurahListOpen(true)}
+        controlsAnim={controlsAnim}
+        isControlsVisible={isControlsVisible}
       />
 
       {/* Horizontal Swipe Pager View with native RTL layout */}
@@ -161,6 +279,10 @@ export const MushafPageView: React.FC = () => {
                   db={db}
                   isNear={isNear}
                   onToggleControls={toggleControls}
+                  selectedVerseKey={selectedAyah?.verseKey}
+                  bookmarkedVerseKey={activeBookmark?.verseKey}
+                  searchHighlightVerseKey={searchHighlightVerseKey}
+                  onAyahLongPress={handleAyahLongPress}
                 />
               </View>
             );
@@ -193,6 +315,37 @@ export const MushafPageView: React.FC = () => {
           onPrevPage={handlePrevPage}
         />
       </Animated.View>
+
+      {/* Floating Modals (Zero Layout Shifts on Reader View) */}
+      <SearchModal
+        visible={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectPage={handleNavigateToPage}
+        db={db}
+      />
+
+      <SurahDrawerModal
+        visible={isSurahListOpen}
+        onClose={() => setIsSurahListOpen(false)}
+        onSelectPage={handleNavigateToPage}
+        db={db}
+        currentPage={currentPage}
+        activeBookmark={activeBookmark}
+      />
+
+      <SettingsModal
+        visible={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* Ayah Action Bottom Sheet (Half-screen floating modal) */}
+      <AyahActionModal
+        visible={selectedAyah !== null}
+        ayah={selectedAyah}
+        isBookmarked={activeBookmark?.verseKey === selectedAyah?.verseKey}
+        onClose={() => setSelectedAyah(null)}
+        onToggleBookmark={handleToggleBookmark}
+      />
     </View>
   );
 };

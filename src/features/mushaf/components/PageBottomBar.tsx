@@ -68,7 +68,7 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
     paddingBottom: 16,

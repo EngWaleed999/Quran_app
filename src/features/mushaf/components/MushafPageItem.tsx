@@ -23,11 +23,11 @@ export const MUSHAF_LAYOUT_CONFIG = {
   // هوامش جوانب الصفحة (يمين ويسار)
   paddingHorizontal: 0,
   // الهامش العلوي (أسفل الهيدر)
-  //paddingTop: 0,
+  paddingTop: 0,
   // الهامش السفلي
   paddingBottom: 6,
   // حدود حجم الخط التلقائي المتجاوب
-  minFontSize: 19,
+  minFontSize: 18,
   maxFontSize: 25.5,
   fontScaleDivisor: 25, // حساب الخط المتجاوب: windowWidth / 16
 };
@@ -37,6 +37,10 @@ interface MushafPageItemProps {
   db: SQLiteDatabase;
   isNear: boolean;
   onToggleControls?: () => void;
+  selectedVerseKey?: string | null;
+  bookmarkedVerseKey?: string | null;
+  searchHighlightVerseKey?: string | null;
+  onAyahLongPress?: (verseKey: string, page: number) => void;
 }
 
 const BASMALA = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ';
@@ -46,6 +50,10 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   db,
   isNear,
   onToggleControls,
+  selectedVerseKey,
+  bookmarkedVerseKey,
+  searchHighlightVerseKey,
+  onAyahLongPress,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
 
@@ -148,13 +156,36 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
 
     const fontFamily = useQcfGlyph ? fontName : 'UthmanicHafs';
 
+    const isSelected = selectedVerseKey === token.verseKey;
+    const isBookmarked = bookmarkedVerseKey === token.verseKey;
+    const isSearchHighlighted = searchHighlightVerseKey === token.verseKey;
+
+    let highlightBg = 'transparent';
+    if (isSelected) {
+      highlightBg = 'rgba(197, 155, 39, 0.28)'; // Golden highlight when selected
+    } else if (isBookmarked) {
+      highlightBg = 'rgba(31, 81, 63, 0.20)'; // Subtle emerald highlight for persistent bookmark
+    } else if (isSearchHighlighted) {
+      highlightBg = 'rgba(197, 155, 39, 0.24)'; // Gentle gold highlight for search target
+    }
+
     return (
-      <React.Fragment key={
-        token.verseKey + ':' + token.position + ':' + token.charTypeName + ':' + index
-      }>
+      <Text
+        key={
+          token.verseKey + ':' + token.position + ':' + token.charTypeName + ':' + index
+        }
+        onLongPress={() => onAyahLongPress?.(token.verseKey, page)}
+        style={[
+          { fontFamily },
+          highlightBg !== 'transparent' && {
+            backgroundColor: highlightBg,
+            borderRadius: 3,
+          },
+        ]}
+      >
         {index > 0 ? ' ' : null}
-        <Text style={{ fontFamily }}>{text}</Text>
-      </React.Fragment>
+        {text}
+      </Text>
     );
   };
 
@@ -236,7 +267,11 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
 export const MushafPageItem = React.memo(
   MushafPageItemComponent,
   (previous, next) =>
-    previous.page === next.page && previous.isNear === next.isNear
+    previous.page === next.page &&
+    previous.isNear === next.isNear &&
+    previous.selectedVerseKey === next.selectedVerseKey &&
+    previous.bookmarkedVerseKey === next.bookmarkedVerseKey &&
+    previous.searchHighlightVerseKey === next.searchHighlightVerseKey
 );
 
 const styles = StyleSheet.create({
@@ -248,7 +283,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: QuranColors.parchment,
     paddingHorizontal: MUSHAF_LAYOUT_CONFIG.paddingHorizontal,
-   // paddingTop: MUSHAF_LAYOUT_CONFIG.paddingTop,
+    paddingTop: MUSHAF_LAYOUT_CONFIG.paddingTop,
     paddingBottom: MUSHAF_LAYOUT_CONFIG.paddingBottom,
   },
   contentArea: {
