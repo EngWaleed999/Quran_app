@@ -27,7 +27,7 @@ export const MUSHAF_LAYOUT_CONFIG = {
   // الهامش السفلي
   paddingBottom: 6,
   // حدود حجم الخط التلقائي المتجاوب
-  minFontSize: 18,
+  minFontSize: 17,
   maxFontSize: 25.5,
   fontScaleDivisor: 25, // حساب الخط المتجاوب: windowWidth / 16
 };
@@ -44,6 +44,15 @@ interface MushafPageItemProps {
 }
 
 const BASMALA = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ';
+
+/**
+ * نمط عرض خطوط المصحف:
+ * 'qpc-hafs': اعتماد خط الرسم العثماني الموحّد (UthmanicHafs) لجميع سور وصفحات المصحف (1-604).
+ *             يقضي تماماً على بهتان الكلمات والحركات، ويمنح وضوحاً فائقاً وأداء تصفح فوري (Zero Lag).
+ * 'qcf-v2': النمط التجريبي للخطوط المنفصلة (p1.ttf - p604.ttf).
+ */
+export type MushafFontRenderMode = 'qpc-hafs' | 'qcf-v2';
+export const MUSHAF_FONT_RENDER_MODE = 'qpc-hafs' as MushafFontRenderMode;
 
 const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   page,
@@ -70,7 +79,7 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   useEffect(() => {
     let isMounted = true;
 
-    if (!isNear || isFontReady) {
+    if (!isNear || isFontReady || MUSHAF_FONT_RENDER_MODE === 'qpc-hafs') {
       return () => {
         isMounted = false;
       };
@@ -148,7 +157,10 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   );
 
   const renderToken = (token: QcfPageToken, index: number) => {
-    const useQcfGlyph = token.renderMode === 'qcf' && isFontReady;
+    const useQcfGlyph =
+      MUSHAF_FONT_RENDER_MODE === 'qcf-v2' &&
+      token.renderMode === 'qcf' &&
+      isFontReady;
     const text =
       useQcfGlyph
         ? token.text
@@ -255,7 +267,7 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
         })}
       </View>
 
-      {fontLoadError ? (
+      {fontLoadError && MUSHAF_FONT_RENDER_MODE === 'qcf-v2' ? (
         <View style={styles.fontFallbackBadge}>
           <Text style={styles.fontFallbackText}>عرض احتياطي للنص</Text>
         </View>
