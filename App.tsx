@@ -19,6 +19,9 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     HafsSmart: require('./assets/fonts/HafsSmart_08.ttf'),
     UthmanicHafs: require('./assets/fonts/UthmanicHafs1Ver18.ttf'),
+    // Temporary font-rendering diagnostics for Al-Fatihah (page 1) only.
+    FatihaQCFV2Test: require('./font_fix/p1.ttf'),
+    FatihaUthmanicHafsTest: require('./font_fix/UthmanicHafs1Ver18.ttf'),
   });
 
   if (!fontsLoaded) {
