@@ -45,6 +45,17 @@ interface MushafPageItemProps {
 
 const BASMALA = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ';
 
+/**
+ * Temporary Al-Fatihah-only diagnostic.
+ *
+ * QCF V2 uses code_v2 with the page-specific p1.ttf font.
+ * QPC Hafs Unicode uses text_qpc_hafs with UthmanicHafs.
+ *
+ * Start with the Unicode path to compare it against the existing QCF V2 rendering.
+ * Change to 'qcf-v2' to test the page-specific font from font_fix/p1.ttf.
+ */
+const FATIHA_FONT_TEST_MODE: 'qcf-v2' | 'qpc-hafs' = 'qpc-hafs';
+
 const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   page,
   db,
@@ -70,7 +81,9 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   useEffect(() => {
     let isMounted = true;
 
-    if (!isNear || isFontReady) {
+    // Page 1 uses the explicit diagnostic font family registered in App.tsx.
+    // All other pages continue using the normal on-demand QCF font manager.
+    if (!isNear || isFontReady || page === 1) {
       return () => {
         isMounted = false;
       };
@@ -148,13 +161,26 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
   );
 
   const renderToken = (token: QcfPageToken, index: number) => {
-    const useQcfGlyph = token.renderMode === 'qcf' && isFontReady;
+    const isFatihaPage = page === 1;
+
+    // In Unicode diagnostic mode, render QCF word tokens from text_qpc_hafs.
+    // If a token has no Unicode fallback, retain its QCF glyph to avoid
+    // interpreting a QCF private-use glyph with the Unicode font.
+    const useQcfGlyph =
+      token.renderMode === 'qcf' &&
+      (isFatihaPage
+        ? FATIHA_FONT_TEST_MODE === 'qcf-v2' || !token.fallbackText
+        : isFontReady);
+
     const text =
       useQcfGlyph
         ? token.text
         : (token.fallbackText || token.text);
 
-    const fontFamily = useQcfGlyph ? fontName : 'UthmanicHafs';
+    // Page 1 is isolated from the normal page-font path. Other pages are unchanged.
+    const fontFamily = isFatihaPage
+      ? (useQcfGlyph ? 'FatihaQCFV2Test' : 'FatihaUthmanicHafsTest')
+      : (useQcfGlyph ? fontName : 'UthmanicHafs');
 
     const isSelected = selectedVerseKey === token.verseKey;
     const isBookmarked = bookmarkedVerseKey === token.verseKey;
