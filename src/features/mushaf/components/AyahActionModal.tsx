@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
-    textAlign: 'right',
+    textAlign: 'center',
   },
   badgesRow: {
     flexDirection: 'row-reverse',

@@ -21,15 +21,15 @@ import {
 // ==========================================
 export const MUSHAF_LAYOUT_CONFIG = {
   // هوامش جوانب الصفحة (يمين ويسار)
-  paddingHorizontal: 0,
+  paddingHorizontal: 2,
   // الهامش العلوي (أسفل الهيدر)
   paddingTop: 0,
   // الهامش السفلي
-  paddingBottom: 6,
+  paddingBottom: 4,
   // حدود حجم الخط التلقائي المتجاوب
-  minFontSize: 17,
-  maxFontSize: 25.5,
-  fontScaleDivisor: 25, // حساب الخط المتجاوب: windowWidth / 16
+  minFontSize: 16.5,
+  maxFontSize: 23.5,
+  fontScaleDivisor: 23, // حساب الخط المتجاوب لشاشات الهواتف
 };
 
 interface MushafPageItemProps {
@@ -258,6 +258,7 @@ const MushafPageItemComponent: React.FC<MushafPageItemProps> = ({
                   { fontSize: baseFontSize },
                 ]}
                 numberOfLines={1}
+                ellipsizeMode="clip"
                 allowFontScaling={false}
               >
                 {row.tokens.map(renderToken)}
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   },
   lineText: {
     width: '100%',
-    color: QuranColors.textDark,
+    color: '#000000',
     textAlign: 'center',
     writingDirection: 'rtl',
     includeFontPadding: false,
