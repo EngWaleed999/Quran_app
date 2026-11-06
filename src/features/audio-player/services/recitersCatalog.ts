@@ -1,41 +1,51 @@
 import { Reciter } from '../types/audio.types';
 
+/**
+ * Al Quran Cloud publishes these edition identifiers and their available
+ * bitrates in its public audio-CDN catalog. Keep identifiers separate from
+ * display names; the edition value is used in the remote URL.
+ */
 export const RECITERS: Reciter[] = [
   {
-    id: 'Alafasy_128kbps',
+    id: 'ar.alafasy',
     name: 'مشاري راشد العفاسي',
-    subname: 'رواية حفص عن عاصم - مرتل',
-    folder: 'Alafasy_128kbps',
+    subname: 'حفص عن عاصم • مرتل',
+    edition: 'ar.alafasy',
+    bitrate: 128,
   },
   {
-    id: 'Husary_128kbps',
+    id: 'ar.husary',
     name: 'محمود خليل الحصري',
-    subname: 'رواية حفص عن عاصم - مرتل',
-    folder: 'Husary_128kbps',
+    subname: 'حفص عن عاصم • مرتل',
+    edition: 'ar.husary',
+    bitrate: 128,
   },
   {
-    id: 'Minshawy_Murattal_128kbps',
+    id: 'ar.minshawi',
     name: 'محمد صديق المنشاوي',
-    subname: 'رواية حفص عن عاصم - مرتل',
-    folder: 'Minshawy_Murattal_128kbps',
+    subname: 'حفص عن عاصم • مرتل',
+    edition: 'ar.minshawi',
+    bitrate: 128,
   },
   {
-    id: 'Abdul_Basit_Murattal_192kbps',
+    id: 'ar.abdulbasit',
     name: 'عبد الباسط عبد الصمد',
-    subname: 'رواية حفص عن عاصم - مرتل',
-    folder: 'Abdul_Basit_Murattal_192kbps',
+    subname: 'حفص عن عاصم • مرتل',
+    edition: 'ar.abdulbasit',
+    bitrate: 192,
   },
   {
-    id: 'Hudhaify_128kbps',
+    id: 'ar.hudhaify',
     name: 'علي بن عبد الرحمن الحذيفي',
-    subname: 'رواية حفص عن عاصم',
-    folder: 'Hudhaify_128kbps',
+    subname: 'حفص عن عاصم • مرتل',
+    edition: 'ar.hudhaify',
+    bitrate: 128,
   },
   {
-    id: 'Ghamadi_40kbps',
-    name: 'سعد الغامدي',
-    subname: 'رواية حفص عن عاصم',
-    folder: 'Ghamadi_40kbps',
+    id: 'ar.shuraim',
+    name: 'سعود الشريم',
+    subname: 'حفص عن عاصم • مرتل',
+    edition: 'ar.shuraim',
+    bitrate: 128,
   },
 ];
-

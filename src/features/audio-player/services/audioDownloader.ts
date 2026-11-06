@@ -1,110 +1,232 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { DownloadProgress } from '../types/audio.types';
+import {
+  DownloadProgress,
+  PlaybackVerse,
+  Reciter,
+  SurahDownloadSummary,
+} from '../types/audio.types';
+
+const AUDIO_CDN_BASE = 'https://cdn.islamic.network/quran/audio';
+const DOWNLOAD_CONCURRENCY = 3;
+const MAX_ATTEMPTS = 3;
 
 export class AudioDownloader {
-  private static BASE_URL = 'https://everyayah.com/data';
-
-  /**
-   * Helper to format Surah and Ayah numbers to standard 3-digit strings (e.g. 001, 002).
-   */
-  static format3Digits(num: number): string {
-    return String(num).padStart(3, '0');
+  static format3Digits(value: number): string {
+    return String(value).padStart(3, '0');
   }
 
   /**
-   * Resolves the local absolute path for an Ayah audio file.
+   * Permanent user-owned download path. It deliberately uses documentDirectory,
+   * not cacheDirectory, so Android/iOS cache cleanup cannot silently remove it.
    */
-  static getLocalAyahUri(reciterFolder: string, suraNo: number, ayaNo: number): string {
-    const s = this.format3Digits(suraNo);
-    const a = this.format3Digits(ayaNo);
-    return `${FileSystem.documentDirectory}audio/${reciterFolder}/${s}/${a}.mp3`;
+  static getLocalAyahUri(reciterId: string, suraNo: number, ayaNo: number): string {
+    return (
+      FileSystem.documentDirectory +
+      'audio/' +
+      reciterId +
+      '/' +
+      this.format3Digits(suraNo) +
+      '/' +
+      this.format3Digits(ayaNo) +
+      '.mp3'
+    );
   }
 
-  /**
-   * Resolves the remote EveryAyah CDN URL for an Ayah.
-   */
-  static getRemoteAyahUrl(reciterFolder: string, suraNo: number, ayaNo: number): string {
-    const s = this.format3Digits(suraNo);
-    const a = this.format3Digits(ayaNo);
-    return `${this.BASE_URL}/${reciterFolder}/${s}${a}.mp3`;
+  static getRemoteAyahUrl(reciter: Reciter, globalAyahNo: number): string {
+    if (!Number.isInteger(globalAyahNo) || globalAyahNo < 1 || globalAyahNo > 6236) {
+      throw new Error('Invalid global ayah number: ' + globalAyahNo);
+    }
+
+    return (
+      AUDIO_CDN_BASE +
+      '/' +
+      reciter.bitrate +
+      '/' +
+      reciter.edition +
+      '/' +
+      globalAyahNo +
+      '.mp3'
+    );
   }
 
-  /**
-   * Checks whether all Ayahs in a range exist locally in device storage.
-   */
-  static async checkAyahsDownloaded(
-    reciterFolder: string,
-    suraNo: number,
-    startAyah: number,
-    endAyah: number
-  ): Promise<{ allDownloaded: boolean; missingAyahs: number[] }> {
-    const missingAyahs: number[] = [];
+  static async getSurahDownloadSummary(
+    reciter: Reciter,
+    verses: PlaybackVerse[]
+  ): Promise<SurahDownloadSummary> {
+    const missing: PlaybackVerse[] = [];
+    let downloaded = 0;
+    let bytes = 0;
 
-    for (let aya = startAyah; aya <= endAyah; aya++) {
-      const localUri = this.getLocalAyahUri(reciterFolder, suraNo, aya);
-      const info = await FileSystem.getInfoAsync(localUri);
-      if (!info.exists) {
-        missingAyahs.push(aya);
+    for (const verse of verses) {
+      const uri = this.getLocalAyahUri(reciter.id, verse.suraNo, verse.ayaNo);
+      const info = await FileSystem.getInfoAsync(uri);
+
+      if (info.exists && 'size' in info && typeof info.size === 'number' && info.size > 0) {
+        downloaded += 1;
+        bytes += info.size;
+      } else {
+        missing.push(verse);
+        if (info.exists) {
+          await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+        }
       }
     }
 
     return {
-      allDownloaded: missingAyahs.length === 0,
-      missingAyahs,
+      total: verses.length,
+      downloaded,
+      missing,
+      bytes,
+      allDownloaded: verses.length > 0 && missing.length === 0,
+    };
+  }
+
+  static async checkAyahsDownloaded(
+    reciter: Reciter,
+    verses: PlaybackVerse[]
+  ): Promise<{ allDownloaded: boolean; missingAyahs: PlaybackVerse[] }> {
+    const summary = await this.getSurahDownloadSummary(reciter, verses);
+    return {
+      allDownloaded: summary.allDownloaded,
+      missingAyahs: summary.missing,
     };
   }
 
   /**
-   * Downloads a list of missing Ayahs sequentially and saves them persistently.
+   * Downloads missing ayah clips with bounded concurrency and retries.
+   * Each completed file is moved from a temporary suffix to its final name,
+   * so interrupted downloads are never mistaken for complete MP3 files.
    */
   static async downloadAyahs(
-    reciterFolder: string,
+    reciter: Reciter,
     suraNo: number,
     suraName: string,
-    ayahsToDownload: number[],
+    versesToDownload: PlaybackVerse[],
     onProgress: (progress: DownloadProgress) => void,
     cancellationToken?: { isCancelled: boolean }
   ): Promise<boolean> {
-    const total = ayahsToDownload.length;
+    if (versesToDownload.length === 0) return true;
+
+    const directory =
+      FileSystem.documentDirectory + 'audio/' + reciter.id + '/' + this.format3Digits(suraNo);
+    await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+
+    const total = versesToDownload.length;
     let completed = 0;
+    let nextIndex = 0;
+    let firstError: Error | null = null;
 
-    const s = this.format3Digits(suraNo);
-    const suraDir = `${FileSystem.documentDirectory}audio/${reciterFolder}/${s}`;
-    
-    // Ensure destination directory exists
-    const dirInfo = await FileSystem.getInfoAsync(suraDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(suraDir, { intermediates: true });
-    }
+    const worker = async (): Promise<void> => {
+      while (true) {
+        if (cancellationToken?.isCancelled || firstError) return;
 
-    for (const aya of ayahsToDownload) {
-      if (cancellationToken?.isCancelled) {
-        console.log('[Downloader] Download cancelled by user.');
-        return false;
-      }
+        const index = nextIndex;
+        nextIndex += 1;
+        if (index >= total) return;
 
-      const remoteUrl = this.getRemoteAyahUrl(reciterFolder, suraNo, aya);
-      const localUri = this.getLocalAyahUri(reciterFolder, suraNo, aya);
+        const verse = versesToDownload[index];
+        const finalUri = this.getLocalAyahUri(reciter.id, verse.suraNo, verse.ayaNo);
+        const temporaryUri = finalUri + '.part';
 
-      try {
-        const downloadRes = await FileSystem.downloadAsync(remoteUrl, localUri);
-        if (downloadRes.status !== 200) {
-          console.warn(`[Downloader] Non-200 status for Ayah ${aya}:`, downloadRes.status);
+        let downloaded = false;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS && !downloaded; attempt += 1) {
+          if (cancellationToken?.isCancelled) return;
+
+          try {
+            await FileSystem.deleteAsync(temporaryUri, { idempotent: true }).catch(() => undefined);
+
+            const response = await FileSystem.downloadAsync(
+              this.getRemoteAyahUrl(reciter, verse.globalAyahNo),
+              temporaryUri
+            );
+
+            const temporaryInfo = await FileSystem.getInfoAsync(temporaryUri);
+            const hasBytes =
+              temporaryInfo.exists &&
+              'size' in temporaryInfo &&
+              typeof temporaryInfo.size === 'number' &&
+              temporaryInfo.size > 0;
+
+            if (response.status !== 200 || !hasBytes) {
+              throw new Error(
+                'CDN returned HTTP ' + response.status +
+                ' or an empty audio file for ayah ' + verse.suraNo + ':' + verse.ayaNo
+              );
+            }
+
+            await FileSystem.deleteAsync(finalUri, { idempotent: true }).catch(() => undefined);
+            await FileSystem.moveAsync({ from: temporaryUri, to: finalUri });
+            downloaded = true;
+          } catch (error) {
+            await FileSystem.deleteAsync(temporaryUri, { idempotent: true }).catch(() => undefined);
+
+            if (attempt === MAX_ATTEMPTS) {
+              firstError =
+                error instanceof Error
+                  ? error
+                  : new Error('Audio download failed for ayah ' + verse.suraNo + ':' + verse.ayaNo);
+            } else {
+              await new Promise((resolve) => setTimeout(resolve, 350 * attempt));
+            }
+          }
         }
-      } catch (err) {
-        console.error(`[Downloader] Failed to download Ayah ${aya}:`, err);
-        throw err;
+
+        if (downloaded) {
+          completed += 1;
+          onProgress({
+            current: completed,
+            total,
+            percentage: Math.floor((completed / total) * 100),
+            currentAyahName:
+              'الآية ' + verse.ayaNo + ' من سورة ' + suraName,
+          });
+        }
+      }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(DOWNLOAD_CONCURRENCY, total) },
+      () => worker()
+    );
+
+    await Promise.all(workers);
+
+    if (cancellationToken?.isCancelled) return false;
+    if (firstError) throw firstError;
+
+    return completed === total;
+  }
+
+  static async deleteSurahDownloads(reciterId: string, suraNo: number): Promise<void> {
+    const directory =
+      FileSystem.documentDirectory + 'audio/' + reciterId + '/' + this.format3Digits(suraNo);
+    await FileSystem.deleteAsync(directory, { idempotent: true });
+  }
+
+  static async getTotalDownloadedBytes(): Promise<number> {
+    const root = FileSystem.documentDirectory + 'audio';
+    const rootInfo = await FileSystem.getInfoAsync(root);
+    if (!rootInfo.exists) return 0;
+
+    const calculateDirectorySize = async (directory: string): Promise<number> => {
+      let total = 0;
+      const entries = await FileSystem.readDirectoryAsync(directory);
+
+      for (const entry of entries) {
+        const uri = directory + '/' + entry;
+        const info = await FileSystem.getInfoAsync(uri);
+
+        if (!info.exists) continue;
+        if (info.isDirectory) {
+          total += await calculateDirectorySize(uri);
+        } else if ('size' in info && typeof info.size === 'number') {
+          total += info.size;
+        }
       }
 
-      completed++;
-      onProgress({
-        current: completed,
-        total,
-        percentage: Math.round((completed / total) * 100),
-        currentAyahName: `الآية ${aya} من ${suraName}`,
-      });
-    }
+      return total;
+    };
 
-    return true;
+    return calculateDirectorySize(root);
   }
 }

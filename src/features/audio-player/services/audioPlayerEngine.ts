@@ -1,214 +1,380 @@
-import { createAudioPlayer, setAudioModeAsync, AudioPlayer, AudioStatus } from 'expo-audio';
+import {
+  clearAllPreloadedSources,
+  clearPreloadedSource,
+  createAudioPlayer,
+  preload,
+  setAudioModeAsync,
+  AudioPlayer,
+  AudioStatus,
+} from 'expo-audio';
 import { AudioDownloader } from './audioDownloader';
-import { PlaybackStatus, RepeatConfig } from '../types/audio.types';
+import {
+  PlaybackStatus,
+  PlaybackTarget,
+  Reciter,
+  RepeatConfig,
+} from '../types/audio.types';
 
 export interface AudioEngineCallbacks {
   onStatusChange: (status: PlaybackStatus) => void;
   onActiveAyahChange: (suraNo: number, ayaNo: number) => void;
+  onPositionUpdate?: (currentSeconds: number, durationSeconds: number) => void;
   onRepeatCountdown?: (secondsRemaining: number) => void;
   onError: (errorMessage: string) => void;
 }
 
 /**
- * Modern Audio Player Engine powered by Expo SDK 58 `expo-audio`.
- * Manages native lifecycle, status subscriptions, repeat delays,
- * and seamless sequential ayah-by-ayah playback.
+ * Keeps one native player alive and preloads at most one following ayah.
+ * This bounds Expo Audio's in-memory preload cache instead of accumulating
+ * every clip in a long surah on Android.
  */
 export class AudioPlayerEngine {
   private player: AudioPlayer | null = null;
   private statusSubscription: { remove: () => void } | null = null;
-  private isEngineRunning: boolean = false;
-  private currentSuraNo: number = 0;
-  private currentAyahNo: number = 0;
-  private endAyahNo: number = 0;
-  private currentAyahRepeatCount: number = 0;
+  private isEngineRunning = false;
+  private target: PlaybackTarget | null = null;
+  private reciter: Reciter | null = null;
+  private tracks: PlaybackTarget['verses'] = [];
+  private currentIndex = 0;
+  private currentAyahRepeatCount = 0;
   private repeatConfig: RepeatConfig = { repeatCount: 1, pauseDelaySeconds: 0 };
-  private reciterFolder: string = '';
   private callbacks: AudioEngineCallbacks | null = null;
   private delayTimer: ReturnType<typeof setTimeout> | null = null;
+  private delayInterval: ReturnType<typeof setInterval> | null = null;
+  private delayEndsAt = 0;
+  private remainingDelayMs = 0;
+  private handlingFinishedEvent = false;
+  private audioModePromise: Promise<void>;
+  private preloadedUri: string | null = null;
+  private activePreloadedUri: string | null = null;
 
   constructor() {
-    this.configureAudioMode();
+    this.audioModePromise = setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'doNotMix',
+      allowsRecording: false,
+    }).catch((error) => {
+      console.warn('[AudioEngine] Could not configure audio mode:', error);
+    });
   }
 
-  /**
-   * Configures global native audio mode for uninterrupted playback and background audio support.
-   */
-  private async configureAudioMode() {
-    try {
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-        interruptionMode: 'doNotMix',
-        allowsRecording: false,
-      });
-    } catch (e) {
-      console.warn('[AudioEngine] Could not set audio mode:', e);
-    }
-  }
-
-  setCallbacks(callbacks: AudioEngineCallbacks) {
+  setCallbacks(callbacks: AudioEngineCallbacks): void {
     this.callbacks = callbacks;
   }
 
-  async startPlayback(
-    reciterFolder: string,
-    suraNo: number,
-    startAyah: number,
-    endAyah: number,
-    repeatConfig: RepeatConfig
-  ) {
-    await this.stop();
+  private ensurePlayer(): AudioPlayer {
+    if (this.player) return this.player;
 
-    this.reciterFolder = reciterFolder;
-    this.currentSuraNo = suraNo;
-    this.currentAyahNo = startAyah;
-    this.endAyahNo = endAyah;
-    this.repeatConfig = repeatConfig;
+    const player = createAudioPlayer(null, { updateInterval: 500 });
+    this.player = player;
+    this.statusSubscription = player.addListener(
+      'playbackStatusUpdate',
+      this.onPlaybackStatusUpdate
+    );
+
+    return player;
+  }
+
+  async startPlayback(
+    reciter: Reciter,
+    target: PlaybackTarget,
+    repeatConfig: RepeatConfig
+  ): Promise<void> {
+    await this.stop(false);
+    await this.audioModePromise;
+
+    const startIndex = target.verses.findIndex(
+      (verse) => verse.ayaNo === target.startAyah && verse.suraNo === target.suraNo
+    );
+
+    if (target.verses.length === 0 || startIndex < 0) {
+      this.callbacks?.onError('لا توجد آيات صوتية صالحة للتشغيل في هذه السورة.');
+      return;
+    }
+
+    this.target = target;
+    this.reciter = reciter;
+    this.tracks = target.verses;
+    this.currentIndex = startIndex;
     this.currentAyahRepeatCount = 0;
+    this.repeatConfig = {
+      repeatCount: Math.max(1, Math.floor(repeatConfig.repeatCount)),
+      pauseDelaySeconds: Math.max(0, repeatConfig.pauseDelaySeconds),
+    };
     this.isEngineRunning = true;
 
     await this.playCurrentAyah();
   }
 
-  private async playCurrentAyah() {
-    if (!this.isEngineRunning) return;
+  private getCurrentTrack() {
+    return this.tracks[this.currentIndex] || null;
+  }
 
-    this.callbacks?.onActiveAyahChange(this.currentSuraNo, this.currentAyahNo);
-    this.callbacks?.onStatusChange('playing');
+  private async releaseFinishedPreload(): Promise<void> {
+    if (!this.activePreloadedUri) return;
 
-    const localUri = AudioDownloader.getLocalAyahUri(
-      this.reciterFolder,
-      this.currentSuraNo,
-      this.currentAyahNo
-    );
+    const finishedUri = this.activePreloadedUri;
+    this.activePreloadedUri = null;
+    await clearPreloadedSource({ uri: finishedUri }).catch(() => undefined);
+  }
+
+  private async playCurrentAyah(): Promise<void> {
+    if (!this.isEngineRunning || !this.reciter || !this.target) return;
+
+    const track = this.getCurrentTrack();
+    if (!track) {
+      this.completePlayback();
+      return;
+    }
+
+    this.handlingFinishedEvent = false;
+    this.remainingDelayMs = 0;
+    this.callbacks?.onActiveAyahChange(track.suraNo, track.ayaNo);
+    this.callbacks?.onPositionUpdate?.(0, 0);
 
     try {
-      // Clean up previous native player instance to prevent memory leaks
-      if (this.player) {
-        this.statusSubscription?.remove();
-        this.statusSubscription = null;
-        try {
-          this.player.remove();
-        } catch {
-          // Ignore release errors
-        }
-        this.player = null;
-      }
-
-      const player = createAudioPlayer({ uri: localUri });
-      this.player = player;
-
-      this.statusSubscription = player.addListener(
-        'playbackStatusUpdate',
-        this.onPlaybackStatusUpdate
+      const player = this.ensurePlayer();
+      const localUri = AudioDownloader.getLocalAyahUri(
+        this.reciter.id,
+        track.suraNo,
+        track.ayaNo
       );
 
+      // A preloaded next ayah has now become the active player source.
+      // A stale preload (for example, after manually skipping) is released.
+      if (this.preloadedUri === localUri) {
+        this.activePreloadedUri = localUri;
+        this.preloadedUri = null;
+      } else {
+        if (this.preloadedUri) {
+          await clearPreloadedSource({ uri: this.preloadedUri }).catch(() => undefined);
+          this.preloadedUri = null;
+        }
+        this.activePreloadedUri = null;
+      }
+
+      player.replace({ uri: localUri });
+      player.setActiveForLockScreen(true, {
+        title: 'سورة ' + this.target.suraName + ' • الآية ' + track.ayaNo,
+        artist: this.reciter.name,
+        albumTitle: 'القرآن الكريم',
+      });
       player.play();
+
+      void this.preloadUpcomingAyah();
+      this.callbacks?.onStatusChange('playing');
     } catch (error) {
-      console.error('[AudioEngine] Error playing local audio file with expo-audio:', error);
-      this.callbacks?.onError('تعذر تشغيل الملف الصوتي المحلي للآية.');
+      console.error('[AudioEngine] Could not play ayah:', error);
+      this.callbacks?.onError('تعذر تشغيل الملف الصوتي. أعد تنزيل السورة ثم حاول مرة أخرى.');
       await this.stop();
     }
   }
 
-  private onPlaybackStatusUpdate = async (status: AudioStatus) => {
+  private async preloadUpcomingAyah(): Promise<void> {
+    if (!this.isEngineRunning || !this.reciter || !this.tracks.length) return;
+
+    // Replaying the same local clip does not need a second preload allocation.
+    const willRepeatCurrent =
+      this.currentAyahRepeatCount + 1 < this.repeatConfig.repeatCount;
+    if (willRepeatCurrent) return;
+
+    const scheduledIndex = this.currentIndex;
+    const nextTrack = this.tracks[scheduledIndex + 1];
+    if (!nextTrack) return;
+
+    const nextUri = AudioDownloader.getLocalAyahUri(
+      this.reciter.id,
+      nextTrack.suraNo,
+      nextTrack.ayaNo
+    );
+
+    if (this.preloadedUri === nextUri) return;
+
+    if (this.preloadedUri) {
+      await clearPreloadedSource({ uri: this.preloadedUri }).catch(() => undefined);
+      this.preloadedUri = null;
+    }
+
+    try {
+      await preload({ uri: nextUri });
+
+      // Playback may have advanced while the native preload promise was pending.
+      if (!this.isEngineRunning || this.currentIndex !== scheduledIndex) {
+        await clearPreloadedSource({ uri: nextUri }).catch(() => undefined);
+        return;
+      }
+
+      this.preloadedUri = nextUri;
+    } catch (error) {
+      console.warn('[AudioEngine] Preload skipped:', error);
+    }
+  }
+
+  private onPlaybackStatusUpdate = (status: AudioStatus): void => {
+    this.callbacks?.onPositionUpdate?.(
+      Number.isFinite(status.currentTime) ? status.currentTime : 0,
+      Number.isFinite(status.duration) ? status.duration : 0
+    );
+
     if (status.error) {
-      console.error('[AudioEngine] Playback error from expo-audio:', status.error);
-      this.callbacks?.onError('حدث خطأ أثناء التلاوة.');
-      await this.stop();
+      this.callbacks?.onError('حدث خطأ أثناء تشغيل التلاوة.');
+      void this.stop();
       return;
     }
 
-    if (status.didJustFinish) {
-      await this.handleAyahFinished();
+    if (status.didJustFinish && !this.handlingFinishedEvent) {
+      this.handlingFinishedEvent = true;
+      void this.handleAyahFinished();
     }
   };
 
-  private async handleAyahFinished() {
+  private async handleAyahFinished(): Promise<void> {
     if (!this.isEngineRunning) return;
 
-    this.currentAyahRepeatCount++;
+    await this.releaseFinishedPreload();
+    this.currentAyahRepeatCount += 1;
 
-    // Check if we need more repeats for the current Ayah
     if (this.currentAyahRepeatCount < this.repeatConfig.repeatCount) {
       if (this.repeatConfig.pauseDelaySeconds > 0) {
-        await this.startUserRepeatDelay();
+        this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000);
       } else {
         await this.playCurrentAyah();
       }
       return;
     }
 
-    // Finished all repeats for current Ayah; reset counter and advance
     this.currentAyahRepeatCount = 0;
-
-    if (this.currentAyahNo < this.endAyahNo) {
-      this.currentAyahNo++;
+    if (this.currentIndex < this.tracks.length - 1) {
+      this.currentIndex += 1;
       await this.playCurrentAyah();
     } else {
-      // Reached the end of the requested range
-      this.callbacks?.onStatusChange('completed');
-      await this.stop();
+      this.completePlayback();
     }
   }
 
-  private async startUserRepeatDelay() {
+  private beginRepeatDelay(durationMs: number): void {
+    this.clearDelayTimers();
+    this.remainingDelayMs = durationMs;
+    this.delayEndsAt = Date.now() + durationMs;
     this.callbacks?.onStatusChange('waiting_user_repeat');
-    let remaining = this.repeatConfig.pauseDelaySeconds;
-    this.callbacks?.onRepeatCountdown?.(remaining);
+    this.callbacks?.onRepeatCountdown?.(Math.ceil(durationMs / 1000));
 
-    const interval = setInterval(() => {
-      remaining--;
-      if (remaining > 0) {
-        this.callbacks?.onRepeatCountdown?.(remaining);
-      } else {
-        clearInterval(interval);
-      }
-    }, 1000);
+    this.delayInterval = setInterval(() => {
+      const remaining = Math.max(0, this.delayEndsAt - Date.now());
+      this.callbacks?.onRepeatCountdown?.(Math.ceil(remaining / 1000));
+    }, 250);
 
-    this.delayTimer = setTimeout(async () => {
-      clearInterval(interval);
+    this.delayTimer = setTimeout(() => {
+      this.clearDelayTimers();
+      this.remainingDelayMs = 0;
       if (this.isEngineRunning) {
-        await this.playCurrentAyah();
+        void this.playCurrentAyah();
       }
-    }, this.repeatConfig.pauseDelaySeconds * 1000);
+    }, durationMs);
   }
 
-  async pause() {
-    if (this.player) {
-      this.player.pause();
-      this.callbacks?.onStatusChange('paused');
+  private clearDelayTimers(): void {
+    if (this.delayTimer) clearTimeout(this.delayTimer);
+    if (this.delayInterval) clearInterval(this.delayInterval);
+    this.delayTimer = null;
+    this.delayInterval = null;
+  }
+
+  async pause(): Promise<void> {
+    if (!this.isEngineRunning) return;
+
+    if (this.delayTimer) {
+      this.remainingDelayMs = Math.max(0, this.delayEndsAt - Date.now());
+      this.clearDelayTimers();
+    } else {
+      this.player?.pause();
     }
+
+    this.callbacks?.onStatusChange('paused');
   }
 
-  async resume() {
-    if (this.player) {
-      this.player.play();
+  async resume(): Promise<void> {
+    if (!this.isEngineRunning) return;
+
+    if (this.remainingDelayMs > 0) {
+      this.beginRepeatDelay(this.remainingDelayMs);
+    } else {
+      this.player?.play();
       this.callbacks?.onStatusChange('playing');
     }
   }
 
-  async stop() {
-    this.isEngineRunning = false;
-    if (this.delayTimer) {
-      clearTimeout(this.delayTimer);
-      this.delayTimer = null;
+  async nextAyah(): Promise<void> {
+    if (!this.isEngineRunning || this.currentIndex >= this.tracks.length - 1) return;
+    this.clearDelayTimers();
+    await this.releaseFinishedPreload();
+    this.currentAyahRepeatCount = 0;
+    this.currentIndex += 1;
+    await this.playCurrentAyah();
+  }
+
+  async previousAyah(): Promise<void> {
+    if (!this.isEngineRunning || this.currentIndex <= 0) {
+      if (this.isEngineRunning && this.currentIndex === 0) {
+        await this.playCurrentAyah();
+      }
+      return;
     }
+
+    const currentTime = this.player?.currentTime ?? 0;
+    if (currentTime > 3) {
+      await this.releaseFinishedPreload();
+      await this.playCurrentAyah();
+      return;
+    }
+
+    this.clearDelayTimers();
+    await this.releaseFinishedPreload();
+    this.currentAyahRepeatCount = 0;
+    this.currentIndex -= 1;
+    await this.playCurrentAyah();
+  }
+
+  private completePlayback(): void {
+    this.isEngineRunning = false;
+    this.clearDelayTimers();
+    this.player?.pause();
+    this.player?.setActiveForLockScreen(false);
+    this.callbacks?.onRepeatCountdown?.(0);
+    this.callbacks?.onStatusChange('completed');
+    this.preloadedUri = null;
+    this.activePreloadedUri = null;
+    void clearAllPreloadedSources().catch(() => undefined);
+  }
+
+  async stop(notify = true): Promise<void> {
+    this.isEngineRunning = false;
+    this.clearDelayTimers();
+    this.remainingDelayMs = 0;
+    this.preloadedUri = null;
+    this.activePreloadedUri = null;
+
     if (this.player) {
       try {
         this.player.pause();
+        this.player.setActiveForLockScreen(false);
         this.statusSubscription?.remove();
         this.statusSubscription = null;
         this.player.remove();
-      } catch (e) {
-        // ignore unload/release errors if already released
+      } catch {
+        // Native player may already have released during an interruption.
       }
       this.player = null;
     }
-    this.callbacks?.onStatusChange('idle');
+
+    await clearAllPreloadedSources().catch(() => undefined);
+    this.callbacks?.onRepeatCountdown?.(0);
+
+    if (notify) {
+      this.callbacks?.onStatusChange('idle');
+    }
   }
 }
 
-// Singleton audio engine instance
 export const audioEngine = new AudioPlayerEngine();

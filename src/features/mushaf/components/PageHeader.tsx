@@ -27,17 +27,28 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   controlsAnim,
   isControlsVisible,
 }) => {
-  const formattedSurahTitle = useMemo(() => {
-    const list = surahNames && surahNames.length > 0 ? surahNames : (surahName ? [surahName] : []);
-    if (list.length === 0) return '';
-    if (list.length === 1) return `سورة ${list[0]}`;
-    if (list.length === 2) return `السور: ${list[0]} • ${list[1]}`;
-    return `السور: ${list.join(' • ')}`;
+  const names = useMemo(() => {
+    const source =
+      surahNames && surahNames.length > 0
+        ? surahNames
+        : surahName
+          ? [surahName]
+          : [];
+
+    return source.filter((name, index) => name && source.indexOf(name) === index);
   }, [surahNames, surahName]);
+
+  const formattedSurahTitle = useMemo(() => {
+    if (names.length === 0) return '';
+    if (names.length === 1) return 'سورة ' + names[0];
+    return 'السور: ' + names.join(' • ');
+  }, [names]);
+
+  const surahFontSize = names.length <= 1 ? 14 : names.length === 2 ? 12.5 : 11.5;
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        {/* Right Action Button (List Navig Drawer) - Animated Fade */}
         <Animated.View
           style={[styles.rightActions, { opacity: controlsAnim }]}
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
@@ -56,24 +67,29 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Center: Surah metadata - Always visible and centered (Zero Layout Shift) */}
         <View style={styles.centerMetadata}>
           <Text style={styles.textSide}>
             الجزء {toArabicNumerals(jozzNumber)}
           </Text>
 
           <View style={styles.surahBadge}>
-            <Text style={styles.surahText} numberOfLines={1} ellipsizeMode="tail">
+            <Text
+              style={[styles.surahText, { fontSize: surahFontSize }]}
+              numberOfLines={names.length <= 2 ? 2 : 3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+            >
               {formattedSurahTitle}
             </Text>
           </View>
 
           <Text style={styles.textSide}>
-            {pageNumber ? `صفحة ${toArabicNumerals(pageNumber)}` : `الحزب ${toArabicNumerals(Math.ceil(jozzNumber * 2))}`}
+            {pageNumber
+              ? 'صفحة ' + toArabicNumerals(pageNumber)
+              : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
           </Text>
         </View>
 
-        {/* Left Action Buttons (Search & Settings) - Animated Fade */}
         <Animated.View
           style={[styles.leftActions, { opacity: controlsAnim }]}
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
@@ -106,7 +122,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </Animated.View>
       </View>
 
-      {/* Elegant Islamic Separator line */}
       <View style={styles.separatorContainer}>
         <View style={styles.line} />
         <View style={styles.diamond} />
@@ -118,7 +133,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingTop: 6,
     paddingBottom: 2,
     backgroundColor: 'transparent',
@@ -127,7 +142,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 40,
+    minHeight: 42,
     position: 'relative',
   },
   rightActions: {
@@ -142,7 +157,7 @@ const styles = StyleSheet.create({
     left: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     zIndex: 10,
   },
   iconBtn: {
@@ -157,28 +172,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
+    gap: 7,
+    maxWidth: '100%',
   },
   textSide: {
-    fontSize: 13,
+    fontSize: 12,
     color: QuranColors.textMuted,
     fontFamily: 'System',
     fontWeight: '600',
+    flexShrink: 0,
   },
   surahBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 12,
     backgroundColor: 'rgba(31, 81, 63, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(31, 81, 63, 0.15)',
-    maxWidth: '56%',
+    maxWidth: '62%',
+    minWidth: 100,
     flexShrink: 1,
   },
   surahText: {
-    fontSize: 15,
     color: QuranColors.emerald,
     fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 17,
   },
   separatorContainer: {
     flexDirection: 'row',
