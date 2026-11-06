@@ -28,6 +28,7 @@ interface AyahActionModalProps {
   isBookmarked: boolean;
   onClose: () => void;
   onToggleBookmark: (ayah: SelectedAyahInfo) => void;
+  onOpenTafsir?: (ayah: SelectedAyahInfo) => void;
 }
 
 export const AyahActionModal: React.FC<AyahActionModalProps> = ({
@@ -36,6 +37,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   isBookmarked,
   onClose,
   onToggleBookmark,
+  onOpenTafsir,
 }) => {
   if (!ayah) return null;
 
@@ -181,23 +183,27 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               </View>
             </TouchableOpacity>
 
-            {/* 4. Tafsir Action (Visual UI) */}
-            <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
+            {/* 4. Tafsir Action (Fully Functional) */}
+            <TouchableOpacity
+              style={styles.actionRow}
+              activeOpacity={0.7}
+              onPress={() => {
+                onClose();
+                onOpenTafsir?.(ayah);
+              }}
+            >
               <View style={styles.actionIconBox}>
                 <MaterialCommunityIcons
-                  name="book-open-outline"
+                  name="book-open-page-variant-outline"
                   size={24}
                   color={QuranColors.emerald}
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>التفسير الميسر</Text>
+                <Text style={styles.actionTitle}>التفسيرات</Text>
                 <Text style={styles.actionSubtitle}>
-                  عرض معاني الكلمات وتفسير الآية (قريباً)
+                  تفسير السعدي، والتفسير الميسر
                 </Text>
-              </View>
-              <View style={styles.comingSoonTag}>
-                <Text style={styles.comingSoonText}>قريباً</Text>
               </View>
             </TouchableOpacity>
 

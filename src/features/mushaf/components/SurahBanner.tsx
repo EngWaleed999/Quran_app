@@ -1,35 +1,41 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, StyleProp, ViewStyle } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
 
 interface SurahBannerProps {
   surahName: string;
   suraNo: number;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 /**
- * Renders only the surah-name physical line.
- * The basmala is a separate QCF reserved line and is positioned independently,
- * which also handles headings that cross a page boundary.
+ * Renders the ornate surah-name banner.
+ * Supports both light and dark themes with native responsiveness.
  */
-export const SurahBanner: React.FC<SurahBannerProps> = ({ surahName }) => (
-  <View style={styles.container}>
-    <View style={styles.bannerOuter}>
-      <View style={styles.bannerInner}>
-        <Text style={styles.cornerOrnament}>✤</Text>
-        <Text style={styles.titleText}>سُورَةُ {surahName}</Text>
-        <Text style={styles.cornerOrnament}>✤</Text>
+export const SurahBanner: React.FC<SurahBannerProps> = ({ surahName, containerStyle }) => {
+  const theme = useTheme();
+  const isDark = theme.dark;
+
+  return (
+    <View style={[styles.container, containerStyle]}>
+      <View style={[styles.bannerOuter, isDark && styles.bannerOuterDark]}>
+        <View style={[styles.bannerInner, isDark && styles.bannerInnerDark]}>
+          <Text style={[styles.cornerOrnament, isDark && styles.cornerOrnamentDark]}>✤</Text>
+          <Text style={[styles.titleText, isDark && styles.titleTextDark]}>سُورَةُ {surahName}</Text>
+          <Text style={[styles.cornerOrnament, isDark && styles.cornerOrnamentDark]}>✤</Text>
+        </View>
       </View>
     </View>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 2,
   },
   bannerOuter: {
     width: '96%',
@@ -39,11 +45,15 @@ const styles = StyleSheet.create({
     borderColor: QuranColors.gold,
     backgroundColor: 'rgba(197, 155, 39, 0.08)',
   },
+  bannerOuterDark: {
+    borderColor: QuranColors.goldLight,
+    backgroundColor: 'rgba(229, 192, 88, 0.08)',
+  },
   bannerInner: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 3,
     paddingHorizontal: 12,
     borderRadius: 5,
     borderWidth: 1,
@@ -51,14 +61,24 @@ const styles = StyleSheet.create({
     borderColor: QuranColors.gold,
     backgroundColor: '#FFFDF9',
   },
+  bannerInnerDark: {
+    borderColor: QuranColors.goldLight,
+    backgroundColor: QuranColors.nightSurface,
+  },
   cornerOrnament: {
     fontSize: 14,
     color: QuranColors.gold,
+  },
+  cornerOrnamentDark: {
+    color: QuranColors.goldLight,
   },
   titleText: {
     fontSize: 17,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
     textAlign: 'center',
+  },
+  titleTextDark: {
+    color: QuranColors.goldLight,
   },
 });

@@ -6,12 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from './PageHeader';
 import { PageBottomBar } from './PageBottomBar';
 import { MushafPageItem } from './MushafPageItem';
+import { MushafSvgPageItem } from './MushafSvgPageItem';
 import { SearchModal } from '../../search/components/SearchModal';
 import { SurahDrawerModal } from '../../surah-list/components/SurahDrawerModal';
 import { SettingsModal } from '../../settings/components/SettingsModal';
 import { AyahActionModal, SelectedAyahInfo } from './AyahActionModal';
+import { TafsirModal } from './TafsirModal';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
+import { SvgMushafRepository } from '../../../core/database/svgMushafRepository';
 import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
 import { BookmarkService } from '../../bookmarks/services/bookmarkService';
 import { Bookmark } from '../../bookmarks/types/bookmark.types';
@@ -35,6 +38,7 @@ export const MushafPageView: React.FC = () => {
   // Bookmark & Ayah Selection States
   const [activeBookmark, setActiveBookmark] = useState<Bookmark | null>(null);
   const [selectedAyah, setSelectedAyah] = useState<SelectedAyahInfo | null>(null);
+  const [tafsirAyah, setTafsirAyah] = useState<SelectedAyahInfo | null>(null);
 
   // Search Ephemeral Highlight State
   const [searchHighlightVerseKey, setSearchHighlightVerseKey] = useState<string | null>(null);
@@ -130,6 +134,7 @@ export const MushafPageView: React.FC = () => {
     // Proactively preload surrounding pages in the background
     QuranRepository.preloadPages(db, pageNum, 5);
     QcfFontManager.preloadSurroundingPageFonts(pageNum, 2);
+    SvgMushafRepository.prewarmSurroundingPages(db, pageNum, 2);
 
     // Update header metadata synchronously from in-memory cache
     const data = QuranRepository.getPageAyahsSync(db, pageNum);
@@ -274,7 +279,7 @@ export const MushafPageView: React.FC = () => {
 
             return (
               <View key={`page-wrapper-${pageNum}`} style={styles.pageWrapper}>
-                <MushafPageItem
+                <MushafSvgPageItem
                   page={pageNum}
                   db={db}
                   isNear={isNear}
@@ -349,6 +354,14 @@ export const MushafPageView: React.FC = () => {
         isBookmarked={activeBookmark?.verseKey === selectedAyah?.verseKey}
         onClose={() => setSelectedAyah(null)}
         onToggleBookmark={handleToggleBookmark}
+        onOpenTafsir={(ayah) => setTafsirAyah(ayah)}
+      />
+
+      {/* Tafsir Bottom Sheet Modal (Multi-Tafsir: Saadi & Muyassar) */}
+      <TafsirModal
+        visible={tafsirAyah !== null}
+        ayah={tafsirAyah}
+        onClose={() => setTafsirAyah(null)}
       />
     </View>
   );

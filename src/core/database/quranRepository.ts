@@ -47,6 +47,14 @@ export class QuranRepository {
   }
 
   /**
+   * Retrieves the Surah that starts on a given page, if any.
+   */
+  static getSurahStartingOnPage(db: SQLiteDatabase, page: number): Surah | null {
+    const surahs = QuranRepository.getAllSurahsSync(db);
+    return surahs.find((s) => s.page_start === page) || null;
+  }
+
+  /**
    * Returns total ayah count for a Surah (1-114) from cache or synchronous query.
    */
   static getSurahAyahCount(db: SQLiteDatabase, suraNo: number): number {
