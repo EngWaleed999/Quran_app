@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 
 interface PageHeaderProps {
-  surahName: string;
+  surahNames?: string[];
+  surahName?: string;
   jozzNumber: number;
   pageNumber?: number;
   onOpenSearch: () => void;
@@ -16,6 +17,7 @@ interface PageHeaderProps {
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
+  surahNames,
   surahName,
   jozzNumber,
   pageNumber,
@@ -25,6 +27,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   controlsAnim,
   isControlsVisible,
 }) => {
+  const formattedSurahTitle = useMemo(() => {
+    const list = surahNames && surahNames.length > 0 ? surahNames : (surahName ? [surahName] : []);
+    if (list.length === 0) return '';
+    if (list.length === 1) return `سورة ${list[0]}`;
+    if (list.length === 2) return `السور: ${list[0]} • ${list[1]}`;
+    return `السور: ${list.join(' • ')}`;
+  }, [surahNames, surahName]);
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
@@ -54,8 +63,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </Text>
 
           <View style={styles.surahBadge}>
-            <Text style={styles.surahText}>
-              سورة {surahName}
+            <Text style={styles.surahText} numberOfLines={1} ellipsizeMode="tail">
+              {formattedSurahTitle}
             </Text>
           </View>
 
@@ -163,6 +172,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31, 81, 63, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(31, 81, 63, 0.15)',
+    maxWidth: '56%',
+    flexShrink: 1,
   },
   surahText: {
     fontSize: 15,

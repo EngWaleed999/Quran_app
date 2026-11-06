@@ -47,11 +47,41 @@ export class QuranRepository {
   }
 
   /**
-   * Retrieves the Surah that starts on a given page, if any.
+   * Retrieves all Surahs that begin on a specific Mushaf page in sequential order.
+   */
+  static getSurahsStartingOnPage(db: SQLiteDatabase, page: number): Surah[] {
+    const surahs = QuranRepository.getAllSurahsSync(db);
+    return surahs.filter((s) => s.page_start === page);
+  }
+
+  /**
+   * Retrieves the Surah that starts on a given page, if any (backward compatibility).
    */
   static getSurahStartingOnPage(db: SQLiteDatabase, page: number): Surah | null {
     const surahs = QuranRepository.getAllSurahsSync(db);
     return surahs.find((s) => s.page_start === page) || null;
+  }
+
+  /**
+   * Retrieves all distinct Surah names appearing on a given Mushaf page in reading order.
+   * Eliminates duplicate names while strictly preserving the sequential order of appearance.
+   */
+  static getPageSurahNamesSync(db: SQLiteDatabase, page: number): string[] {
+    const ayahs = QuranRepository.getPageAyahsSync(db, page);
+    if (!ayahs || ayahs.length === 0) return [];
+
+    const uniqueSurahs: string[] = [];
+    const seen = new Set<string>();
+
+    for (let i = 0; i < ayahs.length; i++) {
+      const name = ayahs[i].sura_name_ar?.trim();
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        uniqueSurahs.push(name);
+      }
+    }
+
+    return uniqueSurahs;
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer, AudioStatus } from 'expo-audio';
 import { AudioDownloader } from './audioDownloader';
 import { PlaybackStatus, RepeatConfig } from '../types/audio.types';
 
@@ -9,8 +9,14 @@ export interface AudioEngineCallbacks {
   onError: (errorMessage: string) => void;
 }
 
+/**
+ * Modern Audio Player Engine powered by Expo SDK 58 `expo-audio`.
+ * Manages native lifecycle, status subscriptions, repeat delays,
+ * and seamless sequential ayah-by-ayah playback.
+ */
 export class AudioPlayerEngine {
-  private sound: Audio.Sound | null = null;
+  private player: AudioPlayer | null = null;
+  private statusSubscription: { remove: () => void } | null = null;
   private isEngineRunning: boolean = false;
   private currentSuraNo: number = 0;
   private currentAyahNo: number = 0;
@@ -25,13 +31,16 @@ export class AudioPlayerEngine {
     this.configureAudioMode();
   }
 
+  /**
+   * Configures global native audio mode for uninterrupted playback and background audio support.
+   */
   private async configureAudioMode() {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix',
+        allowsRecording: false,
       });
     } catch (e) {
       console.warn('[AudioEngine] Could not set audio mode:', e);
@@ -75,31 +84,39 @@ export class AudioPlayerEngine {
     );
 
     try {
-      if (this.sound) {
-        await this.sound.unloadAsync();
-        this.sound = null;
+      // Clean up previous native player instance to prevent memory leaks
+      if (this.player) {
+        this.statusSubscription?.remove();
+        this.statusSubscription = null;
+        try {
+          this.player.remove();
+        } catch {
+          // Ignore release errors
+        }
+        this.player = null;
       }
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: localUri },
-        { shouldPlay: true },
+      const player = createAudioPlayer({ uri: localUri });
+      this.player = player;
+
+      this.statusSubscription = player.addListener(
+        'playbackStatusUpdate',
         this.onPlaybackStatusUpdate
       );
 
-      this.sound = sound;
+      player.play();
     } catch (error) {
-      console.error('[AudioEngine] Error playing local audio file:', error);
+      console.error('[AudioEngine] Error playing local audio file with expo-audio:', error);
       this.callbacks?.onError('تعذر تشغيل الملف الصوتي المحلي للآية.');
       await this.stop();
     }
   }
 
-  private onPlaybackStatusUpdate = async (status: any) => {
-    if (!status.isLoaded) {
-      if (status.error) {
-        console.error('[AudioEngine] Playback error:', status.error);
-        this.callbacks?.onError('حدث خطأ أثناء التلاوة.');
-      }
+  private onPlaybackStatusUpdate = async (status: AudioStatus) => {
+    if (status.error) {
+      console.error('[AudioEngine] Playback error from expo-audio:', status.error);
+      this.callbacks?.onError('حدث خطأ أثناء التلاوة.');
+      await this.stop();
       return;
     }
 
@@ -159,15 +176,15 @@ export class AudioPlayerEngine {
   }
 
   async pause() {
-    if (this.sound) {
-      await this.sound.pauseAsync();
+    if (this.player) {
+      this.player.pause();
       this.callbacks?.onStatusChange('paused');
     }
   }
 
   async resume() {
-    if (this.sound) {
-      await this.sound.playAsync();
+    if (this.player) {
+      this.player.play();
       this.callbacks?.onStatusChange('playing');
     }
   }
@@ -178,14 +195,16 @@ export class AudioPlayerEngine {
       clearTimeout(this.delayTimer);
       this.delayTimer = null;
     }
-    if (this.sound) {
+    if (this.player) {
       try {
-        await this.sound.stopAsync();
-        await this.sound.unloadAsync();
+        this.player.pause();
+        this.statusSubscription?.remove();
+        this.statusSubscription = null;
+        this.player.remove();
       } catch (e) {
-        // ignore unload errors if already released
+        // ignore unload/release errors if already released
       }
-      this.sound = null;
+      this.player = null;
     }
     this.callbacks?.onStatusChange('idle');
   }

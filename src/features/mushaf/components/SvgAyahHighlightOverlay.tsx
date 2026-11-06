@@ -7,6 +7,7 @@ interface SvgAyahHighlightOverlayProps {
   viewBox: string;
   ayahs: NormalizedAyahGeometry[];
   selectedVerseKey?: string | null;
+  playingVerseKey?: string | null;
   bookmarkedVerseKey?: string | null;
   searchHighlightVerseKey?: string | null;
 }
@@ -19,6 +20,7 @@ export const SvgAyahHighlightOverlay: React.FC<SvgAyahHighlightOverlayProps> = (
   viewBox,
   ayahs,
   selectedVerseKey,
+  playingVerseKey,
   bookmarkedVerseKey,
   searchHighlightVerseKey,
 }) => {
@@ -28,9 +30,11 @@ export const SvgAyahHighlightOverlay: React.FC<SvgAyahHighlightOverlayProps> = (
         let fillColor: string | null = null;
 
         if (selectedVerseKey === ayah.verseKey) {
-          fillColor = 'rgba(197, 155, 39, 0.28)'; // تظليل ذهبي للآية المحددة
+          fillColor = 'rgba(197, 155, 39, 0.28)'; // تظليل ذهبي للآية المحددة بالضغط المطول
+        } else if (playingVerseKey === ayah.verseKey) {
+          fillColor = 'rgba(31, 81, 63, 0.22)'; // تظليل زمردي مميز للتلاوة الصوتية الحالية
         } else if (bookmarkedVerseKey === ayah.verseKey) {
-          fillColor = 'rgba(31, 81, 63, 0.20)'; // تظليل زمردي خفيف للإشارة المرجعية
+          fillColor = 'rgba(31, 81, 63, 0.16)'; // تظليل زمردي هادئ للإشارة المرجعية
         } else if (searchHighlightVerseKey === ayah.verseKey) {
           fillColor = 'rgba(197, 155, 39, 0.24)'; // تظليل ذهبي عابر للبحث
         }
@@ -44,7 +48,7 @@ export const SvgAyahHighlightOverlay: React.FC<SvgAyahHighlightOverlayProps> = (
         };
       })
       .filter((item): item is { key: string; d: string; fillColor: string } => item !== null);
-  }, [ayahs, selectedVerseKey, bookmarkedVerseKey, searchHighlightVerseKey]);
+  }, [ayahs, selectedVerseKey, playingVerseKey, bookmarkedVerseKey, searchHighlightVerseKey]);
 
   if (activeHighlights.length === 0) {
     return null;

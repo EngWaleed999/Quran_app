@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSQLiteContext } from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from './PageHeader';
 import { PageBottomBar } from './PageBottomBar';
-import { MushafPageItem } from './MushafPageItem';
 import { MushafSvgPageItem } from './MushafSvgPageItem';
 import { SearchModal } from '../../search/components/SearchModal';
 import { SurahDrawerModal } from '../../surah-list/components/SurahDrawerModal';
@@ -18,6 +17,7 @@ import { SvgMushafRepository } from '../../../core/database/svgMushafRepository'
 import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
 import { BookmarkService } from '../../bookmarks/services/bookmarkService';
 import { Bookmark } from '../../bookmarks/types/bookmark.types';
+import { useAudioStore } from '../../audio-player/stores/useAudioStore';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -48,9 +48,18 @@ export const MushafPageView: React.FC = () => {
   const [isControlsVisible, setIsControlsVisible] = useState<boolean>(true);
   const controlsAnim = useRef(new Animated.Value(1)).current;
 
-  // Metadata for current header (Surah name and Juz)
-  const [pageMetadata, setPageMetadata] = useState<{ surahName: string; jozz: number }>({
-    surahName: 'الفَاتِحة',
+  // Audio Playback Store Integration: Highlighting currently recited ayah
+  const { status: audioStatus, activeAyah } = useAudioStore();
+  const playingVerseKey = useMemo(() => {
+    if ((audioStatus === 'playing' || audioStatus === 'paused') && activeAyah) {
+      return `${activeAyah.suraNo}:${activeAyah.ayaNo}`;
+    }
+    return null;
+  }, [audioStatus, activeAyah]);
+
+  // Metadata for current header (Surah names and Juz)
+  const [pageMetadata, setPageMetadata] = useState<{ surahNames: string[]; jozz: number }>({
+    surahNames: ['الفَاتِحة'],
     jozz: 1,
   });
 
@@ -101,11 +110,12 @@ export const MushafPageView: React.FC = () => {
         QuranRepository.preloadPages(db, target, 5);
         QcfFontManager.preloadSurroundingPageFonts(target, 2);
         const ayahs = QuranRepository.getPageAyahsSync(db, target);
+        const surahs = QuranRepository.getPageSurahNamesSync(db, target);
 
         if (isMounted) {
           if (ayahs.length > 0) {
             setPageMetadata({
-              surahName: ayahs[0].sura_name_ar || '',
+              surahNames: surahs.length > 0 ? surahs : [ayahs[0].sura_name_ar || ''],
               jozz: ayahs[0].jozz,
             });
           }
@@ -138,9 +148,10 @@ export const MushafPageView: React.FC = () => {
 
     // Update header metadata synchronously from in-memory cache
     const data = QuranRepository.getPageAyahsSync(db, pageNum);
+    const surahs = QuranRepository.getPageSurahNamesSync(db, pageNum);
     if (data.length > 0) {
       setPageMetadata({
-        surahName: data[0].sura_name_ar || '',
+        surahNames: surahs.length > 0 ? surahs : [data[0].sura_name_ar || ''],
         jozz: data[0].jozz,
       });
     }
@@ -159,9 +170,10 @@ export const MushafPageView: React.FC = () => {
       QcfFontManager.preloadSurroundingPageFonts(targetPage, 2);
 
       const data = QuranRepository.getPageAyahsSync(db, targetPage);
+      const surahs = QuranRepository.getPageSurahNamesSync(db, targetPage);
       if (data.length > 0) {
         setPageMetadata({
-          surahName: data[0].sura_name_ar || '',
+          surahNames: surahs.length > 0 ? surahs : [data[0].sura_name_ar || ''],
           jozz: data[0].jozz,
         });
       }
@@ -192,7 +204,7 @@ export const MushafPageView: React.FC = () => {
         (a) => a.sura_no === suraNo && a.aya_no === ayaNo
       );
 
-      const suraName = matchingAyah?.sura_name_ar || pageMetadata.surahName;
+      const suraName = matchingAyah?.sura_name_ar || (pageMetadata.surahNames[0] || '');
       const jozz = matchingAyah?.jozz || pageMetadata.jozz;
       const ayahText = matchingAyah?.aya_text_emlaey || '';
 
@@ -253,7 +265,7 @@ export const MushafPageView: React.FC = () => {
     <View style={styles.container}>
       {/* Top Header: Always clearly shows Surah name, Juz, and Page number with animated side actions */}
       <PageHeader
-        surahName={pageMetadata.surahName}
+        surahNames={pageMetadata.surahNames}
         jozzNumber={pageMetadata.jozz}
         pageNumber={currentPage}
         onOpenSearch={() => setIsSearchOpen(true)}
@@ -287,6 +299,7 @@ export const MushafPageView: React.FC = () => {
                   selectedVerseKey={selectedAyah?.verseKey}
                   bookmarkedVerseKey={activeBookmark?.verseKey}
                   searchHighlightVerseKey={searchHighlightVerseKey}
+                  playingVerseKey={playingVerseKey}
                   onAyahLongPress={handleAyahLongPress}
                 />
               </View>

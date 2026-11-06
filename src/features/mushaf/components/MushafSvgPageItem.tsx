@@ -25,6 +25,7 @@ interface MushafSvgPageItemProps {
   isNear: boolean;
   onToggleControls?: () => void;
   selectedVerseKey?: string | null;
+  playingVerseKey?: string | null;
   bookmarkedVerseKey?: string | null;
   searchHighlightVerseKey?: string | null;
   onAyahLongPress?: (verseKey: string, page: number) => void;
@@ -36,6 +37,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   isNear,
   onToggleControls,
   selectedVerseKey,
+  playingVerseKey,
   bookmarkedVerseKey,
   searchHighlightVerseKey,
   onAyahLongPress,
@@ -182,8 +184,8 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
   return (
     <View style={styles.pageContainer}>
-      {/* بنر اسم السورة العلوي عند بداية السورة، مدمج مع تجاوب اللمس */}
-      {surahHeader && (
+      {/* بنر اسم السورة المخصص للصفحتين 1 و 2 بدلاً من الخط المتجهي الخارجي */}
+      {page <= 2 && surahHeader && (
         <View style={styles.bannerWrapper} onTouchEnd={onToggleControls}>
           <SurahBanner
             surahName={surahHeader.sura_name_ar}
@@ -214,6 +216,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
           viewBox={pageAsset.viewBox}
           ayahs={normalizedData.ayahs}
           selectedVerseKey={selectedVerseKey}
+          playingVerseKey={playingVerseKey}
           bookmarkedVerseKey={bookmarkedVerseKey}
           searchHighlightVerseKey={searchHighlightVerseKey}
         />
@@ -229,6 +232,7 @@ export const MushafSvgPageItem = React.memo(
     prev.db === next.db &&
     prev.isNear === next.isNear &&
     prev.selectedVerseKey === next.selectedVerseKey &&
+    prev.playingVerseKey === next.playingVerseKey &&
     prev.bookmarkedVerseKey === next.bookmarkedVerseKey &&
     prev.searchHighlightVerseKey === next.searchHighlightVerseKey
 );

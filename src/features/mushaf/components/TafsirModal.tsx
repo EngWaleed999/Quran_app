@@ -42,12 +42,17 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
   const [activeTafsir, setActiveTafsir] = useState<TafsirBookId>('saadi');
   const [tafsirText, setTafsirText] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isError, setIsError] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const latestRequestIdRef = React.useRef<number>(0);
 
-  // تحميل التفسير عند تغيير الآية أو التفسير النشط
+  // تحميل التفسير عند تغيير الآية أو التفسير النشط مع منع Race Conditions
   const loadTafsir = useCallback(async () => {
     if (!ayah) return;
+    const currentRequestId = ++latestRequestIdRef.current;
     setIsLoading(true);
+    setIsError(false);
+
     try {
       const db = await getTafsirDatabase();
       const text = await TafsirRepository.getAyahTafsir(
@@ -56,12 +61,20 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
         ayah.ayaNo,
         activeTafsir
       );
-      setTafsirText(text);
+      // التأكد أن هذه الاستجابة تخص أحدث طلب فقط
+      if (latestRequestIdRef.current === currentRequestId) {
+        setTafsirText(text);
+      }
     } catch (error) {
       console.error('[TafsirModal] Error loading tafsir:', error);
-      setTafsirText('تعذر تحميل التفسير حالياً.');
+      if (latestRequestIdRef.current === currentRequestId) {
+        setIsError(true);
+        setTafsirText('تعذر تحميل قاعدة بيانات التفسير. يرجى إعادة المحاولة.');
+      }
     } finally {
-      setIsLoading(false);
+      if (latestRequestIdRef.current === currentRequestId) {
+        setIsLoading(false);
+      }
     }
   }, [ayah, activeTafsir]);
 
@@ -180,6 +193,17 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
               <View style={styles.loaderContainer}>
                 <ActivityIndicator size="small" color={QuranColors.gold} />
                 <Text style={styles.loadingText}>جاري تحميل التفسير...</Text>
+              </View>
+            ) : isError ? (
+              <View style={styles.loaderContainer}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={36} color={QuranColors.gold} />
+                <Text style={styles.loadingText}>{tafsirText}</Text>
+                <TouchableOpacity
+                  style={[styles.tabButton, styles.tabButtonActive, { marginTop: 12, paddingHorizontal: 20 }]}
+                  onPress={loadTafsir}
+                >
+                  <Text style={[styles.tabText, styles.tabTextActive]}>إعادة المحاولة</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.tafsirBodyContainer}>
