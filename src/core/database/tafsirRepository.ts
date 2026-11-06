@@ -47,7 +47,12 @@ export class TafsirRepository {
         [suraNo, ayaNo, tafsirType]
       );
 
-      const text = row?.text || 'لا يوجد تفسير متوفر لهذه الآية.';
+      const text = row?.text?.trim()
+        ? row.text.trim()
+        : row
+        ? 'تفسير هذه الآية متصل بالآيات السابقة في هذا التفسير.'
+        : 'لا يوجد تفسير متوفر لهذه الآية.';
+
       this.cache.set(cacheKey, text);
       return text;
     } catch (error) {
@@ -76,7 +81,12 @@ export class TafsirRepository {
         [suraNo, ayaNo, tafsirType]
       );
 
-      const text = row?.text || 'لا يوجد تفسير متوفر لهذه الآية.';
+      const text = row?.text?.trim()
+        ? row.text.trim()
+        : row
+        ? 'تفسير هذه الآية متصل بالآيات السابقة في هذا التفسير.'
+        : 'لا يوجد تفسير متوفر لهذه الآية.';
+
       this.cache.set(cacheKey, text);
       return text;
     } catch (error) {

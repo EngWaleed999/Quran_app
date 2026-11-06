@@ -372,6 +372,7 @@ export const MushafPageView: React.FC = () => {
         visible={tafsirAyah !== null}
         ayah={tafsirAyah}
         onClose={() => setTafsirAyah(null)}
+        db={db}
       />
     </View>
   );

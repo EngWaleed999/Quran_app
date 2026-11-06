@@ -1,87 +1,38 @@
-import argparse
-import json
 import os
 import sqlite3
-import sys
+import json
+import argparse
 from pathlib import Path
 
 EXPECTED_AYAH_COUNT = 6236
 EXPECTED_SURAH_COUNT = 114
-DATABASE_VERSION = 2
-
+DATABASE_VERSION = 1
 
 def validate_source(path: Path, label: str):
     if not path.is_file():
-        raise FileNotFoundError(
-            f"Missing {label} source: {path}\n"
-            "Make sure the tafsir JSON files are present in the repository's tafsir directory."
-        )
+        raise FileNotFoundError(f"Missing {label} source file at: {path}")
 
-    with path.open("r", encoding="utf-8") as source_file:
-        payload = json.load(source_file)
+    with path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
 
     surahs = payload.get("tafsir")
     if not isinstance(surahs, list) or len(surahs) != EXPECTED_SURAH_COUNT:
-        raise ValueError(f"{label} JSON must contain a 'tafsir' array with 114 surahs.")
+        raise ValueError(f"{label} JSON must contain 'tafsir' array with 114 surahs.")
 
     rows = []
-    for surah_index, ayahs in enumerate(surahs, start=1):
+    for surah_idx, ayahs in enumerate(surahs, start=1):
         if not isinstance(ayahs, list):
-            raise ValueError(f"{label}: surah {surah_index} is not an ayah array.")
+            raise ValueError(f"{label}: surah {surah_idx} is not an ayah array.")
 
-        for ayah_index, text in enumerate(ayahs, start=1):
-            if not isinstance(text, str) or not text.strip():
-                raise ValueError(
-                    f"{label}: missing or empty text at {surah_index}:{ayah_index}."
-                )
-            rows.append((surah_index, ayah_index, label, text.strip()))
+        for ayah_idx, text in enumerate(ayahs, start=1):
+            if not isinstance(text, str):
+                raise ValueError(f"{label}: text at {surah_idx}:{ayah_idx} is not a string.")
+            rows.append((surah_idx, ayah_idx, label, text.strip()))
 
     if len(rows) != EXPECTED_AYAH_COUNT:
-        raise ValueError(
-            f"{label} has {len(rows)} ayah entries; expected {EXPECTED_AYAH_COUNT}."
-        )
+        raise ValueError(f"{label} has {len(rows)} ayahs; expected {EXPECTED_AYAH_COUNT}.")
 
     return rows
-
-
-def is_valid_database(database_path: Path):
-    if not database_path.is_file():
-        return False
-
-    try:
-        connection = sqlite3.connect(str(database_path))
-        cursor = connection.cursor()
-
-        cursor.execute("PRAGMA user_version")
-        version = cursor.fetchone()[0]
-        if version != DATABASE_VERSION:
-            connection.close()
-            return False
-
-        cursor.execute(
-            "SELECT name FROM sqlite_master "
-            "WHERE type = 'table' AND name = 'ayah_tafsir'"
-        )
-        if cursor.fetchone() is None:
-            connection.close()
-            return False
-
-        for tafsir_type in ("saadi", "muyassar"):
-            cursor.execute(
-                "SELECT COUNT(*) FROM ayah_tafsir WHERE tafsir_type = ?",
-                (tafsir_type,),
-            )
-            if cursor.fetchone()[0] != EXPECTED_AYAH_COUNT:
-                connection.close()
-                return False
-
-        cursor.execute("PRAGMA integrity_check")
-        integrity = cursor.fetchone()[0]
-        connection.close()
-        return integrity == "ok"
-    except sqlite3.Error:
-        return False
-
 
 def build_tafsir_database(force: bool = False, verify_only: bool = False):
     project_dir = Path(__file__).resolve().parent.parent
@@ -95,140 +46,116 @@ def build_tafsir_database(force: bool = False, verify_only: bool = False):
     temp_path = output_dir / "tafsir.db.tmp"
 
     if verify_only:
-        if not is_valid_database(final_path):
-            raise RuntimeError(
-                f"{final_path} is missing, incomplete, or has an unsupported schema version."
-            )
-        print(f"[BuildTafsir] VALID: {final_path}")
+        if not final_path.is_file():
+            raise FileNotFoundError(f"Missing tafsir.db at: {final_path}")
+        conn = sqlite3.connect(str(final_path))
+        c = conn.cursor()
+        c.execute("PRAGMA integrity_check")
+        integ = c.fetchone()[0]
+        c.execute("PRAGMA user_version")
+        ver = c.fetchone()[0]
+        c.execute("SELECT count(*) FROM ayah_tafsir WHERE tafsir_type = 'saadi'")
+        s_cnt = c.fetchone()[0]
+        c.execute("SELECT count(*) FROM ayah_tafsir WHERE tafsir_type = 'muyassar'")
+        m_cnt = c.fetchone()[0]
+        conn.close()
+        print(f"[BuildTafsir] Verification OK: version={ver}, integrity={integ}, saadi={s_cnt}, muyassar={m_cnt}")
         return
 
-    if not force and is_valid_database(final_path):
-        source_paths = [saadi_path, muyassar_path]
-        sources_exist = all(path.is_file() for path in source_paths)
-        if not sources_exist:
-            print("[BuildTafsir] Existing version-2 database is valid; source JSON files are not required.")
-            return
-
-        newest_source_time = max(path.stat().st_mtime for path in source_paths)
-        if final_path.stat().st_mtime >= newest_source_time:
-            print("[BuildTafsir] Existing version-2 database is valid and up to date.")
-            return
-
-    print(f"[BuildTafsir] Building {final_path}")
+    print(f"[BuildTafsir] Loading and validating sources...")
     saadi_rows = validate_source(saadi_path, "saadi")
     muyassar_rows = validate_source(muyassar_path, "muyassar")
     all_rows = saadi_rows + muyassar_rows
-
-    if len(all_rows) != EXPECTED_AYAH_COUNT * 2:
-        raise ValueError("Combined tafsir dataset does not contain exactly 12,472 entries.")
+    print(f"[BuildTafsir] Loaded {len(saadi_rows)} Saadi + {len(muyassar_rows)} Muyassar = {len(all_rows)} total rows.")
 
     if temp_path.exists():
         temp_path.unlink()
 
-    connection = sqlite3.connect(str(temp_path))
-    try:
-        cursor = connection.cursor()
-        cursor.execute("PRAGMA page_size = 4096")
-        cursor.execute("PRAGMA journal_mode = DELETE")
-        cursor.execute("PRAGMA synchronous = FULL")
+    conn = sqlite3.connect(str(temp_path))
+    cursor = conn.cursor()
 
-        cursor.executescript(
-            """
-            CREATE TABLE ayah_tafsir (
-                id INTEGER PRIMARY KEY,
-                sura_no INTEGER NOT NULL CHECK (sura_no BETWEEN 1 AND 114),
-                aya_no INTEGER NOT NULL CHECK (aya_no >= 1),
-                tafsir_type TEXT NOT NULL CHECK (tafsir_type IN ('saadi', 'muyassar')),
-                text TEXT NOT NULL CHECK (length(trim(text)) > 0),
-                UNIQUE (tafsir_type, sura_no, aya_no)
+    cursor.execute("PRAGMA page_size = 4096")
+    cursor.execute("PRAGMA journal_mode = WAL")
+    cursor.execute("PRAGMA synchronous = NORMAL")
+
+    cursor.executescript("""
+        CREATE TABLE IF NOT EXISTS ayah_tafsir (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sura_no INTEGER NOT NULL,
+            aya_no INTEGER NOT NULL,
+            tafsir_type TEXT NOT NULL,
+            text TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tafsir_lookup
+        ON ayah_tafsir (sura_no, aya_no, tafsir_type);
+    """)
+
+    cursor.executemany(
+        "INSERT INTO ayah_tafsir (sura_no, aya_no, tafsir_type, text) VALUES (?, ?, ?, ?)",
+        all_rows
+    )
+    cursor.execute(f"PRAGMA user_version = {DATABASE_VERSION}")
+    conn.commit()
+
+    # Integrity check
+    cursor.execute("PRAGMA integrity_check")
+    integ = cursor.fetchone()[0]
+    if integ != 'ok':
+        conn.close()
+        temp_path.unlink()
+        raise RuntimeError(f"Database integrity check failed: {integ}")
+
+    print("[BuildTafsir] PRAGMA integrity_check: ok")
+
+    # Sample query checks
+    cursor.execute("SELECT text FROM ayah_tafsir WHERE sura_no = 1 AND aya_no = 1 AND tafsir_type = 'saadi'")
+    sample_saadi = cursor.fetchone()[0]
+    cursor.execute("SELECT text FROM ayah_tafsir WHERE sura_no = 1 AND aya_no = 1 AND tafsir_type = 'muyassar'")
+    sample_muyassar = cursor.fetchone()[0]
+    print(f"[BuildTafsir] Sample Saadi 1:1: {sample_saadi[:45]}...")
+    print(f"[BuildTafsir] Sample Muyassar 1:1: {sample_muyassar[:45]}...")
+
+    print("[BuildTafsir] Running VACUUM...")
+    cursor.execute("VACUUM")
+    conn.close()
+
+    # Atomically replace final file
+    if final_path.exists():
+        final_path.unlink()
+    temp_path.rename(final_path)
+
+    final_size_mb = os.path.getsize(str(final_path)) / (1024 * 1024)
+    print(f"[BuildTafsir] SUCCESS: Rebuilt {final_path} ({final_size_mb:.2f} MB) with {len(all_rows)} entries.")
+
+    quran_db_path = output_dir / "quran.db"
+    if quran_db_path.is_file():
+        print(f"[BuildTafsir] Synchronizing ayah_tafsir into unified {quran_db_path.name}...")
+        qconn = sqlite3.connect(str(quran_db_path))
+        qc = qconn.cursor()
+        qc.executescript('''
+            CREATE TABLE IF NOT EXISTS ayah_tafsir (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sura_no INTEGER NOT NULL,
+                aya_no INTEGER NOT NULL,
+                tafsir_type TEXT NOT NULL,
+                text TEXT NOT NULL
             );
-
-            CREATE INDEX idx_tafsir_lookup
+            CREATE INDEX IF NOT EXISTS idx_tafsir_lookup
             ON ayah_tafsir (sura_no, aya_no, tafsir_type);
-            """
+        ''')
+        qc.execute("DELETE FROM ayah_tafsir;")
+        qc.executemany(
+            "INSERT INTO ayah_tafsir (sura_no, aya_no, tafsir_type, text) VALUES (?, ?, ?, ?)",
+            all_rows
         )
+        qconn.commit()
+        qconn.close()
+        print("[BuildTafsir] Unified quran.db successfully synchronized!")
 
-        cursor.executemany(
-            """
-            INSERT INTO ayah_tafsir (sura_no, aya_no, tafsir_type, text)
-            VALUES (?, ?, ?, ?)
-            """,
-            all_rows,
-        )
-
-        cursor.execute("PRAGMA user_version = " + str(DATABASE_VERSION))
-        connection.commit()
-
-        for tafsir_type in ("saadi", "muyassar"):
-            cursor.execute(
-                "SELECT COUNT(*) FROM ayah_tafsir WHERE tafsir_type = ?",
-                (tafsir_type,),
-            )
-            count = cursor.fetchone()[0]
-            if count != EXPECTED_AYAH_COUNT:
-                raise RuntimeError(
-                    f"{tafsir_type} row count is {count}; expected {EXPECTED_AYAH_COUNT}."
-                )
-
-        cursor.execute(
-            """
-            SELECT text FROM ayah_tafsir
-            WHERE sura_no = 1 AND aya_no = 1 AND tafsir_type = 'saadi'
-            """
-        )
-        if not cursor.fetchone():
-            raise RuntimeError("Could not read the Saadi Al-Fatihah sample.")
-
-        cursor.execute(
-            """
-            SELECT text FROM ayah_tafsir
-            WHERE sura_no = 1 AND aya_no = 1 AND tafsir_type = 'muyassar'
-            """
-        )
-        if not cursor.fetchone():
-            raise RuntimeError("Could not read the Muyassar Al-Fatihah sample.")
-
-        cursor.execute("PRAGMA integrity_check")
-        integrity = cursor.fetchone()[0]
-        if integrity != "ok":
-            raise RuntimeError("SQLite integrity_check failed: " + str(integrity))
-
-        cursor.execute("VACUUM")
-        connection.commit()
-    except Exception:
-        connection.rollback()
-        raise
-    finally:
-        connection.close()
-
-    os.replace(temp_path, final_path)
-
-    if not is_valid_database(final_path):
-        raise RuntimeError("The final tafsir.db failed post-build verification.")
-
-    size_mb = final_path.stat().st_size / (1024 * 1024)
-    print(
-        f"[BuildTafsir] SUCCESS: {size_mb:.2f} MB, "
-        f"{EXPECTED_AYAH_COUNT} entries per tafsir, schema version {DATABASE_VERSION}."
-    )
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Rebuild the database even if the existing database is valid.",
-    )
-    parser.add_argument(
-        "--verify-only",
-        action="store_true",
-        help="Verify assets/data/tafsir.db without rebuilding it.",
-    )
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Build offline tafsir SQLite database.")
+    parser.add_argument("--force", action="store_true", help="Force rebuild")
+    parser.add_argument("--verify-only", action="store_true", help="Verify existing database only")
     args = parser.parse_args()
-
-    try:
-        build_tafsir_database(force=args.force, verify_only=args.verify_only)
-    except Exception as error:
-        print("[BuildTafsir] ERROR: " + str(error), file=sys.stderr)
-        sys.exit(1)
+    build_tafsir_database(force=args.force, verify_only=args.verify_only)

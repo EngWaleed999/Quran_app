@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SQLiteDatabase } from 'expo-sqlite';
 import { SelectedAyahInfo } from './AyahActionModal';
 import { getTafsirDatabase } from '../../../core/database/tafsirDatabase';
 import {
@@ -24,6 +25,7 @@ interface TafsirModalProps {
   visible: boolean;
   ayah: SelectedAyahInfo | null;
   onClose: () => void;
+  db?: SQLiteDatabase | null;
 }
 
 const toArabicNumerals = (num: number): string => {
@@ -35,6 +37,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
   visible,
   ayah,
   onClose,
+  db,
 }) => {
   const theme = useTheme();
   const isDark = theme.dark;
@@ -54,9 +57,9 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
     setIsError(false);
 
     try {
-      const db = await getTafsirDatabase();
+      const activeDb = db || (await getTafsirDatabase());
       const text = await TafsirRepository.getAyahTafsir(
-        db,
+        activeDb,
         ayah.suraNo,
         ayah.ayaNo,
         activeTafsir
@@ -76,7 +79,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
         setIsLoading(false);
       }
     }
-  }, [ayah, activeTafsir]);
+  }, [ayah, activeTafsir, db]);
 
   useEffect(() => {
     if (visible && ayah) {
