@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -14,12 +13,12 @@ import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { Surah } from '../types/surah.types';
-import { normalizeArabicText } from '../../search/services/searchService';
 import { Bookmark } from '../../bookmarks/types/bookmark.types';
 
 interface SurahDrawerModalProps {
   visible: boolean;
   onClose: () => void;
+  onOpenSearch?: () => void;
   onSelectPage: (page: number) => void;
   db: SQLiteDatabase;
   currentPage: number;
@@ -31,24 +30,41 @@ type NavRouteTab = 'surahs' | 'khatma' | 'bookmarks' | 'notes';
 export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
   visible,
   onClose,
+  onOpenSearch,
   onSelectPage,
   db,
   currentPage,
   activeBookmark,
 }) => {
   const [activeTab, setActiveTab] = useState<NavRouteTab>('surahs');
-  const [filterText, setFilterText] = useState('');
+  const flatListRef = useRef<FlatList<Surah>>(null);
 
   const allSurahs = useMemo(() => QuranRepository.getAllSurahsSync(db), [db]);
 
-  const filteredSurahs = useMemo(() => {
-    if (!filterText.trim()) return allSurahs;
-    const norm = normalizeArabicText(filterText.trim());
-    return allSurahs.filter((s) => {
-      const normName = normalizeArabicText(s.sura_name_ar);
-      return normName.includes(norm) || String(s.sura_no) === norm;
-    });
-  }, [allSurahs, filterText]);
+  const currentSurahIndex = useMemo(() => {
+    return allSurahs.findIndex(
+      (s) => currentPage >= s.page_start && currentPage <= s.page_end
+    );
+  }, [allSurahs, currentPage]);
+
+  // متطلب 4: إعادة تعيين التبويب دائماً إلى "السور" عند فتح الفهرس دون حفظ التبويب السابق
+  // متطلب 3: التمرير التلقائي والتحديد على السورة التي يقرأها المستخدم حالياً (مثل سورة القارعة)
+  useEffect(() => {
+    if (visible) {
+      setActiveTab('surahs');
+
+      if (currentSurahIndex >= 0) {
+        const timer = setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: currentSurahIndex,
+            animated: false,
+            viewPosition: 0.15,
+          });
+        }, 80);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [visible, currentSurahIndex]);
 
   const handleSelectSurah = (pageStart: number) => {
     onClose();
@@ -116,7 +132,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
       <View style={styles.container}>
         {/* Top Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="إغلاق الفهرس">
             <MaterialCommunityIcons name="arrow-right" size={24} color={QuranColors.emerald} />
           </TouchableOpacity>
 
@@ -125,37 +141,39 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
             <Text style={styles.headerSubtitle}>١١٤ سُورَة • ٣٠ جُزءاً</Text>
           </View>
 
-          <View style={{ width: 40 }} />
+          {/* متطلب 1: زر البحث الذكي المدمج في رأس الفهرس لتوحيد ميزة البحث ومنع التكرار */}
+          <TouchableOpacity
+            style={styles.searchHeaderBtn}
+            onPress={() => {
+              onClose();
+              onOpenSearch?.();
+            }}
+            accessibilityLabel="فتح البحث الذكي"
+          >
+            <MaterialCommunityIcons name="magnify" size={24} color={QuranColors.emerald} />
+          </TouchableOpacity>
         </View>
 
         {/* Content based on Active Tab */}
         {activeTab === 'surahs' ? (
           <View style={styles.tabContent}>
-            {/* Quick Filter Bar */}
-            <View style={styles.filterBar}>
-              <MaterialCommunityIcons name="magnify" size={20} color={QuranColors.textMuted} />
-              <TextInput
-                style={styles.filterInput}
-                placeholder="تصفية السور بالاسم أو الرقم..."
-                placeholderTextColor={QuranColors.textMuted}
-                value={filterText}
-                onChangeText={setFilterText}
-                autoCorrect={false}
-              />
-              {filterText.length > 0 ? (
-                <TouchableOpacity onPress={() => setFilterText('')}>
-                  <MaterialCommunityIcons name="close-circle" size={18} color={QuranColors.textMuted} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
             <FlatList
-              data={filteredSurahs}
+              ref={flatListRef}
+              data={allSurahs}
               keyExtractor={(item) => 'surah-' + item.sura_no}
               renderItem={renderSurahItem}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
+              onScrollToIndexFailed={(info) => {
+                setTimeout(() => {
+                  flatListRef.current?.scrollToIndex({
+                    index: info.index,
+                    animated: false,
+                    viewPosition: 0.15,
+                  });
+                }, 100);
+              }}
             />
           </View>
         ) : activeTab === 'khatma' ? (
@@ -257,7 +275,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
-              name="bookmark-multiple-outline"
+              name={activeTab === 'bookmarks' ? 'bookmark-multiple' : 'bookmark-multiple-outline'}
               size={22}
               color={activeTab === 'bookmarks' ? QuranColors.emerald : QuranColors.textMuted}
             />
@@ -272,7 +290,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
-              name="note-text-outline"
+              name={activeTab === 'notes' ? 'note-text' : 'note-text-outline'}
               size={22}
               color={activeTab === 'notes' ? QuranColors.emerald : QuranColors.textMuted}
             />
@@ -309,6 +327,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
+  searchHeaderBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(31, 81, 63, 0.08)',
+  },
   titleWrapper: {
     alignItems: 'center',
   },
@@ -325,29 +351,9 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
   },
-  filterBar: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 6,
-    paddingHorizontal: 12,
-    height: 42,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: QuranColors.parchmentBorder,
-    gap: 8,
-  },
-  filterInput: {
-    flex: 1,
-    fontSize: 14,
-    color: QuranColors.textDark,
-    textAlign: 'right',
-  },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 80, // Space for bottom route nav
     gap: 8,
   },
@@ -364,8 +370,8 @@ const styles = StyleSheet.create({
   },
   currentSurahRow: {
     borderColor: QuranColors.emerald,
-    backgroundColor: 'rgba(31, 81, 63, 0.04)',
-    borderWidth: 1.5,
+    backgroundColor: 'rgba(31, 81, 63, 0.06)',
+    borderWidth: 1.8,
   },
   surahNumberBadge: {
     width: 38,
@@ -379,7 +385,7 @@ const styles = StyleSheet.create({
   },
   currentSurahNumberBadge: {
     backgroundColor: QuranColors.emerald,
-    borderColor: QuranColors.emerald,
+    borderColor: QuranColors.emeraldDark,
   },
   surahNumberText: {
     fontSize: 13,
@@ -404,11 +410,12 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
   },
   currentSurahName: {
-    color: QuranColors.emerald,
+    color: QuranColors.emeraldDark,
+    fontWeight: 'bold',
   },
   typeBadge: {
     paddingHorizontal: 6,
-    paddingVertical: 1.5,
+    paddingVertical: 2,
     borderRadius: 4,
   },
   makkiBadge: {
@@ -423,15 +430,15 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
   },
   currentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
     backgroundColor: QuranColors.emerald,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   currentBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
     color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   surahMeta: {
     fontSize: 12,
@@ -441,21 +448,16 @@ const styles = StyleSheet.create({
   pageIndicatorWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: QuranColors.parchment,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: QuranColors.parchmentBorder,
+    minWidth: 40,
   },
   pageLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: QuranColors.textMuted,
   },
   pageNumberVal: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: QuranColors.emeraldDark,
+    color: QuranColors.emerald,
   },
   placeholderContainer: {
     flex: 1,
@@ -468,6 +470,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
+    textAlign: 'center',
   },
   placeholderSubtitle: {
     fontSize: 14,
@@ -477,18 +480,17 @@ const styles = StyleSheet.create({
   },
   bookmarkContainer: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
+    padding: 16,
   },
   bookmarkCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1.5,
     borderColor: QuranColors.emerald,
     gap: 12,
-    elevation: 3,
-    shadowColor: '#000',
+    elevation: 2,
+    shadowColor: QuranColors.emeraldDark,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -501,15 +503,15 @@ const styles = StyleSheet.create({
   bookmarkBadge: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 6,
     backgroundColor: QuranColors.emerald,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
+    gap: 4,
   },
   bookmarkBadgeText: {
-    fontSize: 12,
     color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   bookmarkPageText: {
@@ -518,52 +520,40 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   bookmarkSurahText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
     textAlign: 'right',
   },
   bookmarkAyahText: {
     fontSize: 15,
-    lineHeight: 24,
     color: QuranColors.textDark,
     textAlign: 'right',
+    lineHeight: 24,
     fontFamily: 'UthmanicHafs',
-    paddingVertical: 4,
   },
   jumpBookmarkBtn: {
     flexDirection: 'row-reverse',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
     backgroundColor: QuranColors.emerald,
-    borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
     marginTop: 4,
   },
   jumpBookmarkBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#FFFFFF',
   },
   bottomNavContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row-reverse',
-    justifyContent: 'space-around',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
-    paddingVertical: 10,
-    paddingBottom: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    paddingVertical: 6,
+    paddingBottom: 10,
   },
   navTab: {
     flex: 1,
@@ -571,13 +561,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
-  activeNavTab: {
-    transform: [{ scale: 1.05 }],
-  },
+  activeNavTab: {},
   navTabText: {
-    fontSize: 12,
+    fontSize: 11,
     color: QuranColors.textMuted,
-    fontWeight: '600',
   },
   activeNavTabText: {
     color: QuranColors.emerald,

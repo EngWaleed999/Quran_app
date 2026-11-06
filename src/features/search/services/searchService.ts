@@ -1,6 +1,11 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranRepository } from '../../../core/database/quranRepository';
-import { SearchResults, SurahSearchResult, AyahSearchResult } from '../types/search.types';
+import {
+  SearchResults,
+  SurahSearchResult,
+  AyahSearchResult,
+  PageSearchResult,
+} from '../types/search.types';
 
 /**
  * التطبيع اللغوي للنص العربي لتسهيل البحث الشامل
@@ -19,7 +24,7 @@ export function normalizeArabicText(text: string): string {
 
 export class SearchService {
   /**
-   * بحث شامل فوري في السور والآيات
+   * بحث شامل ذكي في السور، الصفحات، والآيات
    */
   static async searchQuran(
     db: SQLiteDatabase,
@@ -28,26 +33,43 @@ export class SearchService {
   ): Promise<SearchResults> {
     const trimmed = rawQuery.trim();
     if (!trimmed) {
-      return { surahs: [], ayahs: [] };
+      return { pageResult: null, surahs: [], ayahs: [] };
     }
 
     const normQuery = normalizeArabicText(trimmed);
     if (!normQuery) {
-      return { surahs: [], ayahs: [] };
+      return { pageResult: null, surahs: [], ayahs: [] };
     }
 
-    // 1. البحث في السور (بالاسم أو برقم السورة 1-114)
     const allSurahs = QuranRepository.getAllSurahsSync(db);
+
+    // 1. البحث برقم الصفحة (1 - 604) وليس برقم السورة (حسب متطلبات النظام)
+    let pageResult: PageSearchResult | null = null;
+    const pageNumberMatch = normQuery.match(/^(?:صفحه|ص)?\s*(\d{1,3})$/);
+    if (pageNumberMatch) {
+      const pageNum = parseInt(pageNumberMatch[1], 10);
+      if (pageNum >= 1 && pageNum <= 604) {
+        const foundSurah =
+          allSurahs.find((s) => pageNum >= s.page_start && pageNum <= s.page_end) ??
+          allSurahs[0];
+
+        pageResult = {
+          page: pageNum,
+          surah_name_ar: foundSurah.sura_name_ar,
+          jozz: foundSurah.jozz_start,
+        };
+      }
+    }
+
+    // 2. البحث في أسماء السور حصراً بالاسم (بدون رقم السورة لمنع اللبس مع رقم الصفحة)
     const matchedSurahs: SurahSearchResult[] = allSurahs.filter((surah) => {
       const normSurahName = normalizeArabicText(surah.sura_name_ar);
-      const isNumberMatch = String(surah.sura_no) === normQuery;
-      const isNameMatch = normSurahName.includes(normQuery);
-      return isNumberMatch || isNameMatch;
+      return normSurahName.includes(normQuery);
     });
 
-    // 2. البحث في نصوص الآيات (إذا كان طول الاستعلام حرفين أو أكثر)
+    // 3. البحث في نصوص الآيات (إذا كان طول الاستعلام حرفين أو أكثر ولا يمثل رقماً فقط)
     let matchedAyahs: AyahSearchResult[] = [];
-    if (normQuery.length >= 2) {
+    if (normQuery.length >= 2 && !/^\d+$/.test(normQuery)) {
       try {
         matchedAyahs = await db.getAllAsync<AyahSearchResult>(
           `SELECT a.id, a.sura_no, s.sura_name_ar, a.page, a.aya_no, a.aya_text_emlaey 
@@ -64,6 +86,7 @@ export class SearchService {
     }
 
     return {
+      pageResult,
       surahs: matchedSurahs,
       ayahs: matchedAyahs,
     };

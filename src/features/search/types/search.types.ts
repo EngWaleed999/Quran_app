@@ -18,7 +18,14 @@ export interface AyahSearchResult {
   aya_text_emlaey: string;
 }
 
+export interface PageSearchResult {
+  page: number;
+  surah_name_ar: string;
+  jozz: number;
+}
+
 export interface SearchResults {
+  pageResult?: PageSearchResult | null;
   surahs: SurahSearchResult[];
   ayahs: AyahSearchResult[];
 }

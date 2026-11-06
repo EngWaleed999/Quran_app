@@ -327,6 +327,10 @@ export const MushafPageView: React.FC = () => {
       <SurahDrawerModal
         visible={isSurahListOpen}
         onClose={() => setIsSurahListOpen(false)}
+        onOpenSearch={() => {
+          setIsSurahListOpen(false);
+          setIsSearchOpen(true);
+        }}
         onSelectPage={handleNavigateToPage}
         db={db}
         currentPage={currentPage}

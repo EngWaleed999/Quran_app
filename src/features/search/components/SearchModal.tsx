@@ -14,8 +14,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
-import { SearchService, normalizeArabicText } from '../services/searchService';
-import { SurahSearchResult, AyahSearchResult } from '../types/search.types';
+import { SearchService } from '../services/searchService';
+import { SurahSearchResult, AyahSearchResult, PageSearchResult } from '../types/search.types';
 
 interface SearchModalProps {
   visible: boolean;
@@ -32,6 +32,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [pageResult, setPageResult] = useState<PageSearchResult | null>(null);
   const [matchedSurahs, setMatchedSurahs] = useState<SurahSearchResult[]>([]);
   const [matchedAyahs, setMatchedAyahs] = useState<AyahSearchResult[]>([]);
   const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
@@ -40,6 +41,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   useEffect(() => {
     if (visible) {
       setQuery('');
+      setPageResult(null);
       setMatchedSurahs([]);
       setMatchedAyahs([]);
       const timer = setTimeout(() => inputRef.current?.focus(), 100);
@@ -47,9 +49,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     }
   }, [visible]);
 
-  // Debounced search logic (220ms)
+  // Debounced search logic (200ms)
   useEffect(() => {
     if (!query.trim()) {
+      setPageResult(null);
       setMatchedSurahs([]);
       setMatchedAyahs([]);
       setIsLoading(false);
@@ -60,14 +63,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     const handler = setTimeout(async () => {
       try {
         const results = await SearchService.searchQuran(db, query, 50);
+        setPageResult(results.pageResult ?? null);
         setMatchedSurahs(results.surahs);
         setMatchedAyahs(results.ayahs);
       } catch (err) {
-        console.warn('Search error:', err);
+        console.warn('[SearchModal] Search error:', err);
       } finally {
         setIsLoading(false);
       }
-    }, 220);
+    }, 200);
 
     return () => clearTimeout(handler);
   }, [query, db]);
@@ -137,7 +141,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     );
   };
 
-  const hasResults = matchedSurahs.length > 0 || matchedAyahs.length > 0;
+  const hasResults = Boolean(pageResult) || matchedSurahs.length > 0 || matchedAyahs.length > 0;
   const isQueryActive = query.trim().length > 0;
 
   return (
@@ -163,7 +167,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             <TextInput
               ref={inputRef}
               style={styles.textInput}
-              placeholder="ابحث بسورة (الكهف)، برقم (18)، أو بآية..."
+              placeholder="ابحث عن سورة، أو برقم الصفحة (1-604)، أو بآية..."
               placeholderTextColor={QuranColors.textMuted}
               value={query}
               onChangeText={setQuery}
@@ -198,8 +202,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             />
             <Text style={styles.emptyTitle}>البحث الذكي في القرآن الكريم</Text>
             <Text style={styles.emptySubtitle}>
-              يمكنك كتابة اسم السورة (مثل: الكهف)، أو رقمها (مثل: 18)، أو أي كلمة من آيات المصحف
-              (مثل: اهدنا).
+              يمكنك كتابة اسم السورة (مثل: الكهف)، أو رقم الصفحة (مثل: 50)، أو أي كلمة من آيات المصحف (مثل: اهدنا).
             </Text>
 
             <View style={styles.chipsContainer}>
@@ -223,7 +226,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             />
             <Text style={styles.emptyTitle}>لا توجد نتائج مطابقة لـ "{query}"</Text>
             <Text style={styles.emptySubtitle}>
-              تأكد من صحة الكلمة، أو جرّب البحث بجزء منها دون تشكيل.
+              تأكد من صحة الكلمة أو رقم الصفحة (1 إلى 604)، أو جرّب البحث بجزء من الآية دون تشكيل.
             </Text>
           </View>
         ) : (
@@ -235,18 +238,56 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
-              matchedSurahs.length > 0 ? (
-                <View style={styles.surahsSection}>
-                  <Text style={styles.sectionTitle}>
-                    السور المطابقة ({toArabicNumerals(matchedSurahs.length)})
-                  </Text>
-                  {matchedSurahs.map((surah) => (
-                    <React.Fragment key={'surah-' + surah.sura_no}>
-                      {renderSurahCard({ item: surah })}
-                    </React.Fragment>
-                  ))}
+              Boolean(pageResult) || matchedSurahs.length > 0 ? (
+                <View style={styles.headerSectionContainer}>
+                  {/* Quick Page Jump Result Card (Requirement 2) */}
+                  {pageResult ? (
+                    <View style={styles.pageCardSection}>
+                      <Text style={styles.sectionTitle}>الانتقال السريع إلى الصفحة</Text>
+                      <TouchableOpacity
+                        style={styles.pageCard}
+                        onPress={() => handleSelectPage(pageResult.page)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.pageNumberCircle}>
+                          <Text style={styles.pageNumberCircleText}>
+                            {toArabicNumerals(pageResult.page)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.pageCardInfo}>
+                          <Text style={styles.pageCardTitle}>
+                            الانتقال إلى صَفْحَة {toArabicNumerals(pageResult.page)}
+                          </Text>
+                          <Text style={styles.pageCardSubtitle}>
+                            سُورَةُ {pageResult.surah_name_ar} • الجزء {toArabicNumerals(pageResult.jozz)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.jumpBtnBadge}>
+                          <Text style={styles.jumpBtnBadgeText}>انتقال</Text>
+                          <MaterialCommunityIcons name="arrow-left" size={16} color="#FFFFFF" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
+                  {/* Matched Surahs */}
+                  {matchedSurahs.length > 0 ? (
+                    <View style={styles.surahsSection}>
+                      <Text style={styles.sectionTitle}>
+                        السور المطابقة ({toArabicNumerals(matchedSurahs.length)})
+                      </Text>
+                      {matchedSurahs.map((surah) => (
+                        <React.Fragment key={'surah-' + surah.sura_no}>
+                          {renderSurahCard({ item: surah })}
+                        </React.Fragment>
+                      ))}
+                    </View>
+                  ) : null}
+
                   {matchedAyahs.length > 0 ? (
-                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>
+                    <Text style={[styles.sectionTitle, { marginTop: 12 }]}>
                       الآيات المطابقة ({toArabicNumerals(matchedAyahs.length)})
                     </Text>
                   ) : null}
@@ -353,6 +394,70 @@ const styles = StyleSheet.create({
   resultsList: {
     padding: 16,
     gap: 10,
+  },
+  headerSectionContainer: {
+    marginBottom: 6,
+  },
+  pageCardSection: {
+    marginBottom: 16,
+  },
+  pageCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: QuranColors.emerald,
+    elevation: 2,
+    shadowColor: QuranColors.emeraldDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    gap: 12,
+  },
+  pageNumberCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(31, 81, 63, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: QuranColors.emerald,
+  },
+  pageNumberCircleText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: QuranColors.emeraldDark,
+  },
+  pageCardInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  pageCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: QuranColors.emeraldDark,
+  },
+  pageCardSubtitle: {
+    fontSize: 12,
+    color: QuranColors.textMuted,
+    textAlign: 'right',
+  },
+  jumpBtnBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: QuranColors.emerald,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 4,
+  },
+  jumpBtnBadgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   surahsSection: {
     marginBottom: 6,
