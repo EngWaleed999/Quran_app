@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
@@ -25,6 +26,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   onNavigateToPage,
   onWirdChange,
 }) => {
+  const theme = useTheme();
   const [wird, setWird] = useState<DailyWird | null>(null);
   const [khatmahCount, setKhatmahCount] = useState(1);
   const [durationDays, setDurationDays] = useState('30');
@@ -147,12 +149,12 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="إغلاق">
-            <MaterialCommunityIcons name="arrow-right" size={24} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>ختمتي</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]} >ختمتي</Text>
           <View style={styles.headerButton} />
         </View>
 
@@ -170,9 +172,9 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
             </View>
           ) : wird ? (
             <>
-              <View style={styles.summaryCard}>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 <Text style={styles.eyebrow}>خطتك الحالية</Text>
-                <Text style={styles.planTitle}>{wird.plan.khatmahCount} ختمة خلال {wird.totalDays} يوماً</Text>
+                <Text style={[styles.planTitle, { color: theme.colors.onSurface }]} >{wird.plan.khatmahCount} ختمة خلال {wird.totalDays} يوماً</Text>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: wird.progressPercent + '%' }]} />
                 </View>
@@ -182,9 +184,9 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 </View>
               </View>
 
-              <View style={styles.wirdCard}>
+              <View style={[styles.wirdCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 <View style={styles.wirdHeading}>
-                  <Text style={styles.wirdTitle}>وردك الحالي</Text>
+                  <Text style={[styles.wirdTitle, { color: theme.colors.onSurface }]} >وردك الحالي</Text>
                   <Text style={styles.dayBadge}>اليوم {wird.dayNumber} من {wird.totalDays}</Text>
                 </View>
                 <Text style={styles.metric}>{wird.dailyTargetPages.toLocaleString('ar')} صفحة تقريباً</Text>
@@ -212,7 +214,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               </TouchableOpacity>
             </>
           ) : (
-            <View style={styles.formCard}>
+            <View style={[styles.formCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
               <MaterialCommunityIcons name="book-check-outline" size={44} color={QuranColors.emerald} />
               <Text style={styles.formTitle}>خطّط لختمتك</Text>
               <Text style={styles.helper}>اختر عدد الختمات والمدة، وسنحسب لك مقدار القراءة اليومي ونظلل آيات وردك داخل المصحف.</Text>
