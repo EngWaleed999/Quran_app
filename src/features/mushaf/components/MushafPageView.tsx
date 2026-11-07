@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { View, StyleSheet, Animated } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useTheme } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from './PageHeader';
 import { PageBottomBar } from './PageBottomBar';
@@ -39,6 +40,7 @@ interface AudioPickerState {
 
 export const MushafPageView: React.FC = () => {
   const db = useSQLiteContext();
+  const theme = useTheme();
   const pagerRef = useRef<PagerView>(null);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -319,11 +321,11 @@ export const MushafPageView: React.FC = () => {
   }, [currentPage]);
 
   if (!isReady) {
-    return <View style={styles.blankContainer} />;
+    return <View style={[styles.blankContainer, { backgroundColor: theme.colors.background }]} />;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <PageHeader
         surahNames={pageMetadata.surahNames}
         jozzNumber={pageMetadata.jozz}
