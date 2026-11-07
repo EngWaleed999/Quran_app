@@ -52,14 +52,10 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
   const downloadProgress = useAudioStore((state) => state.downloadProgress);
   const lastError = useAudioStore((state) => state.lastError);
   const setSelectedReciter = useAudioStore((state) => state.setSelectedReciter);
-  const setRepeatConfig = useAudioStore((state) => state.setRepeatConfig);
   const requestPlayback = useAudioStore((state) => state.requestPlayback);
   const startDownloadAndPlay = useAudioStore((state) => state.startDownloadAndPlay);
   const cancelDownload = useAudioStore((state) => state.cancelDownload);
 
-  const [repeatCount, setRepeatCount] = useState(3);
-  const [pauseDelaySeconds, setPauseDelaySeconds] = useState(2);
-  const [verseGapSeconds, setVerseGapSeconds] = useState(0);
   const [summary, setSummary] = useState<SurahDownloadSummary | null>(null);
   const [storageBytes, setStorageBytes] = useState(0);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -125,16 +121,10 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
 
     try {
       const target = buildTarget();
-      setRepeatConfig(
-        mode === 'repeat'
-          ? { repeatCount, pauseDelaySeconds, verseGapDelaySeconds: verseGapSeconds }
-          : { repeatCount: 1, pauseDelaySeconds: 0, verseGapDelaySeconds: 0 }
-      );
-
-      const result = await requestPlayback(target);
+      const result = await requestPlayback(target, mode);
 
       if (result.needsDownload) {
-        await startDownloadAndPlay(target, result.missingAyahs);
+        await startDownloadAndPlay(target, result.missingAyahs, mode);
       }
 
       const finalState = useAudioStore.getState();
@@ -239,73 +229,6 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
                 </TouchableOpacity>
               );
             })}
-
-            {mode === 'repeat' ? (
-              <View style={styles.repeatSection}>
-                <Text style={styles.sectionTitle}>إعدادات الترديد</Text>
-                <Text style={styles.optionLabel}>عدد مرات تكرار كل آية</Text>
-                <View style={styles.optionsRow}>
-                  {[2, 3, 5, 10].map((value) => (
-                    <TouchableOpacity
-                      key={value}
-                      onPress={() => setRepeatCount(value)}
-                      style={[styles.option, repeatCount === value && styles.optionSelected]}
-                      disabled={isDownloading || isPreparing}
-                    >
-                      <Text style={[styles.optionText, repeatCount === value && styles.optionTextSelected]}>
-                        {toArabicNumerals(value)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.optionLabel}>التأخير بين التكرارات</Text>
-                <View style={styles.optionsRow}>
-                  {[0, 2, 3, 5, 10].map((value) => (
-                    <TouchableOpacity
-                      key={value}
-                      onPress={() => setPauseDelaySeconds(value)}
-                      style={[
-                        styles.option,
-                        pauseDelaySeconds === value && styles.optionSelected,
-                      ]}
-                      disabled={isDownloading || isPreparing}
-                    >
-                      <Text style={[styles.optionText, pauseDelaySeconds === value && styles.optionTextSelected]}>
-                        {value === 0 ? 'بدون' : toArabicNumerals(value) + ' ث'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Text style={styles.optionLabel}>التأخير بين الآيات (فاصل الانتقال)</Text>
-                <View style={styles.optionsRow}>
-                  {[0, 2, 3, 5].map((value) => (
-                    <TouchableOpacity
-                      key={value}
-                      onPress={() => setVerseGapSeconds(value)}
-                      style={[
-                        styles.option,
-                        verseGapSeconds === value && styles.optionSelected,
-                      ]}
-                      disabled={isDownloading || isPreparing}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          verseGapSeconds === value && styles.optionTextSelected,
-                        ]}
-                      >
-                        {value === 0 ? 'بدون' : toArabicNumerals(value) + ' ث'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.helperText}>
-                  سيُعاد تشغيل كل آية قبل الانتقال إلى الآية التالية.
-                </Text>
-              </View>
-            ) : null}
 
             <View style={styles.downloadSummary}>
               <Text style={styles.downloadSummaryText}>
