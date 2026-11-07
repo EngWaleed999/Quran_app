@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
+import { useTheme } from 'react-native-paper';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 
 interface PageHeaderProps {
@@ -34,6 +35,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   controlsAnim,
   isControlsVisible,
 }) => {
+  const theme = useTheme();
   const names = useMemo(() => {
     const source =
       surahNames && surahNames.length > 0
@@ -69,7 +71,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <MaterialCommunityIcons
               name="format-list-bulleted"
               size={22}
-              color={QuranColors.emerald}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenBookmarks} accessibilityLabel="الفواصل المحفوظة" hitSlop={8}>
@@ -84,13 +86,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </Animated.View>
 
         <View style={styles.centerMetadata}>
-          <Text style={styles.textSide}>
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]}>
             الجزء {toArabicNumerals(jozzNumber)}
           </Text>
 
           <View style={styles.surahBadge}>
             <Text
-              style={[styles.surahText, { fontSize: surahFontSize }]}
+              style={[styles.surahText, { fontSize: surahFontSize, color: theme.colors.primary }]}
               numberOfLines={names.length <= 2 ? 2 : 3}
               adjustsFontSizeToFit
               minimumFontScale={0.78}
@@ -182,7 +184,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(31, 81, 63, 0.06)',
+    backgroundColor: theme.colors.surfaceVariant,
   },
   centerMetadata: {
     flexDirection: 'row-reverse',
