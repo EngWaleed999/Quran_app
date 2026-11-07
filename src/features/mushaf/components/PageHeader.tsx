@@ -75,7 +75,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenBookmarks} accessibilityLabel="الفواصل المحفوظة" hitSlop={8}>
-            <MaterialCommunityIcons name="bookmark-multiple-outline" size={21} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="bookmark-multiple-outline" size={20} color={theme.colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenNotes} accessibilityLabel="ملاحظاتي" hitSlop={8}>
             <MaterialCommunityIcons name="note-text-outline" size={21} color={QuranColors.emerald} />
@@ -101,7 +101,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </Text>
           </View>
 
-          <Text style={styles.textSide}>
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]} >
             {pageNumber
               ? 'صفحة ' + toArabicNumerals(pageNumber)
               : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
@@ -120,8 +120,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           >
             <MaterialCommunityIcons
               name="magnify"
-              size={22}
-              color={QuranColors.emerald}
+              size={21}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
 
@@ -179,12 +179,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 34,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceVariant,
+    backgroundColor: 'rgba(31, 81, 63, 0.06)',
   },
   centerMetadata: {
     flexDirection: 'row-reverse',
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31, 81, 63, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(31, 81, 63, 0.15)',
-    maxWidth: '48%',
-    minWidth: 82,
+    maxWidth: '42%',
+    minWidth: 72,
     flexShrink: 1,
   },
   surahText: {
