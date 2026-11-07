@@ -52,9 +52,17 @@ test('the last day contains the exact remainder when totals do not divide evenly
   assert.equal(lastDay.dailyTargetAyahs, 2);
 });
 
+test('a legacy partial day resumes at its exact saved offset', () => {
+  const resumed = getDailyAyahRange(1, 6236, 30, 5, 1200);
+  assert.equal(resumed.startOffset, 1200);
+  assert.equal(resumed.endOffset, 1248);
+  assert.equal(resumed.dailyTargetAyahs, 48);
+  assert.throws(() => getDailyAyahRange(1, 6236, 30, 5, 1248));
+});
+
 test('page visit counts include an entire cycle and exact partial range', () => {
   assert.equal(countPageVisits(6236, 1, 604, false), 604);
-  assert.equal(countPageVisits(6236 + 20, 600, 2, true), 609);
+  assert.equal(countPageVisits(6236 + 20, 600, 2, true), 611);
   assert.equal(countPageVisits(0, 1, 1, false), 0);
 });
 

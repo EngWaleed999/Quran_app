@@ -62,13 +62,15 @@ function getDailyTargetAyahs(plan: KhatmahPlan): number {
 function getDailyRange(
   db: SQLiteDatabase,
   plan: KhatmahPlan,
-  dayIndex: number
+  dayIndex: number,
+  startOffsetOverride?: number
 ): DailyRange {
   const range = getDailyAyahRange(
     plan.startGlobalAyah,
     plan.totalAyahs,
     plan.durationDays,
-    dayIndex
+    dayIndex,
+    startOffsetOverride
   );
   const startAyah = QuranRepository.getAyahByGlobalNumberSync(db, range.startGlobalAyah);
   const endAyah = QuranRepository.getAyahByGlobalNumberSync(db, range.endGlobalAyah);
@@ -93,9 +95,12 @@ async function getWirdForPlan(
   now: Date
 ): Promise<DailyWird> {
   const today = localDateKey(now);
-  const todayIndex = Math.min(
-    daysBetweenDateKeys(plan.startDateLocal, today),
-    plan.durationDays - 1
+  const todayIndex = Math.max(
+    0,
+    Math.min(
+      daysBetweenDateKeys(plan.startDateLocal, today),
+      plan.durationDays - 1
+    )
   );
 
   const completionRows = await db.getAllAsync<CompletionRow>(
@@ -132,7 +137,18 @@ async function getWirdForPlan(
     }
   }
 
-  const range = getDailyRange(db, plan, dayIndex);
+  const scheduledStartOffset = dayIndex * getDailyTargetAyahs(plan);
+  const scheduledEndOffset = Math.min(
+    plan.totalAyahs,
+    (dayIndex + 1) * getDailyTargetAyahs(plan)
+  );
+  const legacyPartialOffset =
+    (status === 'pending' || status === 'overdue') &&
+    plan.completedAyahs > scheduledStartOffset &&
+    plan.completedAyahs < scheduledEndOffset
+      ? plan.completedAyahs
+      : undefined;
+  const range = getDailyRange(db, plan, dayIndex, legacyPartialOffset);
   return {
     plan,
     dayNumber: dayIndex + 1,
@@ -142,6 +158,8 @@ async function getWirdForPlan(
     status,
     canComplete: status === 'pending' || status === 'overdue',
     completedAt,
+    startOffset: range.startOffset,
+    endOffset: range.endOffset,
     dailyTargetAyahs: range.dailyTargetAyahs,
     dailyTargetPages: range.dailyTargetPages,
     completedInPlan: plan.completedAyahs,
@@ -263,28 +281,21 @@ export class KhatmahService {
           plan.id,
           current.dayIndex,
           current.scheduledDate,
-          current.dayIndex * getDailyTargetAyahs(plan),
-          Math.min(
-            plan.totalAyahs,
-            (current.dayIndex + 1) * getDailyTargetAyahs(plan)
-          ),
+          current.startOffset,
+          current.endOffset,
           now,
         ]
       );
 
-      const totals = await txn.getFirstAsync<{
-        completed_ayahs: number;
-        completed_days: number;
-      }>(
-        `SELECT
-           COALESCE(SUM(end_offset - start_offset), 0) AS completed_ayahs,
-           COUNT(*) AS completed_days
-         FROM khatmah_daily_completions
-         WHERE plan_id = ?`,
+      const totals = await txn.getFirstAsync<{ completed_days: number }>(
+        'SELECT COUNT(*) AS completed_days FROM khatmah_daily_completions WHERE plan_id = ?',
         [plan.id]
       );
 
-      const completedAyahs = Math.min(plan.totalAyahs, totals?.completed_ayahs ?? 0);
+      // Day records are inserted sequentially, so endOffset is the authoritative
+      // cumulative progress. This also preserves an old installation's partial
+      // ayah progress when the first day is resumed after migration.
+      const completedAyahs = current.endOffset;
       const isFinished = (totals?.completed_days ?? 0) >= plan.durationDays;
 
       await txn.runAsync(

@@ -23,6 +23,8 @@ export interface DailyWird {
   status: DailyWirdStatus;
   canComplete: boolean;
   completedAt: number | null;
+  startOffset: number;
+  endOffset: number;
   dailyTargetAyahs: number;
   dailyTargetPages: number;
   completedInPlan: number;

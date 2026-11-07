@@ -106,7 +106,7 @@ export async function initializeAppSchema(db: SQLiteDatabase): Promise<void> {
       const legacyDailyTarget = Math.ceil(plan.total_ayahs / plan.duration_days);
       const completedDays = Math.min(
         plan.duration_days,
-        Math.ceil(plan.completed_ayahs / legacyDailyTarget)
+        Math.floor(plan.completed_ayahs / legacyDailyTarget)
       );
 
       for (let dayIndex = 0; dayIndex < completedDays; dayIndex += 1) {

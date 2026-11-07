@@ -39,7 +39,8 @@ export function getDailyAyahRange(
   startGlobalAyah: number,
   totalAyahs: number,
   durationDays: number,
-  dayIndex: number
+  dayIndex: number,
+  startOffsetOverride?: number
 ): DailyAyahRange {
   if (!Number.isInteger(startGlobalAyah) || startGlobalAyah < 1 || startGlobalAyah > TOTAL_QURAN_AYAHS) {
     throw new Error('startGlobalAyah must be between 1 and 6236');
@@ -55,9 +56,10 @@ export function getDailyAyahRange(
   }
 
   const dailyTarget = Math.max(1, Math.ceil(totalAyahs / durationDays));
-  const startOffset = dayIndex * dailyTarget;
+  const scheduledStartOffset = dayIndex * dailyTarget;
   const endOffset = Math.min(totalAyahs, (dayIndex + 1) * dailyTarget);
-  if (endOffset <= startOffset) {
+  const startOffset = startOffsetOverride ?? scheduledStartOffset;
+  if (startOffset < scheduledStartOffset || startOffset >= endOffset) {
     throw new Error('The requested day has no remaining ayahs');
   }
 
