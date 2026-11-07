@@ -70,8 +70,8 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار قراءة السورة بالكامل</Text>
-              <Text style={styles.helper}>عدد مرات تشغيل المقطع المحدد من السورة، وتشمل المرة الأولى. اختر «بلا نهاية» للاستمرار حتى توقفه بنفسك.</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار المقطع حتى نهاية السورة</Text>
+              <Text style={styles.helper}>تبدأ كل دورة من الآية التي اخترتها وتستمر حتى نهاية السورة. لا تعود إلى الآيات السابقة لموضع البداية. يشمل العدد التشغيل الأول.</Text>
               <View style={styles.optionsRow}>
                 {SURAH_OPTIONS.map((option) => {
                   const selected = draft.surahRepeatCount === option.value;
@@ -98,7 +98,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
 
             <View style={styles.info}>
               <MaterialCommunityIcons name="information-outline" size={18} color={QuranColors.emerald} />
-              <Text style={styles.infoText}>عند اختيار «بلا نهاية» ستستمر إعادة السورة دون حد تلقائي. أوقف التلاوة من شريط التشغيل عند الانتهاء.</Text>
+              <Text style={styles.infoText}>عند اختيار «بلا نهاية» سيستمر تكرار المقطع من آية البداية المحددة دون حد تلقائي. أوقف التلاوة من شريط التشغيل عند الانتهاء.</Text>
             </View>
             <TouchableOpacity onPress={save} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>حفظ الإعدادات</Text>

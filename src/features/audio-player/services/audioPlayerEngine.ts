@@ -8,6 +8,7 @@ import {
   AudioStatus,
 } from 'expo-audio';
 import { AudioDownloader } from './audioDownloader';
+import { getPlaybackAdvance, getPreviousAyahIndex, shouldRepeatCurrentAyah } from './audioPlaybackRules';
 import {
   PlaybackStatus,
   PlaybackTarget,
@@ -196,7 +197,10 @@ export class AudioPlayerEngine {
 
     // Replaying the same local clip does not need a second preload allocation.
     const willRepeatCurrent =
-      this.currentAyahRepeatCount + 1 < this.repeatConfig.repeatCount;
+      shouldRepeatCurrentAyah(
+        this.currentAyahRepeatCount + 1,
+        this.repeatConfig.repeatCount
+      );
     if (willRepeatCurrent) return;
 
     const scheduledIndex = this.currentIndex;
@@ -261,7 +265,7 @@ export class AudioPlayerEngine {
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount += 1;
 
-    if (this.currentAyahRepeatCount < this.repeatConfig.repeatCount) {
+    if (shouldRepeatCurrentAyah(this.currentAyahRepeatCount, this.repeatConfig.repeatCount)) {
       if (this.repeatConfig.pauseDelaySeconds > 0) {
         this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000);
       } else {
@@ -271,23 +275,31 @@ export class AudioPlayerEngine {
     }
 
     this.currentAyahRepeatCount = 0;
-    if (this.currentIndex < this.tracks.length - 1) {
-      this.currentIndex += 1;
-      const verseGap = this.repeatConfig.verseGapDelaySeconds ?? 0;
-      if (verseGap > 0) {
-        this.beginRepeatDelay(verseGap * 1000);
-      } else {
-        this.playCurrentAyah();
-      }
+    const advance = getPlaybackAdvance(
+      this.currentIndex,
+      this.startIndex,
+      this.tracks.length - 1,
+      this.completedSurahPlays,
+      this.repeatConfig.surahRepeatCount
+    );
+
+    if (advance.nextIndex === null) {
+      this.completePlayback();
+      return;
+    }
+
+    if (advance.startsNewCycle) {
+      this.completedSurahPlays += 1;
+    }
+    this.currentIndex = advance.nextIndex;
+
+    const verseGap = advance.startsNewCycle
+      ? 0
+      : this.repeatConfig.verseGapDelaySeconds ?? 0;
+    if (verseGap > 0) {
+      this.beginRepeatDelay(verseGap * 1000);
     } else {
-      const repeatLimit = this.repeatConfig.surahRepeatCount;
-      if (repeatLimit === null || this.completedSurahPlays < repeatLimit) {
-        this.completedSurahPlays += 1;
-        this.currentIndex = this.startIndex;
-        this.playCurrentAyah();
-      } else {
-        this.completePlayback();
-      }
+      this.playCurrentAyah();
     }
   }
 
@@ -353,16 +365,13 @@ export class AudioPlayerEngine {
   }
 
   async previousAyah(): Promise<void> {
-    if (!this.isEngineRunning || this.currentIndex <= 0) {
-      if (this.isEngineRunning && this.currentIndex === 0) {
-        this.playCurrentAyah();
-      }
-      return;
-    }
+    if (!this.isEngineRunning) return;
 
     const currentTime = this.player?.currentTime ?? 0;
-    if (currentTime > 3) {
+    if (currentTime > 3 || this.currentIndex <= this.startIndex) {
+      this.clearDelayTimers();
       this.releaseFinishedPreload();
+      this.currentAyahRepeatCount = 0;
       this.playCurrentAyah();
       return;
     }
@@ -370,21 +379,30 @@ export class AudioPlayerEngine {
     this.clearDelayTimers();
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
-    this.currentIndex -= 1;
+    this.currentIndex = getPreviousAyahIndex(this.currentIndex, this.startIndex);
     this.playCurrentAyah();
   }
 
   private completePlayback(): void {
     this.isEngineRunning = false;
     this.clearDelayTimers();
-    this.player?.pause();
-    if (__DEV__ === false) {
+    this.remainingDelayMs = 0;
+
+    const finishedPlayer = this.player;
+    this.player = null;
+    this.statusSubscription?.remove();
+    this.statusSubscription = null;
+
+    if (finishedPlayer) {
       try {
-        this.player?.setActiveForLockScreen(false);
+        finishedPlayer.pause();
+        finishedPlayer.setActiveForLockScreen(false);
+        finishedPlayer.remove();
       } catch {
-        // ignore
+        // The native player may already be released after the completion event.
       }
     }
+
     this.callbacks?.onRepeatCountdown?.(0);
     this.callbacks?.onStatusChange('completed');
     this.preloadedUri = null;

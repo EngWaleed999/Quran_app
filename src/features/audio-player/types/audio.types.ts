@@ -25,7 +25,7 @@ export interface RepeatConfig {
   pauseDelaySeconds: number;
   /** Delay in seconds before moving to the next ayah (Verse Gap). */
   verseGapDelaySeconds?: number;
-  /** Total full-surah passes, including the first. null means repeat forever. */
+  /** Total passes from the selected starting ayah through the end of its surah. null means repeat forever. */
   surahRepeatCount: number | null;
 }
 
@@ -41,7 +41,7 @@ export interface PlaybackTarget {
   suraName: string;
   startAyah: number;
   endAyah: number;
-  /** Complete surah track list. Playback starts at startAyah. */
+  /** Complete surah track list. Playback starts at startAyah; repeat cycles restart there, not at ayah 1. */
   verses: PlaybackVerse[];
 }
 
