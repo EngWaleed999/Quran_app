@@ -200,8 +200,9 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
     if (!touchStartRef.current) return;
 
-    const deltaX = Math.abs(event.nativeEvent.pageX - touchStartRef.current.pageX);
-    const deltaY = Math.abs(event.nativeEvent.pageY - touchStartRef.current.pageY);
+    const touchStart = touchStartRef.current;
+    const deltaX = Math.abs(event.nativeEvent.pageX - touchStart.pageX);
+    const deltaY = Math.abs(event.nativeEvent.pageY - touchStart.pageY);
     touchStartRef.current = null;
 
     // Tap a verse to select it and open its actions. Taps on the empty page
@@ -209,8 +210,8 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     if (deltaX < 10 && deltaY < 10) {
       if (normalizedData && layoutDimensions.width > 0 && layoutDimensions.height > 0) {
         const svgPoint = mapTouchToSvgCoordinates(
-          touchStartRef.current?.locationX ?? event.nativeEvent.locationX,
-          touchStartRef.current?.locationY ?? event.nativeEvent.locationY,
+          touchStart.locationX,
+          touchStart.locationY,
           layoutDimensions.width,
           layoutDimensions.height,
           normalizedData.viewBox
