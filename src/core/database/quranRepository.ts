@@ -145,6 +145,25 @@ export class QuranRepository {
     return globalNumber;
   }
 
+  /**
+   * Returns the Quran page number (1-604) for a given surah and ayah.
+   */
+  static getAyahPageSync(
+    db: SQLiteDatabase,
+    suraNo: number,
+    ayaNo: number
+  ): number | null {
+    try {
+      const row = db.getFirstSync<{ page: number }>(
+        'SELECT page FROM ayahs WHERE sura_no = ? AND aya_no = ? LIMIT 1',
+        [suraNo, ayaNo]
+      );
+      return row?.page ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   static warmupCache(db: SQLiteDatabase): void {
     if (QuranRepository.isWarmedUp) return;
     try {

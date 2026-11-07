@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
-export type TafsirBookId = 'saadi' | 'muyassar';
+export type TafsirBookId = 'saadi';
 
 export interface TafsirBookInfo {
   id: TafsirBookId;
@@ -16,12 +16,6 @@ export const AVAILABLE_TAFSIRS: TafsirBookInfo[] = [
     author: 'الشيخ عبد الرحمن السعدي',
     description: 'تيسير الكريم الرحمن في تفسير كلام المنان',
   },
-  {
-    id: 'muyassar',
-    name: 'التفسير الميسر',
-    author: 'نخبة من العلماء',
-    description: 'تفسير ميسر صادر عن مجمع الملك فهد',
-  },
 ];
 
 export class TafsirRepository {
@@ -34,7 +28,7 @@ export class TafsirRepository {
     db: SQLiteDatabase,
     suraNo: number,
     ayaNo: number,
-    tafsirType: TafsirBookId
+    tafsirType: TafsirBookId = 'saadi'
   ): string {
     const cacheKey = `${suraNo}:${ayaNo}:${tafsirType}`;
     if (this.cache.has(cacheKey)) {
@@ -68,7 +62,7 @@ export class TafsirRepository {
     db: SQLiteDatabase,
     suraNo: number,
     ayaNo: number,
-    tafsirType: TafsirBookId
+    tafsirType: TafsirBookId = 'saadi'
   ): Promise<string> {
     const cacheKey = `${suraNo}:${ayaNo}:${tafsirType}`;
     if (this.cache.has(cacheKey)) {

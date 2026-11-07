@@ -137,7 +137,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
                 تفسير الآية
               </Text>
               <Text style={styles.headerSubtitle}>
-                سورة {ayah.suraName} • الآية {toArabicNumerals(ayah.ayaNo)}
+                سورة {ayah.suraName} • الآية {toArabicNumerals(ayah.ayaNo)} • تفسير السعدي
               </Text>
             </View>
 
@@ -155,34 +155,36 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Tafsir Book Tabs */}
-          <View style={[styles.tabsRow, isDark && styles.tabsRowDark]}>
-            {AVAILABLE_TAFSIRS.map((book) => {
-              const isSelected = activeTafsir === book.id;
-              return (
-                <TouchableOpacity
-                  key={book.id}
-                  style={[
-                    styles.tabButton,
-                    isSelected && styles.tabButtonActive,
-                    isSelected && isDark && styles.tabButtonActiveDark,
-                  ]}
-                  onPress={() => setActiveTafsir(book.id)}
-                  activeOpacity={0.75}
-                >
-                  <Text
+          {/* Tafsir Book Tabs (only shown when multiple books exist) */}
+          {AVAILABLE_TAFSIRS.length > 1 && (
+            <View style={[styles.tabsRow, isDark && styles.tabsRowDark]}>
+              {AVAILABLE_TAFSIRS.map((book) => {
+                const isSelected = activeTafsir === book.id;
+                return (
+                  <TouchableOpacity
+                    key={book.id}
                     style={[
-                      styles.tabText,
-                      isDark && styles.tabTextDark,
-                      isSelected && styles.tabTextActive,
+                      styles.tabButton,
+                      isSelected && styles.tabButtonActive,
+                      isSelected && isDark && styles.tabButtonActiveDark,
                     ]}
+                    onPress={() => setActiveTafsir(book.id)}
+                    activeOpacity={0.75}
                   >
-                    {book.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.tabText,
+                        isDark && styles.tabTextDark,
+                        isSelected && styles.tabTextActive,
+                      ]}
+                    >
+                      {book.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* Main Content Area */}
           <ScrollView

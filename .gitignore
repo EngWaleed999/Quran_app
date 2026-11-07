@@ -49,7 +49,10 @@ quran_svg
 quran_svg_1
 assets/data/tafsir.db
 .tafsir
-assets/data/quran.db
-src/features/audio-player/components/AudioPlayerBar.tsx
-assets/data/quran.db
 tafsir
+
+# Temporary & scratch folders
+scratch/
+testing_font/
+testing_svg_json/
+font_fix/

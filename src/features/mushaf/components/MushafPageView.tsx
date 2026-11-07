@@ -14,7 +14,6 @@ import { TafsirModal } from './TafsirModal';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { SvgMushafRepository } from '../../../core/database/svgMushafRepository';
-import { QcfFontManager } from '../../../core/fonts/qcfFontManager';
 import { BookmarkService } from '../../bookmarks/services/bookmarkService';
 import { Bookmark } from '../../bookmarks/types/bookmark.types';
 import { useAudioStore } from '../../audio-player/stores/useAudioStore';
@@ -88,6 +87,22 @@ export const MushafPageView: React.FC = () => {
     }).start();
   }, [isControlsVisible, controlsAnim]);
 
+  // إظهار شريط التحكم مؤقتاً عند بدء التلاوة ثم إخفاؤه تلقائياً لوضع ملء الشاشة
+  useEffect(() => {
+    if (audioStatus === 'playing') {
+      setIsControlsVisible(true);
+    }
+  }, [audioStatus]);
+
+  useEffect(() => {
+    if (isControlsVisible && audioStatus === 'playing') {
+      const timer = setTimeout(() => {
+        setIsControlsVisible(false);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [isControlsVisible, audioStatus]);
+
   const toggleControls = useCallback(() => {
     setIsControlsVisible((previous) => !previous);
   }, []);
@@ -106,7 +121,7 @@ export const MushafPageView: React.FC = () => {
         }
 
         QuranRepository.preloadPages(db, target, 5);
-        QcfFontManager.preloadSurroundingPageFonts(target, 2);
+        SvgMushafRepository.prewarmSurroundingPages(db, target, 2);
 
         const ayahs = QuranRepository.getPageAyahsSync(db, target);
         const names = QuranRepository.getPageSurahNamesSync(db, target);
@@ -139,7 +154,6 @@ export const MushafPageView: React.FC = () => {
     AsyncStorage.setItem(LAST_PAGE_KEY, pageNum.toString()).catch(() => undefined);
 
     QuranRepository.preloadPages(db, pageNum, 5);
-    QcfFontManager.preloadSurroundingPageFonts(pageNum, 2);
     SvgMushafRepository.prewarmSurroundingPages(db, pageNum, 2);
 
     const ayahs = QuranRepository.getPageAyahsSync(db, pageNum);
@@ -161,7 +175,7 @@ export const MushafPageView: React.FC = () => {
     AsyncStorage.setItem(LAST_PAGE_KEY, targetPage.toString()).catch(() => undefined);
 
     QuranRepository.preloadPages(db, targetPage, 5);
-    QcfFontManager.preloadSurroundingPageFonts(targetPage, 2);
+    SvgMushafRepository.prewarmSurroundingPages(db, targetPage, 2);
 
     const ayahs = QuranRepository.getPageAyahsSync(db, targetPage);
     const names = QuranRepository.getPageSurahNamesSync(db, targetPage);
@@ -181,6 +195,18 @@ export const MushafPageView: React.FC = () => {
       }, 3500);
     }
   }, [db]);
+
+  // تقليب صفحات المصحف تلقائياً عند انتقال الشيخ إلى صفحة تالية أثناء التلاوة
+  useEffect(() => {
+    if (!activeAyah || (audioStatus !== 'playing' && audioStatus !== 'waiting_user_repeat')) {
+      return;
+    }
+
+    const targetPage = QuranRepository.getAyahPageSync(db, activeAyah.suraNo, activeAyah.ayaNo);
+    if (targetPage && targetPage !== currentPage) {
+      handleNavigateToPage(targetPage);
+    }
+  }, [activeAyah, audioStatus, currentPage, db, handleNavigateToPage]);
 
   const handleAyahLongPress = useCallback(
     (verseKey: string, pageNum: number) => {
@@ -296,8 +322,7 @@ export const MushafPageView: React.FC = () => {
         </PagerView>
       </View>
 
-      <View style={styles.bottomDock}>
-        <AudioPlayerBar />
+      <View style={styles.bottomDock} pointerEvents="box-none">
         <Animated.View
           style={[
             styles.bottomBarWrapper,
@@ -307,7 +332,7 @@ export const MushafPageView: React.FC = () => {
                 {
                   translateY: controlsAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [90, 0],
+                    outputRange: [160, 0],
                   }),
                 },
               ],
@@ -315,6 +340,7 @@ export const MushafPageView: React.FC = () => {
           ]}
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
         >
+          <AudioPlayerBar />
           <PageBottomBar
             currentPage={currentPage}
             totalPages={TOTAL_PAGES}

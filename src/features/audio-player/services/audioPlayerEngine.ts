@@ -66,7 +66,7 @@ export class AudioPlayerEngine {
   private ensurePlayer(): AudioPlayer {
     if (this.player) return this.player;
 
-    const player = createAudioPlayer(null, { updateInterval: 500 });
+    const player = createAudioPlayer(null, { updateInterval: 100 });
     this.player = player;
     this.statusSubscription = player.addListener(
       'playbackStatusUpdate',
@@ -105,22 +105,22 @@ export class AudioPlayerEngine {
     };
     this.isEngineRunning = true;
 
-    await this.playCurrentAyah();
+    this.playCurrentAyah();
   }
 
   private getCurrentTrack() {
     return this.tracks[this.currentIndex] || null;
   }
 
-  private async releaseFinishedPreload(): Promise<void> {
+  private releaseFinishedPreload(): void {
     if (!this.activePreloadedUri) return;
 
     const finishedUri = this.activePreloadedUri;
     this.activePreloadedUri = null;
-    await clearPreloadedSource({ uri: finishedUri }).catch(() => undefined);
+    clearPreloadedSource({ uri: finishedUri }).catch(() => undefined);
   }
 
-  private async playCurrentAyah(): Promise<void> {
+  private playCurrentAyah(): void {
     if (!this.isEngineRunning || !this.reciter || !this.target) return;
 
     const track = this.getCurrentTrack();
@@ -143,13 +143,13 @@ export class AudioPlayerEngine {
       );
 
       // A preloaded next ayah has now become the active player source.
-      // A stale preload (for example, after manually skipping) is released.
+      // A stale preload is released in the background without blocking execution.
       if (this.preloadedUri === localUri) {
         this.activePreloadedUri = localUri;
         this.preloadedUri = null;
       } else {
         if (this.preloadedUri) {
-          await clearPreloadedSource({ uri: this.preloadedUri }).catch(() => undefined);
+          clearPreloadedSource({ uri: this.preloadedUri }).catch(() => undefined);
           this.preloadedUri = null;
         }
         this.activePreloadedUri = null;
@@ -176,7 +176,7 @@ export class AudioPlayerEngine {
     } catch (error) {
       console.error('[AudioEngine] Could not play ayah:', error);
       this.callbacks?.onError('تعذر تشغيل الملف الصوتي. أعد تنزيل السورة ثم حاول مرة أخرى.');
-      await this.stop();
+      void this.stop();
     }
   }
 
@@ -234,21 +234,21 @@ export class AudioPlayerEngine {
 
     if (status.didJustFinish && !this.handlingFinishedEvent) {
       this.handlingFinishedEvent = true;
-      void this.handleAyahFinished();
+      this.handleAyahFinished();
     }
   };
 
-  private async handleAyahFinished(): Promise<void> {
+  private handleAyahFinished(): void {
     if (!this.isEngineRunning) return;
 
-    await this.releaseFinishedPreload();
+    this.releaseFinishedPreload();
     this.currentAyahRepeatCount += 1;
 
     if (this.currentAyahRepeatCount < this.repeatConfig.repeatCount) {
       if (this.repeatConfig.pauseDelaySeconds > 0) {
         this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000);
       } else {
-        await this.playCurrentAyah();
+        this.playCurrentAyah();
       }
       return;
     }
@@ -260,7 +260,7 @@ export class AudioPlayerEngine {
       if (verseGap > 0) {
         this.beginRepeatDelay(verseGap * 1000);
       } else {
-        await this.playCurrentAyah();
+        this.playCurrentAyah();
       }
     } else {
       this.completePlayback();
@@ -322,32 +322,32 @@ export class AudioPlayerEngine {
   async nextAyah(): Promise<void> {
     if (!this.isEngineRunning || this.currentIndex >= this.tracks.length - 1) return;
     this.clearDelayTimers();
-    await this.releaseFinishedPreload();
+    this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
     this.currentIndex += 1;
-    await this.playCurrentAyah();
+    this.playCurrentAyah();
   }
 
   async previousAyah(): Promise<void> {
     if (!this.isEngineRunning || this.currentIndex <= 0) {
       if (this.isEngineRunning && this.currentIndex === 0) {
-        await this.playCurrentAyah();
+        this.playCurrentAyah();
       }
       return;
     }
 
     const currentTime = this.player?.currentTime ?? 0;
     if (currentTime > 3) {
-      await this.releaseFinishedPreload();
-      await this.playCurrentAyah();
+      this.releaseFinishedPreload();
+      this.playCurrentAyah();
       return;
     }
 
     this.clearDelayTimers();
-    await this.releaseFinishedPreload();
+    this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
     this.currentIndex -= 1;
-    await this.playCurrentAyah();
+    this.playCurrentAyah();
   }
 
   private completePlayback(): void {

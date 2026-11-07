@@ -132,7 +132,7 @@ export const AudioPlayerBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#98763b',
+    backgroundColor: '#FFF8F0FF',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
     paddingHorizontal: 14,

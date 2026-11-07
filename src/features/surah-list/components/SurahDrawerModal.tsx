@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderBottomWidth: 1,
     borderBottomColor: QuranColors.parchmentBorder,
   },
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   surahRow: {
     flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
   },
   currentSurahNumberText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
   },
   surahDetails: {
     flex: 1,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   currentBadgeText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   bookmarkCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1.5,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bookmarkBadgeText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -549,13 +549,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   jumpBookmarkBtnText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
     fontSize: 14,
     fontWeight: 'bold',
   },
   bottomNavContainer: {
     flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
     paddingVertical: 6,

@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderBottomWidth: 1,
     borderBottomColor: QuranColors.parchmentBorder,
     gap: 12,
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   pageCard: {
     flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderRadius: 10,
     padding: 14,
     borderWidth: 1.5,

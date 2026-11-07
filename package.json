@@ -29,16 +29,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
-    "quran:build-pages": "node scripts/build-qcf-v2-pages.js",
-    "quran:validate-pages": "node scripts/validate-qcf-v2-pages.js",
-    "prestart": "python scripts/build_tafsir_db.py && node scripts/ensure-qcf-v2-fonts.js",
-    "preandroid": "python scripts/build_tafsir_db.py && node scripts/ensure-qcf-v2-fonts.js",
-    "preios": "python scripts/build_tafsir_db.py && node scripts/ensure-qcf-v2-fonts.js",
-    "preweb": "python scripts/build_tafsir_db.py && node scripts/ensure-qcf-v2-fonts.js",
-    "tafsir:build": "python scripts/build_tafsir_db.py --force",
-    "tafsir:verify": "python scripts/build_tafsir_db.py --verify-only",
-    "quran:ensure-fonts": "node scripts/ensure-qcf-v2-fonts.js"
+    "web": "expo start --web"
   },
   "private": true
 }
