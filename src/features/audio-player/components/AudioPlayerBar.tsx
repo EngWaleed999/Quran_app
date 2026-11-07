@@ -7,6 +7,7 @@ import { useAudioStore } from '../stores/useAudioStore';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { AudioSettingsModal } from './AudioSettingsModal';
+import { useTheme } from 'react-native-paper';
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
@@ -22,6 +23,7 @@ function formatTime(seconds: number): string {
 
 export const AudioPlayerBar: React.FC = () => {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const theme = useTheme();
   const {
     status,
     activeMode,
@@ -57,13 +59,13 @@ export const AudioPlayerBar: React.FC = () => {
 
   return (
     <>
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outline }]}>
       <View style={styles.header}>
         <View style={styles.trackInfo}>
-          <Text style={styles.surahName} numberOfLines={1}>
+          <Text style={[styles.surahName, { color: theme.colors.primary }]} numberOfLines={1}>
             {target.suraName} • {selectedReciter.name}
           </Text>
-          <Text style={styles.trackStatus} numberOfLines={1}>
+          <Text style={[styles.trackStatus, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
             {activeAyah
               ? 'الآية ' + toArabicNumerals(activeAyah.ayaNo) + ' • ' + statusText
               : statusText}
@@ -75,7 +77,7 @@ export const AudioPlayerBar: React.FC = () => {
           onPress={() => setIsSettingsVisible(true)}
           accessibilityLabel="إعدادات التلاوة والترديد"
         >
-          <MaterialCommunityIcons name="cog-outline" size={20} color={QuranColors.emerald} />
+          <MaterialCommunityIcons name="cog-outline" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -83,13 +85,13 @@ export const AudioPlayerBar: React.FC = () => {
           onPress={() => void stop()}
           accessibilityLabel="إيقاف التلاوة"
         >
-          <MaterialCommunityIcons name="close" size={20} color={QuranColors.textMuted} />
+          <MaterialCommunityIcons name="close" size={20} color={theme.colors.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
 
       <ProgressBar
         progress={progress}
-        color={QuranColors.gold}
+        color={theme.colors.secondary}
         style={styles.progress}
       />
 
@@ -151,7 +153,7 @@ export const AudioPlayerBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFF8F0FF',
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
     paddingHorizontal: 14,
