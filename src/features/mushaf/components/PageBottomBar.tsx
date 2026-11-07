@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { ProgressBar } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
+import { useTheme } from 'react-native-paper';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 
 interface PageBottomBarProps {
@@ -18,15 +19,16 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
   onNextPage,
   onPrevPage,
 }) => {
+  const theme = useTheme();
   const progress = currentPage / totalPages;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outline }]}>
       {/* Visual Progress Bar (Inverted scaleX to fill from Right-to-Left matching authentic Quran order) */}
       <View style={styles.progressWrapper}>
         <ProgressBar
           progress={progress}
-          color={QuranColors.gold}
+          color={theme.colors.secondary}
           style={styles.progressBar}
         />
       </View>
@@ -39,14 +41,14 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
           disabled={currentPage <= 1}
           accessibilityLabel="الصفحة السابقة"
         >
-          <Text style={[styles.navButtonText, currentPage <= 1 && styles.disabledText]}>
+          <Text style={[styles.navButtonText, { color: theme.colors.primary }, currentPage <= 1 && styles.disabledText]}>
             السابقة
           </Text>
         </TouchableOpacity>
 
         {/* Center: Current Page indicator */}
         <View style={styles.centerInfo}>
-          <Text style={styles.pageText}>
+          <Text style={[styles.pageText, { color: theme.colors.onSurface }]}>
             صفحة {toArabicNumerals(currentPage)} من {toArabicNumerals(totalPages)}
           </Text>
         </View>
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(31, 81, 63, 0.08)',
+    backgroundColor: theme.colors.surfaceVariant,
   },
   navButtonText: {
     fontSize: 15,
