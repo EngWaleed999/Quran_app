@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { QuranRepository } from '../../../core/database/quranRepository';
+import { QuranRepository } from '../../../core/database/quranRepository.ts';
 import type { DailyWird, KhatmahPlan, DailyWirdStatus, KhatmahCompletion } from '../types/khatmah.types';
-import { addDaysToDateKey, countPageVisits, daysBetweenDateKeys, getDailyAyahRange, localDateKey, TOTAL_MADINAH_PAGES, TOTAL_QURAN_AYAHS } from './khatmahRules';
+import { addDaysToDateKey, countPageVisits, daysBetweenDateKeys, getDailyAyahRange, localDateKey, TOTAL_MADINAH_PAGES, TOTAL_QURAN_AYAHS } from './khatmahRules.ts';
 
 export { TOTAL_QURAN_AYAHS, TOTAL_MADINAH_PAGES } from './khatmahRules';
 
