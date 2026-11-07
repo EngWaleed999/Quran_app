@@ -12,6 +12,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
+import { Bookmark, BookmarkType, BOOKMARK_TYPE_COLORS } from '../../bookmarks/types/bookmark.types';
 
 export interface SelectedAyahInfo {
   verseKey: string;
@@ -26,9 +27,10 @@ export interface SelectedAyahInfo {
 interface AyahActionModalProps {
   visible: boolean;
   ayah: SelectedAyahInfo | null;
-  isBookmarked: boolean;
+  bookmarks: Bookmark[];
   onClose: () => void;
-  onToggleBookmark: (ayah: SelectedAyahInfo) => void;
+  onToggleBookmark: (ayah: SelectedAyahInfo, type: BookmarkType) => void;
+  onOpenNote?: (ayah: SelectedAyahInfo) => void;
   onOpenTafsir?: (ayah: SelectedAyahInfo) => void;
   onPlayAudio?: (ayah: SelectedAyahInfo) => void;
   onRepeatAudio?: (ayah: SelectedAyahInfo) => void;
@@ -37,14 +39,17 @@ interface AyahActionModalProps {
 export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   visible,
   ayah,
-  isBookmarked,
+  bookmarks,
   onClose,
   onToggleBookmark,
+  onOpenNote,
   onOpenTafsir,
   onPlayAudio,
   onRepeatAudio,
 }) => {
   if (!ayah) return null;
+
+  const hasBookmark = (type: BookmarkType) => bookmarks.some((item) => item.type === type && item.verseKey === ayah.verseKey);
 
   const handleShare = async () => {
     try {
@@ -95,7 +100,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
                 <View style={styles.badgePill}>
                   <Text style={styles.badgeText}>صفحة {toArabicNumerals(ayah.page)}</Text>
                 </View>
-                {isBookmarked ? (
+                {bookmarks.some((item) => item.verseKey === ayah.verseKey) ? (
                   <View style={[styles.badgePill, styles.bookmarkedPill]}>
                     <MaterialCommunityIcons name="bookmark-check" size={13} color="#FFFFFF" />
                     <Text style={[styles.badgeText, styles.bookmarkedText]}>فاصل محفوظ</Text>
@@ -122,35 +127,25 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
             contentContainerStyle={styles.actionsContent}
             showsVerticalScrollIndicator={false}
           >
-            <TouchableOpacity
-              style={[styles.actionRow, isBookmarked && styles.bookmarkedActionRow]}
-              onPress={() => onToggleBookmark(ayah)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.actionIconBox, isBookmarked && styles.bookmarkedIconBox]}>
-                <MaterialCommunityIcons
-                  name={isBookmarked ? 'bookmark-remove' : 'bookmark-plus-outline'}
-                  size={24}
-                  color={isBookmarked ? '#FFFFFF' : QuranColors.gold}
-                />
-              </View>
-              <View style={styles.actionDetails}>
-                <Text style={[styles.actionTitle, isBookmarked && styles.bookmarkedTitle]}>
-                  {isBookmarked ? 'إزالة الفاصل من هذه الآية' : 'وضع فاصل قراءة هنا'}
-                </Text>
-                <Text style={styles.actionSubtitle}>
-                  {isBookmarked
-                    ? 'إلغاء تعيين الفاصل الحالي'
-                    : 'تثبيت فاصل مرجعي للرجوع إلى موضع الآية لاحقاً'}
-                </Text>
-              </View>
-              <MaterialCommunityIcons
-                name="chevron-left"
-                size={20}
-                color={isBookmarked ? QuranColors.emerald : QuranColors.textMuted}
-              />
-            </TouchableOpacity>
-
+            {(['tracking', 'reading', 'memorization'] as const).map((type) => {
+              const selected = hasBookmark(type);
+              const title = type === 'tracking' ? 'فاصل متابعة' : type === 'reading' ? 'فاصل قراءة' : 'فاصل حفظ';
+              const subtitle = type === 'tracking' ? 'تحديد موضع أريد متابعة القراءة منه' : type === 'reading' ? 'تحديد موضع القراءة الحالي' : 'تحديد موضع أراجع أو أحفظ منه';
+              const icon = type === 'tracking' ? 'flag-checkered' : type === 'reading' ? 'bookmark-check' : 'school-outline';
+              const tint = BOOKMARK_TYPE_COLORS[type];
+              return (
+                <TouchableOpacity key={type} style={[styles.actionRow, selected && { borderColor: tint, backgroundColor: tint + '12' }]} onPress={() => onToggleBookmark(ayah, type)} activeOpacity={0.7}>
+                  <View style={[styles.actionIconBox, { borderColor: tint + '55' }, selected && { backgroundColor: tint }]}>
+                    <MaterialCommunityIcons name={selected ? 'bookmark-check' : icon} size={23} color={selected ? '#FFFFFF' : tint} />
+                  </View>
+                  <View style={styles.actionDetails}>
+                    <Text style={[styles.actionTitle, selected && { color: tint }]}>{selected ? 'إزالة ' + title : title}</Text>
+                    <Text style={styles.actionSubtitle}>{subtitle}</Text>
+                  </View>
+                  <MaterialCommunityIcons name={selected ? 'check-circle' : 'plus-circle-outline'} size={20} color={tint} />
+                </TouchableOpacity>
+              );
+            })}
             <TouchableOpacity
               style={styles.actionRow}
               activeOpacity={0.7}
@@ -207,6 +202,17 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               <View style={styles.actionDetails}>
                 <Text style={styles.actionTitle}>التفسيرات</Text>
                 <Text style={styles.actionSubtitle}>تفسير السعدي، والتفسير الميسر</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionRow} activeOpacity={0.7} onPress={() => { onClose(); onOpenNote?.(ayah); }}>
+              <View style={styles.actionIconBox}>
+                <MaterialCommunityIcons name="note-edit-outline" size={24} color={QuranColors.emerald} />
+              </View>
+              <View style={styles.actionDetails}>
+                <Text style={styles.actionTitle}>إضافة ملاحظة</Text>
+                <Text style={styles.actionSubtitle}>احفظ فائدة أو تدبراً مرتبطاً بهذه الآية</Text>
               </View>
               <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
             </TouchableOpacity>
