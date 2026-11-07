@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { ProgressBar } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
