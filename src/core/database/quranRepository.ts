@@ -121,6 +121,31 @@ export class QuranRepository {
    * within a surah. Derive it from the surah catalog instead of assuming that
    * a local SQLite primary key happens to match the CDN's numbering.
    */
+  /** Resolve a canonical global ayah number (1-6236) to its Mushaf location. */
+  static getAyahByGlobalNumberSync(db: SQLiteDatabase, globalAyahNo: number): Ayah | null {
+    if (!Number.isInteger(globalAyahNo) || globalAyahNo < 1 || globalAyahNo > 6236) {
+      return null;
+    }
+
+    try {
+      return db.getFirstSync<Ayah>(
+        `SELECT a.*, s.sura_name_ar
+         FROM ayahs a
+         JOIN surahs s ON a.sura_no = s.sura_no
+         WHERE (
+           SELECT COALESCE(SUM(previous.ayahs_count), 0)
+           FROM surahs previous
+           WHERE previous.sura_no < a.sura_no
+         ) + a.aya_no = ?
+         LIMIT 1`,
+        [globalAyahNo]
+      );
+    } catch (error) {
+      console.warn('[QuranRepository] getAyahByGlobalNumberSync error:', error);
+      return null;
+    }
+  }
+
   static getGlobalAyahNumberSync(
     db: SQLiteDatabase,
     suraNo: number,
