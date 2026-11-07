@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getPlaybackAdvance,
+  getManualNextIndex,
+  getManualPreviousIndex,
   getPreviousAyahIndex,
   shouldRepeatCurrentAyah,
 } from '../src/features/audio-player/services/audioPlaybackRules.ts';
@@ -47,4 +49,23 @@ test('repeat count includes the first play', () => {
   assert.equal(shouldRepeatCurrentAyah(1, 1), false);
   assert.equal(shouldRepeatCurrentAyah(2, 3), true);
   assert.equal(shouldRepeatCurrentAyah(3, 3), false);
+});
+
+test('Previous during a verse gap replays the verse that just ended', () => {
+  assert.equal(getManualPreviousIndex(8, 3, 0, 'verse-gap'), 7);
+});
+
+test('Next during a verse gap starts the pending verse instead of skipping it', () => {
+  assert.equal(getManualNextIndex(8, 10, 'verse-gap'), 8);
+});
+
+test('manual navigation during ayah-repeat delay stays on the current ayah', () => {
+  assert.equal(getManualPreviousIndex(8, 3, 0, 'ayah-repeat'), 8);
+  assert.equal(getManualNextIndex(8, 10, 'ayah-repeat'), 9);
+});
+
+test('Previous replays the current ayah after three seconds and respects start boundary', () => {
+  assert.equal(getManualPreviousIndex(8, 3, 4, null), 8);
+  assert.equal(getManualPreviousIndex(3, 3, 0, null), 3);
+  assert.equal(getManualPreviousIndex(8, 3, 0, null), 7);
 });

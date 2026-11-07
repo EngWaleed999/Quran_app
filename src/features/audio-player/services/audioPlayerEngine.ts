@@ -8,7 +8,7 @@ import {
   AudioStatus,
 } from 'expo-audio';
 import { AudioDownloader } from './audioDownloader';
-import { getPlaybackAdvance, getPreviousAyahIndex, shouldRepeatCurrentAyah } from './audioPlaybackRules';
+import { getPlaybackAdvance, getManualNextIndex, getManualPreviousIndex, shouldRepeatCurrentAyah, type PlaybackDelayKind } from './audioPlaybackRules';
 import {
   PlaybackStatus,
   PlaybackTarget,
@@ -46,6 +46,7 @@ export class AudioPlayerEngine {
   private delayInterval: ReturnType<typeof setInterval> | null = null;
   private delayEndsAt = 0;
   private remainingDelayMs = 0;
+  private delayKind: PlaybackDelayKind = null;
   private handlingFinishedEvent = false;
   private audioModePromise: Promise<void>;
   private preloadedUri: string | null = null;
@@ -188,7 +189,7 @@ export class AudioPlayerEngine {
     } catch (error) {
       console.error('[AudioEngine] Could not play ayah:', error);
       this.callbacks?.onError('تعذر تشغيل الملف الصوتي. أعد تنزيل السورة ثم حاول مرة أخرى.');
-      void this.stop();
+      void this.stop(false);
     }
   }
 
@@ -249,7 +250,7 @@ export class AudioPlayerEngine {
 
     if (status.error) {
       this.callbacks?.onError('حدث خطأ أثناء تشغيل التلاوة.');
-      void this.stop();
+      void this.stop(false);
       return;
     }
 
@@ -267,7 +268,7 @@ export class AudioPlayerEngine {
 
     if (shouldRepeatCurrentAyah(this.currentAyahRepeatCount, this.repeatConfig.repeatCount)) {
       if (this.repeatConfig.pauseDelaySeconds > 0) {
-        this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000);
+        this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000, 'ayah-repeat');
       } else {
         this.playCurrentAyah();
       }
@@ -297,14 +298,15 @@ export class AudioPlayerEngine {
       ? 0
       : this.repeatConfig.verseGapDelaySeconds ?? 0;
     if (verseGap > 0) {
-      this.beginRepeatDelay(verseGap * 1000);
+      this.beginRepeatDelay(verseGap * 1000, 'verse-gap');
     } else {
       this.playCurrentAyah();
     }
   }
 
-  private beginRepeatDelay(durationMs: number): void {
-    this.clearDelayTimers();
+  private beginRepeatDelay(durationMs: number, kind: PlaybackDelayKind): void {
+    this.clearDelayTimers(false);
+    this.delayKind = kind;
     this.remainingDelayMs = durationMs;
     this.delayEndsAt = Date.now() + durationMs;
     this.callbacks?.onStatusChange('waiting_user_repeat');
@@ -318,17 +320,19 @@ export class AudioPlayerEngine {
     this.delayTimer = setTimeout(() => {
       this.clearDelayTimers();
       this.remainingDelayMs = 0;
+      this.delayKind = null;
       if (this.isEngineRunning) {
         void this.playCurrentAyah();
       }
     }, durationMs);
   }
 
-  private clearDelayTimers(): void {
+  private clearDelayTimers(resetDelayKind = true): void {
     if (this.delayTimer) clearTimeout(this.delayTimer);
     if (this.delayInterval) clearInterval(this.delayInterval);
     this.delayTimer = null;
     this.delayInterval = null;
+    if (resetDelayKind) this.delayKind = null;
   }
 
   async pause(): Promise<void> {
@@ -336,7 +340,7 @@ export class AudioPlayerEngine {
 
     if (this.delayTimer) {
       this.remainingDelayMs = Math.max(0, this.delayEndsAt - Date.now());
-      this.clearDelayTimers();
+      this.clearDelayTimers(false);
     } else {
       this.player?.pause();
     }
@@ -348,7 +352,7 @@ export class AudioPlayerEngine {
     if (!this.isEngineRunning) return;
 
     if (this.remainingDelayMs > 0) {
-      this.beginRepeatDelay(this.remainingDelayMs);
+      this.beginRepeatDelay(this.remainingDelayMs, this.delayKind ?? 'ayah-repeat');
     } else {
       this.player?.play();
       this.callbacks?.onStatusChange('playing');
@@ -356,30 +360,36 @@ export class AudioPlayerEngine {
   }
 
   async nextAyah(): Promise<void> {
-    if (!this.isEngineRunning || this.currentIndex >= this.tracks.length - 1) return;
+    if (!this.isEngineRunning) return;
+
+    const nextIndex = getManualNextIndex(
+      this.currentIndex,
+      this.tracks.length - 1,
+      this.delayKind
+    );
+    if (nextIndex === null) return;
+
     this.clearDelayTimers();
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
-    this.currentIndex += 1;
+    this.currentIndex = nextIndex;
     this.playCurrentAyah();
   }
 
   async previousAyah(): Promise<void> {
     if (!this.isEngineRunning) return;
 
-    const currentTime = this.player?.currentTime ?? 0;
-    if (currentTime > 3 || this.currentIndex <= this.startIndex) {
-      this.clearDelayTimers();
-      this.releaseFinishedPreload();
-      this.currentAyahRepeatCount = 0;
-      this.playCurrentAyah();
-      return;
-    }
+    const previousIndex = getManualPreviousIndex(
+      this.currentIndex,
+      this.startIndex,
+      this.player?.currentTime ?? 0,
+      this.delayKind
+    );
 
     this.clearDelayTimers();
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
-    this.currentIndex = getPreviousAyahIndex(this.currentIndex, this.startIndex);
+    this.currentIndex = previousIndex;
     this.playCurrentAyah();
   }
 
@@ -414,6 +424,7 @@ export class AudioPlayerEngine {
     this.isEngineRunning = false;
     this.clearDelayTimers();
     this.remainingDelayMs = 0;
+    this.delayKind = null;
     this.preloadedUri = null;
     this.activePreloadedUri = null;
 

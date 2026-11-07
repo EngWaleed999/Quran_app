@@ -89,15 +89,25 @@ export const MushafPageView: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    Promise.all([BookmarkService.getBookmarks(), KhatmahService.getDailyWird(db)])
-      .then(([savedBookmarks, currentWird]) => {
-        if (!isMounted) return;
-        setBookmarks(savedBookmarks);
-        setDailyWird(currentWird);
-      })
-      .catch((error) => {
-        console.warn('[MushafPageView] Could not restore reading data:', error);
-      });
+
+    const loadReadingState = async () => {
+      const [savedBookmarks, currentWird] = await Promise.all([
+        BookmarkService.getBookmarks().catch((error) => {
+          console.warn('[MushafPageView] Could not restore bookmarks:', error);
+          return [] as Bookmark[];
+        }),
+        KhatmahService.getDailyWird(db).catch((error) => {
+          console.warn('[MushafPageView] Could not restore Khatmah progress:', error);
+          return null;
+        }),
+      ]);
+
+      if (!isMounted) return;
+      setBookmarks(savedBookmarks);
+      setDailyWird(currentWird);
+    };
+
+    void loadReadingState();
     return () => { isMounted = false; };
   }, [db]);
 
