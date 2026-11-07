@@ -13,6 +13,8 @@ export const BOOKMARK_TYPE_COLORS: Record<BookmarkType, string> = {
 };
 
 export interface Bookmark {
+  /** Stable identity: one bookmark per category and verse. */
+  id: string;
   verseKey: string;
   suraNo: number;
   ayaNo: number;

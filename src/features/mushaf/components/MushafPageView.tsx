@@ -279,7 +279,7 @@ export const MushafPageView: React.FC = () => {
     async (ayah: SelectedAyahInfo, type: BookmarkType) => {
       const existing = bookmarks.find((item) => item.type === type && item.verseKey === ayah.verseKey);
       if (existing) {
-        setBookmarks(await BookmarkService.removeBookmark(type));
+        setBookmarks(await BookmarkService.removeBookmark(existing.id));
       } else {
         const newBookmark: Omit<Bookmark, 'type'> = {
           verseKey: ayah.verseKey,
@@ -290,7 +290,7 @@ export const MushafPageView: React.FC = () => {
           ayahText: ayah.ayahText || '',
           createdAt: Date.now(),
         };
-        setBookmarks(await BookmarkService.saveBookmark(newBookmark, type));
+        setBookmarks(await BookmarkService.saveBookmark({ ...newBookmark, type }));
       }
       setSelectedAyah(null);
     },
@@ -436,7 +436,7 @@ export const MushafPageView: React.FC = () => {
         bookmarks={bookmarks}
         onClose={() => setIsBookmarksOpen(false)}
         onNavigate={handleNavigateToBookmark}
-        onRemove={async (type) => setBookmarks(await BookmarkService.removeBookmark(type))}
+        onRemove={async (bookmarkId) => setBookmarks(await BookmarkService.removeBookmark(bookmarkId))}
       />
 
       <NotesModal

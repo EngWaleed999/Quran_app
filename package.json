@@ -31,7 +31,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test:khatmah": "node --experimental-strip-types --test tests/khatmahRules.test.mjs tests/khatmahService.test.mjs"
+    "test:khatmah": "node --experimental-strip-types --test tests/khatmahRules.test.mjs tests/khatmahService.test.mjs tests/bookmarkRules.test.mjs",
+    "test:bookmarks": "node --experimental-strip-types --test tests/bookmarkRules.test.mjs"
   },
   "private": true
 }

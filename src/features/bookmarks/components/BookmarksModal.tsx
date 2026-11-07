@@ -16,7 +16,7 @@ interface BookmarksModalProps {
   bookmarks: Bookmark[];
   onClose: () => void;
   onNavigate: (bookmark: Bookmark) => void;
-  onRemove: (type: BookmarkType) => void;
+  onRemove: (bookmarkId: string) => void;
 }
 
 const TYPES: BookmarkType[] = ['tracking', 'reading', 'memorization'];
@@ -72,7 +72,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
               <Text style={styles.emptySubtitle}>اضغط مطولاً على آية واحفظ موضعاً للمتابعة أو القراءة أو الحفظ.</Text>
             </View>
           ) : filtered.map((bookmark) => (
-            <View key={bookmark.type} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+            <View key={bookmark.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
               <View style={[styles.typeStripe, { backgroundColor: BOOKMARK_TYPE_COLORS[bookmark.type] }]} />
               <TouchableOpacity style={styles.cardContent} onPress={() => onNavigate(bookmark)} activeOpacity={0.75}>
                 <View style={styles.cardTitleRow}>
@@ -84,7 +84,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
                 <Text style={[styles.meta, { color: theme.colors.onSurfaceVariant }]}>الآية {bookmark.ayaNo} • الصفحة {bookmark.page}</Text>
                 {bookmark.ayahText ? <Text numberOfLines={2} style={styles.snippet}>{bookmark.ayahText}</Text> : null}
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => onRemove(bookmark.type)} style={styles.removeButton} accessibilityLabel="حذف الفاصل">
+              <TouchableOpacity onPress={() => onRemove(bookmark.id)} style={styles.removeButton} accessibilityLabel="حذف الفاصل">
                 <MaterialCommunityIcons name="delete-outline" size={21} color="#B23A3A" />
               </TouchableOpacity>
             </View>

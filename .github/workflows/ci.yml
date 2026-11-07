@@ -43,5 +43,5 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-      - name: Run Khatmah unit tests
+      - name: Run Khatmah and bookmark unit tests
         run: pnpm run test:khatmah
