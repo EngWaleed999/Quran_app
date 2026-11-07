@@ -36,7 +36,7 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
       <View style={styles.barContent}>
         {/* Right: Previous Page Button (returns towards Page 1 on the right in RTL) */}
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: theme.colors.surfaceVariant }]}
           onPress={onPrevPage}
           disabled={currentPage <= 1}
           accessibilityLabel="الصفحة السابقة"
