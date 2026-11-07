@@ -31,6 +31,7 @@ interface MushafSvgPageItemProps {
   khatmahStartGlobalAyah?: number | null;
   khatmahEndGlobalAyah?: number | null;
   khatmahWrapsAroundEnd?: boolean;
+  khatmahDailyTargetAyahs?: number;
   searchHighlightVerseKey?: string | null;
   onAyahPress?: (verseKey: string, page: number) => void;
   onAyahLongPress?: (verseKey: string, page: number) => void;
@@ -48,6 +49,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   khatmahStartGlobalAyah,
   khatmahEndGlobalAyah,
   khatmahWrapsAroundEnd,
+  khatmahDailyTargetAyahs = 0,
   searchHighlightVerseKey,
   onAyahLongPress,
 }) => {
@@ -91,6 +93,12 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
       return [];
     }
 
+    // One daily wird may exceed a single full Quran cycle for aggressive plans.
+    // In that case every ayah belongs to the current wird.
+    if (khatmahDailyTargetAyahs >= 6236) {
+      return normalizedData.ayahs.map((ayah) => ayah.verseKey);
+    }
+
     return normalizedData.ayahs
       .filter((ayah) => {
         const globalNumber = QuranRepository.getGlobalAyahNumberSync(
@@ -109,6 +117,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     khatmahStartGlobalAyah,
     khatmahEndGlobalAyah,
     khatmahWrapsAroundEnd,
+    khatmahDailyTargetAyahs,
   ]);
 
   const processedSvgXml = useMemo(() => {
@@ -292,6 +301,7 @@ export const MushafSvgPageItem = React.memo(
     prev.khatmahStartGlobalAyah === next.khatmahStartGlobalAyah &&
     prev.khatmahEndGlobalAyah === next.khatmahEndGlobalAyah &&
     prev.khatmahWrapsAroundEnd === next.khatmahWrapsAroundEnd &&
+    prev.khatmahDailyTargetAyahs === next.khatmahDailyTargetAyahs &&
     prev.searchHighlightVerseKey === next.searchHighlightVerseKey &&
     prev.onAyahPress === next.onAyahPress
 );
