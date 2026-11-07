@@ -4,6 +4,7 @@ export interface Reciter {
   subname: string;
   edition: string;
   bitrate: 64 | 128 | 192;
+  adapterId?: string;
 }
 
 export type PlaybackStatus =

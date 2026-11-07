@@ -17,6 +17,7 @@ interface BookmarksModalProps {
   onClose: () => void;
   onNavigate: (bookmark: Bookmark) => void;
   onRemove: (bookmarkId: string) => void;
+  embedded?: boolean;
 }
 
 const TYPES: BookmarkType[] = ['tracking', 'reading', 'memorization'];
@@ -27,6 +28,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
   onClose,
   onNavigate,
   onRemove,
+  embedded = false,
 }) => {
   const theme = useTheme();
   const [filter, setFilter] = useState<BookmarkType | 'all'>('all');
@@ -35,86 +37,146 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
     [bookmarks, filter]
   );
 
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+  const innerContent = (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {!embedded && (
         <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="إغلاق">
             <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]} >الفواصل المحفوظة</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>الفواصل المحفوظة</Text>
           <View style={styles.headerButton} />
         </View>
+      )}
 
-        <View style={styles.filters}>
-          <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, filter === 'all' && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }]}>
-            <Text style={[styles.filterText, { color: theme.colors.onSurfaceVariant }, filter === 'all' && { color: theme.colors.primary }]}>الكل</Text>
+      <View style={styles.filters}>
+        <TouchableOpacity
+          onPress={() => setFilter('all')}
+          style={[
+            styles.filterChip,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            filter === 'all' && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary },
+          ]}
+        >
+          <Text style={[styles.filterText, { color: theme.colors.onSurfaceVariant }, filter === 'all' && { color: theme.colors.primary }]}>
+            الكل
+          </Text>
+        </TouchableOpacity>
+        {TYPES.map((type) => (
+          <TouchableOpacity
+            key={type}
+            onPress={() => setFilter(type)}
+            style={[
+              styles.filterChip,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+              filter === type && { borderColor: BOOKMARK_TYPE_COLORS[type], backgroundColor: theme.colors.surfaceVariant },
+            ]}
+          >
+            <View style={[styles.dot, { backgroundColor: BOOKMARK_TYPE_COLORS[type] }]} />
+            <Text style={[styles.filterText, { color: theme.colors.onSurfaceVariant }, filter === type && { color: BOOKMARK_TYPE_COLORS[type] }]}>
+              {BOOKMARK_TYPE_LABELS[type]}
+            </Text>
           </TouchableOpacity>
-          {TYPES.map((type) => (
-            <TouchableOpacity
-              key={type}
-              onPress={() => setFilter(type)}
-              style={[styles.filterChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, filter === type && { borderColor: BOOKMARK_TYPE_COLORS[type], backgroundColor: theme.colors.surfaceVariant }]}
-            >
-              <View style={[styles.dot, { backgroundColor: BOOKMARK_TYPE_COLORS[type] }]} />
-              <Text style={[styles.filterText, { color: theme.colors.onSurfaceVariant }, filter === type && { color: BOOKMARK_TYPE_COLORS[type] }]}>
-                {BOOKMARK_TYPE_LABELS[type]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        ))}
+      </View>
 
-        <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-          {filtered.length === 0 ? (
-            <View style={styles.empty}>
-              <MaterialCommunityIcons name="bookmark-multiple-outline" size={48} color={theme.colors.secondary} />
-              <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>لا توجد فواصل هنا بعد</Text>
-              <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>اضغط مطولاً على آية واحفظ موضعاً للمتابعة أو القراءة أو الحفظ.</Text>
-            </View>
-          ) : filtered.map((bookmark) => (
+      <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+        {filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="bookmark-multiple-outline" size={48} color={theme.colors.secondary} />
+            <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>لا توجد فواصل هنا بعد</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              اضغط مطولاً على آية واحفظ موضعاً للمتابعة أو القراءة أو الحفظ.
+            </Text>
+          </View>
+        ) : (
+          filtered.map((bookmark) => (
             <View key={bookmark.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
               <View style={[styles.typeStripe, { backgroundColor: BOOKMARK_TYPE_COLORS[bookmark.type] }]} />
               <TouchableOpacity style={styles.cardContent} onPress={() => onNavigate(bookmark)} activeOpacity={0.75}>
                 <View style={styles.cardTitleRow}>
                   <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>سورة {bookmark.suraName}</Text>
                   <View style={[styles.typeBadge, { backgroundColor: BOOKMARK_TYPE_COLORS[bookmark.type] + '18' }]}>
-                    <Text style={[styles.typeBadgeText, { color: BOOKMARK_TYPE_COLORS[bookmark.type] }]}>{BOOKMARK_TYPE_LABELS[bookmark.type]}</Text>
+                    <Text style={[styles.typeBadgeText, { color: BOOKMARK_TYPE_COLORS[bookmark.type] }]}>
+                      {BOOKMARK_TYPE_LABELS[bookmark.type]}
+                    </Text>
                   </View>
                 </View>
-                <Text style={[styles.meta, { color: theme.colors.onSurfaceVariant }]}>الآية {bookmark.ayaNo} • الصفحة {bookmark.page}</Text>
-                {bookmark.ayahText ? <Text numberOfLines={2} style={[styles.snippet, { color: theme.colors.onSurface }]}>{bookmark.ayahText}</Text> : null}
+                <Text style={[styles.meta, { color: theme.colors.onSurfaceVariant }]}>
+                  الآية {bookmark.ayaNo} • الصفحة {bookmark.page}
+                </Text>
+                {bookmark.ayahText ? (
+                  <Text numberOfLines={2} style={[styles.snippet, { color: theme.colors.onSurface }]}>
+                    {bookmark.ayahText}
+                  </Text>
+                ) : null}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => onRemove(bookmark.id)} style={styles.removeButton} accessibilityLabel="حذف الفاصل">
                 <MaterialCommunityIcons name="delete-outline" size={21} color="#B23A3A" />
               </TouchableOpacity>
             </View>
-          ))}
-        </ScrollView>
-      </View>
+          ))
+        )}
+      </ScrollView>
+    </View>
+  );
+
+  if (embedded) {
+    return innerContent;
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      {innerContent}
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: QuranColors.parchment },
-  header: { minHeight: 58, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: QuranColors.parchmentBorder },
+  container: { flex: 1 },
+  header: {
+    minHeight: 58,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
   headerButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', writingDirection: 'rtl', fontSize: 18, fontWeight: 'bold', color: QuranColors.emeraldDark },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   filters: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, padding: 14 },
-  filterChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: QuranColors.parchmentBorder, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#FFFFFF' },
-  filterActive: { backgroundColor: 'rgba(31,81,63,0.08)', borderColor: QuranColors.emerald },
+  filterChip: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   filterText: { fontSize: 12, fontWeight: '600' },
-  filterTextActive: { fontWeight: 'bold' },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  list: { paddingHorizontal: 14, paddingBottom: 30, gap: 10 },
-  card: { flexDirection: 'row-reverse', alignItems: 'stretch', backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: QuranColors.parchmentBorder, overflow: 'hidden' },
+  list: { paddingHorizontal: 14, paddingBottom: 80, gap: 10 },
+  card: {
+    flexDirection: 'row-reverse',
+    alignItems: 'stretch',
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   typeStripe: { width: 4 },
   cardContent: { flex: 1, padding: 12, gap: 5 },
   cardTitleRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  cardTitle: { fontSize: 15, fontWeight: 'bold', color: QuranColors.emeraldDark },
+  cardTitle: { fontSize: 15, fontWeight: 'bold' },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   typeBadgeText: { fontSize: 11, fontWeight: 'bold' },
-  meta: { fontSize: 12, color: QuranColors.textMuted, textAlign: 'right', writingDirection: 'rtl' },
+  meta: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
   snippet: { marginTop: 2, fontFamily: 'UthmanicHafs', fontSize: 13, lineHeight: 23, textAlign: 'right', writingDirection: 'rtl' },
   removeButton: { width: 42, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingTop: 70, gap: 12 },

@@ -25,6 +25,7 @@ interface KhatmahModalProps {
   onClose: () => void;
   onNavigateToPage: (page: number, verseKey?: string) => void;
   onWirdChange?: (wird: DailyWird | null) => void;
+  embedded?: boolean;
 }
 
 export const KhatmahModal: React.FC<KhatmahModalProps> = ({
@@ -34,6 +35,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   onClose,
   onNavigateToPage,
   onWirdChange,
+  embedded = false,
 }) => {
   const theme = useTheme();
   const [wird, setWird] = useState<DailyWird | null>(null);
@@ -152,34 +154,26 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
     }
   };
 
-  const completeWird = () => {
-    if (!wird?.canComplete || loading) return;
-
-    Alert.alert('إنهاء الورد', 'هل أتممت قراءة الورد المحدد؟', [
-      { text: 'متابعة القراءة', style: 'cancel' },
-      {
-        text: 'نعم، أنهيت الورد',
-        onPress: async () => {
-          try {
-            setLoading(true);
-            const next = await KhatmahService.completeDailyWird(db);
-            setWird(next);
-            onWirdChange?.(next);
-            setHistory(
-              await KhatmahService.getCompletionHistory(db, wird.plan.id)
-            );
-          } catch (error) {
-            Alert.alert(
-              'تعذر تحديث التقدم',
-              error instanceof Error ? error.message : 'حاول مرة أخرى.'
-            );
-          } finally {
-            setLoading(false);
-          }
-        },
-      },
-    ]);
-  };
+  const completeWird = async () => {                                                                                           
+        if (!wird?.canComplete || loading) return;                                                                                 
+                                                                                                                                   
+        try {                                                                                                                      
+          setLoading(true);                                                                                                        
+          const next = await KhatmahService.completeDailyWird(db);                                                                 
+          setWird(next);                                                                                                           
+          onWirdChange?.(next);                                                                                                    
+          setHistory(                                                                                                              
+            await KhatmahService.getCompletionHistory(db, wird.plan.id)                                                            
+          );                                                                                                                       
+        } catch (error) {                                                                                                          
+          Alert.alert(                                                                                                             
+            'تعذر تحديث التقدم',                                                                                                   
+            error instanceof Error ? error.message : 'حاول مرة أخرى.'                                                              
+          );                                                                                                                       
+        } finally {                                                                                                                
+          setLoading(false);                                                                                                       
+        }                                                                                                                          
+      };                                                   
 
   const stopPlan = () => {
     Alert.alert(
@@ -226,14 +220,9 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const isFinished = wird?.status === 'finished';
   const isTodayCompleted = wird?.status === 'completed';
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+  const innerContent = (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {!embedded && (
         <View
           style={[
             styles.header,
@@ -259,31 +248,32 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
           </Text>
           <View style={styles.headerButton} />
         </View>
+      )}
 
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {loading ? <Text style={styles.helper}>جاري تحديث الخطة...</Text> : null}
+          {/* {loading ? <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>جاري تحديث الخطة...</Text> : null} */}
 
           {isFinished ? (
-            <View style={styles.successCard}>
+            <View style={[styles.successCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline, borderWidth: 1 }]}>
               <MaterialCommunityIcons
                 name="trophy-outline"
                 size={54}
                 color={QuranColors.gold}
               />
-              <Text style={styles.successTitle}>تقبّل الله منك ختمتك</Text>
-              <Text style={styles.helper}>
+              <Text style={[styles.successTitle, { color: theme.colors.primary }]}>تقبّل الله منك ختمتك</Text>
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                 أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.
               </Text>
-              <View style={styles.finishedProgress}>
-                <Text style={styles.finishedProgressText}>
+              <View style={[styles.finishedProgress, { backgroundColor: theme.dark ? "rgba(197,155,39,0.15)" : "rgba(197,155,39,0.1)" }]}>
+                <Text style={[styles.finishedProgressText, { color: theme.colors.primary }]}>
                   {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
                 </Text>
               </View>
               <TouchableOpacity
-                style={styles.primaryButton}
+                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
                 onPress={() => setWird(null)}
               >
                 <Text style={styles.primaryButtonText}>إنشاء خطة جديدة</Text>
@@ -300,23 +290,23 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   },
                 ]}
               >
-                <Text style={styles.eyebrow}>خطتك الحالية</Text>
+                <Text style={[styles.eyebrow, { color: theme.colors.onSurfaceVariant }]}>خطتك الحالية</Text>
                 <Text style={[styles.planTitle, { color: theme.colors.onSurface }]}>
                   {wird.plan.khatmahCount.toLocaleString('ar')} ختمة خلال {wird.totalDays.toLocaleString('ar')} يوماً
                 </Text>
                 <View style={styles.progressTrack}>
                   <View
                     style={[
-                      styles.progressFill,
+                      styles.progressFill, { backgroundColor: theme.colors.primary },
                       { width: `${wird.progressPercent}%` },
                     ]}
                   />
                 </View>
                 <View style={styles.progressMeta}>
-                  <Text style={styles.progressText}>
+                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
                     {Math.round(wird.progressPercent).toLocaleString('ar')}٪ مكتمل
                   </Text>
-                  <Text style={styles.progressText}>
+                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
                     {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
                   </Text>
                 </View>
@@ -350,16 +340,16 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   </Text>
                 </View>
 
-                <Text style={styles.metric}>
+                <Text style={[styles.metric, { color: theme.colors.primary }]}>
                   {wird.dailyTargetPages.toLocaleString('ar')} صفحة
                 </Text>
-                <Text style={styles.metricSub}>
+                <Text style={[styles.metricSub, { color: theme.colors.onSurfaceVariant }]}>
                   {wird.dailyTargetAyahs.toLocaleString('ar')} آية • التاريخ المحدد {wird.scheduledDate}
                 </Text>
 
                 {startVerse && endVerse ? (
-                  <View style={styles.rangeBox}>
-                    <Text style={styles.rangeText}>
+                  <View style={[styles.rangeBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, borderWidth: 1 }]}>
+                    <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
                       من سورة {startVerse.sura_name_ar} • الآية {startVerse.aya_no.toLocaleString('ar')}
                     </Text>
                     <MaterialCommunityIcons
@@ -367,37 +357,37 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                       size={18}
                       color={QuranColors.gold}
                     />
-                    <Text style={styles.rangeText}>
+                    <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
                       إلى سورة {endVerse.sura_name_ar} • الآية {endVerse.aya_no.toLocaleString('ar')}
                     </Text>
                     {wird.wrapsAroundEnd ? (
-                      <Text style={styles.helper}>
+                      <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                         يمتد الورد من نهاية المصحف إلى بدايته.
                       </Text>
                     ) : null}
                     {wird.dailyTargetAyahs >= 6236 ? (
-                      <Text style={styles.helper}>
+                      <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                         يتضمن هذا الورد دورة كاملة من المصحف أو أكثر.
                       </Text>
                     ) : null}
                   </View>
                 ) : null}
 
-                <Text style={styles.helper}>
+                <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                   تم تظليل آيات هذا الورد في صفحات المصحف. يمكنك الرجوع إليها قبل تسجيل إتمامه.
                 </Text>
 
                 <TouchableOpacity
                   onPress={goToWird}
-                  style={styles.secondaryButton}
+                  style={[styles.secondaryButton, { borderColor: theme.colors.primary }]}
                   disabled={loading}
                 >
                   <MaterialCommunityIcons
                     name="book-open-page-variant-outline"
                     size={19}
-                    color={QuranColors.emerald}
+                    color={theme.colors.primary}
                   />
-                  <Text style={styles.secondaryButtonText}>
+                  <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>
                     الانتقال إلى بداية الورد
                   </Text>
                 </TouchableOpacity>
@@ -405,7 +395,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 {wird.canComplete ? (
                   <TouchableOpacity
                     onPress={completeWird}
-                    style={styles.primaryButton}
+                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
                     disabled={loading}
                   >
                     <MaterialCommunityIcons
@@ -416,13 +406,13 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                     <Text style={styles.primaryButtonText}>انتهيت من الورد</Text>
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles.completedNotice}>
+                  <View style={[styles.completedNotice, { backgroundColor: theme.dark ? "rgba(47,120,94,0.2)" : "rgba(31,81,63,0.08)" }]}>
                     <MaterialCommunityIcons
                       name="check-decagram"
                       size={21}
-                      color={QuranColors.emerald}
+                      color={theme.colors.primary}
                     />
-                    <Text style={styles.completedNoticeText}>
+                    <Text style={[styles.completedNoticeText, { color: theme.colors.primary }]}>
                       تم تسجيل إتمام هذا الورد. سيظهر الورد التالي في موعده.
                     </Text>
                   </View>
@@ -447,16 +437,16 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 </TouchableOpacity>
                 {isHistoryExpanded ? (
                   history.length ? history.map((item) => (
-                    <View key={item.dayNumber} style={styles.historyRow}>
+                    <View key={item.dayNumber} style={[styles.historyRow, { borderTopColor: theme.colors.outline }]}>
                       <View style={styles.historyDateBlock}>
-                        <Text style={styles.historyDay}>اليوم {item.dayNumber.toLocaleString('ar')}</Text>
-                        <Text style={styles.historyDate}>{item.scheduledDate}</Text>
+                        <Text style={[styles.historyDay, { color: theme.colors.primary }]}>اليوم {item.dayNumber.toLocaleString('ar')}</Text>
+                        <Text style={[styles.historyDate, { color: theme.colors.onSurfaceVariant }]}>{item.scheduledDate}</Text>
                       </View>
                       <View style={styles.historyRangeBlock}>
-                        <Text style={styles.historyRange}>
+                        <Text style={[styles.historyRange, { color: theme.colors.onSurface }]}>
                           {item.startSuraName} ({item.startAyahNo.toLocaleString('ar')}) — {item.endSuraName} ({item.endAyahNo.toLocaleString('ar')})
                         </Text>
-                        <Text style={styles.historyTime}>
+                        <Text style={[styles.historyTime, { color: theme.colors.onSurfaceVariant }]}>
                           {item.source === 'legacy_migration'
                             ? 'تقدم محفوظ من إصدار سابق'
                             : new Date(item.completedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
@@ -465,7 +455,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                       <MaterialCommunityIcons name="check-circle" size={18} color={QuranColors.emerald} />
                     </View>
                   )) : (
-                    <Text style={styles.helper}>لم تسجل أي ورد مكتمل بعد.</Text>
+                    <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>لم تسجل أي ورد مكتمل بعد.</Text>
                   )
                 ) : null}
               </View>
@@ -491,14 +481,14 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               <MaterialCommunityIcons
                 name="book-check-outline"
                 size={44}
-                color={QuranColors.emerald}
+                color={theme.colors.primary}
               />
-              <Text style={styles.formTitle}>خطّط لختمتك</Text>
-              <Text style={styles.helper}>
+              <Text style={[styles.formTitle, { color: theme.colors.onSurface }]}>خطّط لختمتك</Text>
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                 اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
               </Text>
 
-              <Text style={styles.label}>كم ختمة تريد؟</Text>
+              <Text style={[styles.label, { color: theme.colors.primary }]}>كم ختمة تريد؟</Text>
               <View style={styles.choices}>
                 {[1, 2, 3, 5, 10, 20].map((value) => (
                   <TouchableOpacity
@@ -506,7 +496,8 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                     onPress={() => setKhatmahCount(value)}
                     style={[
                       styles.choice,
-                      khatmahCount === value && styles.choiceSelected,
+                      { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                      khatmahCount === value && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
                     ]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: khatmahCount === value }}
@@ -514,7 +505,8 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                     <Text
                       style={[
                         styles.choiceText,
-                        khatmahCount === value && styles.choiceTextSelected,
+                        { color: theme.colors.onSurface },
+                        khatmahCount === value && { color: theme.colors.primary, fontWeight: "bold" },
                       ]}
                     >
                       {value.toLocaleString('ar')}
@@ -523,7 +515,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 ))}
               </View>
 
-              <Text style={styles.label}>خلال كم يوماً؟</Text>
+              <Text style={[styles.label, { color: theme.colors.primary }]}>خلال كم يوماً؟</Text>
               <TextInput
                 value={durationDays}
                 onChangeText={(value) =>
@@ -543,19 +535,21 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 accessibilityLabel="مدة الختمة بالأيام"
               />
 
-              <Text style={styles.label}>من أين تبدأ؟</Text>
+              <Text style={[styles.label, { color: theme.colors.primary }]}>من أين تبدأ؟</Text>
               <View style={styles.startChoices}>
                 <TouchableOpacity
                   onPress={() => setStartFrom('beginning')}
                   style={[
                     styles.startChoice,
-                    startFrom === 'beginning' && styles.choiceSelected,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    startFrom === 'beginning' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
                   ]}
                 >
                   <Text
                     style={[
                       styles.startChoiceText,
-                      startFrom === 'beginning' && styles.choiceTextSelected,
+                      { color: theme.colors.onSurface },
+                      startFrom === 'beginning' && { color: theme.colors.primary, fontWeight: "bold" },
                     ]}
                   >
                     من بداية المصحف
@@ -565,13 +559,15 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   onPress={() => setStartFrom('custom')}
                   style={[
                     styles.startChoice,
-                    startFrom === 'custom' && styles.choiceSelected,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    startFrom === 'custom' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
                   ]}
                 >
                   <Text
                     style={[
                       styles.startChoiceText,
-                      startFrom === 'custom' && styles.choiceTextSelected,
+                      { color: theme.colors.onSurface },
+                      startFrom === 'custom' && { color: theme.colors.primary, fontWeight: "bold" },
                     ]}
                   >
                     سورة وآية
@@ -581,13 +577,15 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   onPress={() => setStartFrom('current')}
                   style={[
                     styles.startChoice,
-                    startFrom === 'current' && styles.choiceSelected,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    startFrom === 'current' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
                   ]}
                 >
                   <Text
                     style={[
                       styles.startChoiceText,
-                      startFrom === 'current' && styles.choiceTextSelected,
+                      { color: theme.colors.onSurface },
+                      startFrom === 'current' && { color: theme.colors.primary, fontWeight: "bold" },
                     ]}
                   >
                     من موضعي الحالي
@@ -597,7 +595,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
 
               {startFrom === 'custom' ? (
                 <View style={[styles.customStartCard, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
-                  <Text style={styles.label}>السورة التي تبدأ منها</Text>
+                  <Text style={[styles.label, { color: theme.colors.primary }]}>السورة التي تبدأ منها</Text>
                   <TouchableOpacity
                     onPress={() => setIsSurahPickerOpen(true)}
                     style={[styles.surahSelect, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
@@ -608,7 +606,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                     </Text>
                     <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
                   </TouchableOpacity>
-                  <Text style={styles.label}>رقم الآية</Text>
+                  <Text style={[styles.label, { color: theme.colors.primary }]}>رقم الآية</Text>
                   <TextInput
                     value={startAyahInput}
                     onChangeText={(value) => setStartAyahInput(value.replace(/[^0-9]/g, '').slice(0, 3))}
@@ -619,7 +617,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                     accessibilityLabel="رقم آية بداية الختمة"
                   />
                   {selectedStartSurah ? (
-                    <Text style={styles.helper}>
+                    <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                       عدد آيات سورة {selectedStartSurah.sura_name_ar}: {selectedStartSurah.ayahs_count.toLocaleString('ar')}
                     </Text>
                   ) : null}
@@ -629,12 +627,12 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               {Number(durationDays) > 0 &&
               Number(durationDays) <= 3660 &&
               Number.isInteger(Number(durationDays)) ? (
-                <View style={styles.preview}>
-                  <Text style={styles.previewTitle}>متوسط عدد الصفحات اليومي</Text>
-                  <Text style={styles.previewMetric}>
+                <View style={[styles.preview, { backgroundColor: theme.dark ? "rgba(197,155,39,0.12)" : "rgba(197,155,39,0.08)", borderColor: theme.colors.outline, borderWidth: 1 }]}>
+                  <Text style={[styles.previewTitle, { color: theme.colors.onSurfaceVariant }]}>متوسط عدد الصفحات اليومي</Text>
+                  <Text style={[styles.previewMetric, { color: theme.colors.primary }]}>
                     {Math.ceil((604 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} صفحة
                   </Text>
-                  <Text style={styles.helper}>
+                  <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                     {Math.ceil((6236 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} آية يومياً في المتوسط
                   </Text>
                 </View>
@@ -642,7 +640,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
 
               <TouchableOpacity
                 onPress={createPlan}
-                style={[styles.primaryButton, loading && styles.disabledButton]}
+                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }, loading && styles.disabledButton]}
                 disabled={loading}
               >
                 <Text style={styles.primaryButtonText}>إنشاء خطة ختمتي</Text>
@@ -680,7 +678,8 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   }}
                   style={[
                     styles.surahPickerItem,
-                    startSurahNo === surah.sura_no && styles.surahPickerItemSelected,
+                    { borderBottomColor: theme.colors.outline },
+                    startSurahNo === surah.sura_no && { backgroundColor: theme.dark ? "rgba(47,120,94,0.2)" : "rgba(31,81,63,0.08)" },
                   ]}
                 >
                   <Text style={[styles.surahPickerNumber, { color: theme.colors.onSurfaceVariant }]}>
@@ -700,6 +699,20 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
       </Modal>
 
       </View>
+  );
+
+  if (embedded) {
+    return innerContent;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
+      {innerContent}
     </Modal>
   );
 };

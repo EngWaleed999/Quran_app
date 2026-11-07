@@ -111,9 +111,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
             </Text>
           </View>
 
-          <View style={[styles.footer, { borderTopColor: palette.border }]}>
+          {/* <View style={[styles.footer, { borderTopColor: palette.border }]}>
             <Text style={[styles.footerText, { color: palette.muted }]}>تطبيق القرآن الكريم • يعمل محلياً دون اتصال</Text>
-          </View>
+          </View> */}
         </View>
       </View>
     </Modal>

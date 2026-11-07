@@ -210,7 +210,7 @@ export class AudioPlayerEngine {
       scheduledIndex === this.tracks.length - 1 &&
       (this.repeatConfig.surahRepeatCount === null ||
         this.completedSurahPlays < this.repeatConfig.surahRepeatCount)
-        ? this.tracks[this.startIndex]
+        ? this.tracks[0]
         : undefined
     );
     if (!nextTrack) return;
@@ -292,6 +292,7 @@ export class AudioPlayerEngine {
 
     if (advance.startsNewCycle) {
       this.completedSurahPlays += 1;
+        this.startIndex = 0;
     }
     this.currentIndex = advance.nextIndex;
 

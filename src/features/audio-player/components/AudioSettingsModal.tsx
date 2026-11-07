@@ -22,13 +22,18 @@ const DELAY_OPTIONS = [0, 1, 2, 3, 5, 10];
 
 export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible, mode, onClose }) => {
   const theme = useTheme();
-  const savedConfig = useAudioStore((state) => state.repeatConfig);
+  const tilawahConfig = useAudioStore((state) => state.tilawahConfig);
+  const repeatModeConfig = useAudioStore((state) => state.repeatModeConfig);
   const setRepeatConfig = useAudioStore((state) => state.setRepeatConfig);
-  const [draft, setDraft] = useState<RepeatConfig>(savedConfig);
+
+  const activeSavedConfig = mode === 'repeat' ? repeatModeConfig : tilawahConfig;
+  const [draft, setDraft] = useState<RepeatConfig>(activeSavedConfig);
 
   useEffect(() => {
-    if (visible) setDraft(savedConfig);
-  }, [visible, savedConfig]);
+    if (visible) {
+      setDraft(mode === 'repeat' ? repeatModeConfig : tilawahConfig);
+    }
+  }, [visible, mode, repeatModeConfig, tilawahConfig]);
 
   const update = <K extends keyof RepeatConfig>(key: K, value: RepeatConfig[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -47,7 +52,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
   );
 
   const save = () => {
-    setRepeatConfig(draft);
+    setRepeatConfig(draft, mode);
     onClose();
   };
 
@@ -56,9 +61,9 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <View style={styles.titleIcon}><MaterialCommunityIcons name="tune-variant" size={21} color={theme.colors.primary} /></View>
+          <View style={[styles.handle, { backgroundColor: theme.colors.outline }]} />
+          <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
+            <View style={[styles.titleIcon, { backgroundColor: theme.dark ? 'rgba(47,120,94,0.2)' : 'rgba(31,81,63,0.08)' }]}><MaterialCommunityIcons name="tune-variant" size={21} color={theme.colors.primary} /></View>
             <View style={styles.headerText}>
               <Text style={[styles.title, { color: theme.colors.onSurface }]}>إعدادات {mode === 'repeat' ? 'الترديد' : 'التلاوة'}</Text>
               <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>تُحفظ اختياراتك وتُطبّق على التشغيل الحالي</Text>
@@ -71,7 +76,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <View style={[styles.section, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
               <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار المقطع حتى نهاية السورة</Text>
-              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>تبدأ كل دورة من الآية التي اخترتها وتستمر حتى نهاية السورة. لا تعود إلى الآيات السابقة لموضع البداية. يشمل العدد التشغيل الأول.</Text>
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>تبدأ الدورة الأولى من الآية التي اخترتها حتى نهاية السورة، ثم يُعاد تشغيل السورة كاملة من بدايتها. يشمل العدد التشغيل الأول.</Text>
               <View style={styles.optionsRow}>
                 {SURAH_OPTIONS.map((option) => {
                   const selected = draft.surahRepeatCount === option.value;
@@ -85,16 +90,22 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
             </View>
 
             {mode === 'repeat' ? (
-              <View style={styles.section}>
+              <View style={[styles.section, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار الآية</Text>
-                <Text style={styles.helper}>عدد مرات تشغيل كل آية قبل الانتقال إلى الآية التالية.</Text>
+                <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>عدد مرات تشغيل كل آية قبل الانتقال إلى الآية التالية.</Text>
                 {renderNumbers(REPEAT_OPTIONS, draft.repeatCount, (value) => update('repeatCount', value), 'مرات')}
                 <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>الفاصل بين تكرارات الآية</Text>
                 {renderNumbers(DELAY_OPTIONS, draft.pauseDelaySeconds, (value) => update('pauseDelaySeconds', value), 'ث')}
-                <Text style={styles.fieldLabel}>الفاصل بين الآيات</Text>
+                <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>الفاصل بين الآيات</Text>
                 {renderNumbers(DELAY_OPTIONS, draft.verseGapDelaySeconds ?? 0, (value) => update('verseGapDelaySeconds', value), 'ث')}
               </View>
-            ) : null}
+            ) : (
+              <View style={[styles.section, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>الفاصل بين الآيات المتتالية</Text>
+                <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>إضافة فترة صمت قصيرة بين كل آية والتي تليها أثناء الاستماع المتواصل.</Text>
+                {renderNumbers(DELAY_OPTIONS, draft.verseGapDelaySeconds ?? 0, (value) => update('verseGapDelaySeconds', value), 'ث')}
+              </View>
+            )}
 
             <View style={[styles.info, { backgroundColor: theme.colors.surfaceVariant }]}>
               <MaterialCommunityIcons name="information-outline" size={18} color={theme.colors.primary} />

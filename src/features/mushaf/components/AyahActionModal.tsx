@@ -43,14 +43,15 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   const theme = useTheme();
   if (!ayah) return null;
 
-  const hasBookmark = (type: BookmarkType) => bookmarks.some((item) => item.type === type && item.verseKey === ayah.verseKey);
+  const hasBookmark = (type: BookmarkType) =>
+    bookmarks.some((item) => item.type === type && item.verseKey === ayah.verseKey);
 
   const handleShare = async () => {
     try {
       const message =
         'سورة ' + ayah.suraName + ' - الآية ' + toArabicNumerals(ayah.ayaNo) +
         ' (صفحة ' + toArabicNumerals(ayah.page) + '):\n\n' +
-        (ayah.ayahText || '') + '\n\n— تطبيق القرآن الكريم';
+        '﴿ ' + (ayah.ayahText || '') + ' ﴾\n\n  القرآن الكريم';
       await Share.share({ message });
     } catch (error) {
       console.warn('Share error:', error);
@@ -62,6 +63,16 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   ) => {
     onClose();
     action?.(ayah);
+  };
+
+  const actionBoxDynamicStyle = {
+    backgroundColor: theme.colors.surfaceVariant,
+    borderColor: theme.colors.outline,
+  };
+
+  const actionIconBoxDynamicStyle = {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.outline,
   };
 
   return (
@@ -80,19 +91,23 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
         />
 
         <View style={[styles.bottomSheetContainer, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.dragHandle} />
+          <View style={[styles.dragHandle, { backgroundColor: theme.colors.outline }]} />
 
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
             <View style={styles.headerTitleCol}>
-              <Text style={styles.surahTitleText}>
+              <Text style={[styles.surahTitleText, { color: theme.colors.primary }]}>
                 سُورَةُ {ayah.suraName} • الآيَةُ {toArabicNumerals(ayah.ayaNo)}
               </Text>
               <View style={styles.badgesRow}>
-                <View style={styles.badgePill}>
-                  <Text style={styles.badgeText}>الجزء {toArabicNumerals(ayah.jozz)}</Text>
+                <View style={[styles.badgePill, { backgroundColor: theme.colors.surfaceVariant }]}>
+                  <Text style={[styles.badgeText, { color: theme.colors.onSurfaceVariant }]}>
+                    الجزء {toArabicNumerals(ayah.jozz)}
+                  </Text>
                 </View>
-                <View style={styles.badgePill}>
-                  <Text style={styles.badgeText}>صفحة {toArabicNumerals(ayah.page)}</Text>
+                <View style={[styles.badgePill, { backgroundColor: theme.colors.surfaceVariant }]}>
+                  <Text style={[styles.badgeText, { color: theme.colors.onSurfaceVariant }]}>
+                    صفحة {toArabicNumerals(ayah.page)}
+                  </Text>
                 </View>
                 {bookmarks.some((item) => item.verseKey === ayah.verseKey) ? (
                   <View style={[styles.badgePill, styles.bookmarkedPill]}>
@@ -103,14 +118,26 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               </View>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
-              <MaterialCommunityIcons name="close" size={22} color={QuranColors.textMuted} />
+            <TouchableOpacity
+              style={[styles.closeBtn, { backgroundColor: theme.colors.surfaceVariant }]}
+              onPress={onClose}
+              hitSlop={10}
+            >
+              <MaterialCommunityIcons name="close" size={22} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
           {ayah.ayahText ? (
-            <View style={[styles.snippetBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
-              <Text style={styles.snippetText} numberOfLines={3}>
+            <View
+              style={[
+                styles.snippetBox,
+                { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+              ]}
+            >
+              <Text
+                style={[styles.snippetText, { color: theme.colors.onSurface }]}
+                numberOfLines={4}
+              >
                 {ayah.ayahText}
               </Text>
             </View>
@@ -123,107 +150,206 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
           >
             {(['tracking', 'reading', 'memorization'] as const).map((type) => {
               const selected = hasBookmark(type);
-              const title = type === 'tracking' ? 'فاصل متابعة' : type === 'reading' ? 'فاصل قراءة' : 'فاصل حفظ';
-              const subtitle = type === 'tracking' ? 'تحديد موضع أريد متابعة القراءة منه' : type === 'reading' ? 'تحديد موضع القراءة الحالي' : 'تحديد موضع أراجع أو أحفظ منه';
-              const icon = type === 'tracking' ? 'flag-checkered' : type === 'reading' ? 'bookmark-check' : 'school-outline';
+              const title =
+                type === 'tracking'
+                  ? 'فاصل متابعة'
+                  : type === 'reading'
+                  ? 'فاصل قراءة'
+                  : 'فاصل حفظ';
+              const subtitle =
+                type === 'tracking'
+                  ? 'تحديد موضع أريد متابعة القراءة منه'
+                  : type === 'reading'
+                  ? 'تحديد موضع القراءة الحالي'
+                  : 'تحديد موضع أراجع أو أحفظ منه';
+              const icon =
+                type === 'tracking'
+                  ? 'flag-checkered'
+                  : type === 'reading'
+                  ? 'bookmark-check'
+                  : 'school-outline';
               const tint = BOOKMARK_TYPE_COLORS[type];
               return (
-                <TouchableOpacity key={type} style={[styles.actionRow, selected && { borderColor: tint, backgroundColor: tint + '12' }]} onPress={() => onToggleBookmark(ayah, type)} activeOpacity={0.7}>
-                  <View style={[styles.actionIconBox, { borderColor: tint + '55' }, selected && { backgroundColor: tint }]}>
-                    <MaterialCommunityIcons name={selected ? 'bookmark-check' : icon} size={23} color={selected ? '#FFFFFF' : tint} />
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.actionRow,
+                    actionBoxDynamicStyle,
+                    selected && { borderColor: tint, backgroundColor: tint + '15' },
+                  ]}
+                  onPress={() => onToggleBookmark(ayah, type)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.actionIconBox,
+                      actionIconBoxDynamicStyle,
+                      { borderColor: tint + '55' },
+                      selected && { backgroundColor: tint },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={selected ? 'bookmark-check' : icon}
+                      size={23}
+                      color={selected ? '#FFFFFF' : tint}
+                    />
                   </View>
                   <View style={styles.actionDetails}>
-                    <Text style={[styles.actionTitle, selected && { color: tint }]}>{selected ? 'إزالة ' + title : title}</Text>
-                    <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]} >{subtitle}</Text>
+                    <Text
+                      style={[
+                        styles.actionTitle,
+                        { color: theme.colors.onSurface },
+                        selected && { color: tint },
+                      ]}
+                    >
+                      {selected ? 'إزالة ' + title : title}
+                    </Text>
+                    <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                      {subtitle}
+                    </Text>
                   </View>
-                  <MaterialCommunityIcons name={selected ? 'check-circle' : 'plus-circle-outline'} size={20} color={tint} />
+                  <MaterialCommunityIcons
+                    name={selected ? 'check-circle' : 'plus-circle-outline'}
+                    size={20}
+                    color={tint}
+                  />
                 </TouchableOpacity>
               );
             })}
+
             <TouchableOpacity
-              style={styles.actionRow}
+              style={[styles.actionRow, actionBoxDynamicStyle]}
               activeOpacity={0.7}
               onPress={() => runAudioAction(onPlayAudio)}
             >
-              <View style={styles.actionIconBox}>
+              <View style={[styles.actionIconBox, actionIconBoxDynamicStyle]}>
                 <MaterialCommunityIcons
                   name="play-circle-outline"
                   size={24}
-                  color={QuranColors.emerald}
+                  color={theme.colors.primary}
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]} >تلاوة</Text>
-                <Text style={styles.actionSubtitle}>
+                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>تلاوة</Text>
+                <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   اختر القارئ وشغّل السورة من هذه الآية
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={[styles.actionRow, actionBoxDynamicStyle]}
               activeOpacity={0.7}
               onPress={() => runAudioAction(onRepeatAudio)}
             >
-              <View style={styles.actionIconBox}>
-                <MaterialCommunityIcons name="repeat" size={24} color={QuranColors.emerald} />
+              <View style={[styles.actionIconBox, actionIconBoxDynamicStyle]}>
+                <MaterialCommunityIcons name="repeat" size={24} color={theme.colors.primary} />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>ترديد وتكرار</Text>
-                <Text style={styles.actionSubtitle}>
+                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
+                  ترديد وتكرار
+                </Text>
+                <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   كرّر كل آية مع تأخير زمني قابل للتعديل
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={[styles.actionRow, actionBoxDynamicStyle]}
               activeOpacity={0.7}
               onPress={() => {
                 onClose();
                 onOpenTafsir?.(ayah);
               }}
             >
-              <View style={styles.actionIconBox}>
+              <View style={[styles.actionIconBox, actionIconBoxDynamicStyle]}>
                 <MaterialCommunityIcons
                   name="book-open-page-variant-outline"
                   size={24}
-                  color={QuranColors.emerald}
+                  color={theme.colors.primary}
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>التفسيرات</Text>
-                <Text style={styles.actionSubtitle}>تفسير السعدي، والتفسير الميسر</Text>
+                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
+                  التفسيرات
+                </Text>
+                <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  تفسير السعدي
+                </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow} activeOpacity={0.7} onPress={() => { onClose(); onOpenNote?.(ayah); }}>
-              <View style={styles.actionIconBox}>
-                <MaterialCommunityIcons name="note-edit-outline" size={24} color={QuranColors.emerald} />
+            <TouchableOpacity
+              style={[styles.actionRow, actionBoxDynamicStyle]}
+              activeOpacity={0.7}
+              onPress={() => {
+                onClose();
+                onOpenNote?.(ayah);
+              }}
+            >
+              <View style={[styles.actionIconBox, actionIconBoxDynamicStyle]}>
+                <MaterialCommunityIcons
+                  name="note-edit-outline"
+                  size={24}
+                  color={theme.colors.primary}
+                />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>إضافة ملاحظة</Text>
-                <Text style={styles.actionSubtitle}>احفظ فائدة أو تدبراً مرتبطاً بهذه الآية</Text>
+                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
+                  إضافة ملاحظة
+                </Text>
+                <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  احفظ فائدة أو تدبراً مرتبطاً بهذه الآية
+                </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow} onPress={handleShare} activeOpacity={0.7}>
-              <View style={styles.actionIconBox}>
+            <TouchableOpacity
+              style={[styles.actionRow, actionBoxDynamicStyle]}
+              onPress={handleShare}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.actionIconBox, actionIconBoxDynamicStyle]}>
                 <MaterialCommunityIcons
                   name="share-variant-outline"
                   size={24}
-                  color={QuranColors.emerald}
+                  color={theme.colors.primary}
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>مشاركة الآية</Text>
-                <Text style={styles.actionSubtitle}>مشاركة نص الآية مع معلومات السورة</Text>
+                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
+                  مشاركة الآية
+                </Text>
+                <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  مشاركة نص الآية المشكول مع معلومات السورة
+                </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -242,10 +368,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomSheetContainer: {
-    maxHeight: '62%',
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    maxHeight: '68%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     paddingTop: 8,
     paddingBottom: 24,
     shadowColor: '#000',
@@ -258,7 +383,6 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#DDD',
     alignSelf: 'center',
     marginBottom: 8,
   },
@@ -269,7 +393,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: QuranColors.parchmentBorder,
   },
   headerTitleCol: {
     flex: 1,
@@ -278,7 +401,6 @@ const styles = StyleSheet.create({
   surahTitleText: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: QuranColors.emeraldDark,
     textAlign: 'center',
   },
   badgesRow: {
@@ -293,7 +415,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: 'rgba(31, 81, 63, 0.08)',
   },
   bookmarkedPill: {
     backgroundColor: QuranColors.emerald,
@@ -304,7 +425,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    color: QuranColors.textMuted,
     fontWeight: '600',
   },
   closeBtn: {
@@ -313,28 +433,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
     marginRight: -4,
   },
   snippetBox: {
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 6,
-    padding: 12,
-    backgroundColor: QuranColors.parchment,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: QuranColors.parchmentBorder,
   },
   snippetText: {
-    fontSize: 14,
-    lineHeight: 24,
-    color: QuranColors.textDark,
+    fontSize: 20, // <--- تم تكبير حجم الخط ليتناسب مع الرسم العثماني
+    lineHeight: 36, // <--- مسافة السطر لمنع تداخل الحركات والتنوين
     textAlign: 'center',
     fontFamily: 'UthmanicHafs',
   },
   actionsScroll: {
-    maxHeight: 320,
+    maxHeight: 340,
   },
   actionsContent: {
     paddingHorizontal: 16,
@@ -347,15 +463,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: QuranColors.parchment,
     borderWidth: 1,
-    borderColor: QuranColors.parchmentBorder,
     gap: 12,
-  },
-  bookmarkedActionRow: {
-    backgroundColor: 'rgba(31, 81, 63, 0.06)',
-    borderColor: QuranColors.emerald,
-    borderWidth: 1.5,
   },
   actionIconBox: {
     width: 42,
@@ -363,13 +472,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: QuranColors.parchmentBorder,
-  },
-  bookmarkedIconBox: {
-    backgroundColor: QuranColors.emerald,
-    borderColor: QuranColors.emerald,
   },
   actionDetails: {
     flex: 1,
@@ -378,16 +481,11 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: QuranColors.textDark,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  bookmarkedTitle: {
-    color: QuranColors.emerald,
-  },
   actionSubtitle: {
     fontSize: 12,
-    color: QuranColors.textMuted,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

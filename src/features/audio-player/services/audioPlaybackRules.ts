@@ -44,7 +44,7 @@ export function getPlaybackAdvance(
   }
 
   if (passLimit === null || completedPasses < passLimit) {
-    return { nextIndex: startIndex, startsNewCycle: true };
+    return { nextIndex: 0, startsNewCycle: true };
   }
 
   return { nextIndex: null, startsNewCycle: false };

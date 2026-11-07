@@ -29,7 +29,7 @@ test('advances within the selected surah before considering a repeat', () => {
 test('finite surah repeat restarts from the chosen starting ayah', () => {
   assert.deepEqual(
     getPlaybackAdvance(10, 4, 10, 1, 3),
-    { nextIndex: 4, startsNewCycle: true }
+    { nextIndex: 0, startsNewCycle: true }
   );
   assert.deepEqual(
     getPlaybackAdvance(10, 4, 10, 3, 3),
@@ -40,7 +40,7 @@ test('finite surah repeat restarts from the chosen starting ayah', () => {
 test('infinite surah repeat keeps looping from the chosen starting ayah', () => {
   assert.deepEqual(
     getPlaybackAdvance(10, 4, 10, 120, null),
-    { nextIndex: 4, startsNewCycle: true }
+    { nextIndex: 0, startsNewCycle: true }
   );
 });
 

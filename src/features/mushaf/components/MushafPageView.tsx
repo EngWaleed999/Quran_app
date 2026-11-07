@@ -279,7 +279,7 @@ export const MushafPageView: React.FC = () => {
         page: pageNum,
         suraName,
         jozz,
-        ayahText: matchingAyah?.aya_text_emlaey || '',
+          ayahText: matchingAyah?.aya_text_emlaey || '',       
       });
     },
     [db, pageMetadata]
@@ -338,6 +338,13 @@ export const MushafPageView: React.FC = () => {
     return <View style={[styles.blankContainer, { backgroundColor: theme.colors.background }]} />;
   }
 
+  const isWirdPending = Boolean(
+    dailyWird &&
+    dailyWird.status !== 'completed' &&
+    dailyWird.status !== 'finished' &&
+    dailyWird.canComplete
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <PageHeader
@@ -347,9 +354,6 @@ export const MushafPageView: React.FC = () => {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenSurahList={() => setIsSurahListOpen(true)}
-        onOpenBookmarks={() => setIsBookmarksOpen(true)}
-        onOpenNotes={() => { setNoteDraft(null); setIsNotesOpen(true); }}
-        onOpenKhatmah={() => setIsKhatmahOpen(true)}
         controlsAnim={controlsAnim}
         isControlsVisible={isControlsVisible}
       />
@@ -376,13 +380,12 @@ export const MushafPageView: React.FC = () => {
                   onToggleControls={toggleControls}
                   selectedVerseKey={selectedAyah?.verseKey}
                   bookmarkTypesByVerse={bookmarkTypesByVerse}
-                  khatmahStartGlobalAyah={dailyWird?.startGlobalAyah ?? null}
-                  khatmahEndGlobalAyah={dailyWird?.endGlobalAyah ?? null}
-                  khatmahWrapsAroundEnd={dailyWird?.wrapsAroundEnd ?? false}
-                  khatmahDailyTargetAyahs={dailyWird?.dailyTargetAyahs ?? 0}
+                  khatmahStartGlobalAyah={isWirdPending ? dailyWird?.startGlobalAyah ?? null : null}
+                  khatmahEndGlobalAyah={isWirdPending ? dailyWird?.endGlobalAyah ?? null : null}
+                  khatmahWrapsAroundEnd={isWirdPending ? dailyWird?.wrapsAroundEnd ?? false : false}
+                  khatmahDailyTargetAyahs={isWirdPending ? dailyWird?.dailyTargetAyahs ?? 0 : 0}
                   searchHighlightVerseKey={searchHighlightVerseKey}
                   playingVerseKey={playingVerseKey}
-                  onAyahPress={handleAyahLongPress}
                   onAyahLongPress={handleAyahLongPress}
                 />
               </View>
@@ -436,7 +439,13 @@ export const MushafPageView: React.FC = () => {
         onSelectPage={handleNavigateToPage}
         db={db}
         currentPage={currentPage}
+        currentSurahNames={pageMetadata.surahNames}
         activeBookmark={activeBookmark}
+        bookmarks={bookmarks}
+        onRemoveBookmark={async (bookmarkId) =>
+          setBookmarks(await BookmarkService.removeBookmark(bookmarkId))
+        }
+        onWirdChange={setDailyWird}
       />
 
       <SettingsModal visible={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

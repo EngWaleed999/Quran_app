@@ -217,20 +217,8 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     // Tap a verse to select it and open its actions. Taps on the empty page
     // still toggle the immersive controls.
     if (deltaX < 10 && deltaY < 10) {
-      if (normalizedData && layoutDimensions.width > 0 && layoutDimensions.height > 0) {
-        const svgPoint = mapTouchToSvgCoordinates(
-          touchStart.locationX,
-          touchStart.locationY,
-          layoutDimensions.width,
-          layoutDimensions.height,
-          normalizedData.viewBox
-        );
-        const hitAyah = findAyahAtSvgCoordinates(svgPoint, normalizedData.ayahs);
-        if (hitAyah) {
-          onAyahPress?.(hitAyah.verseKey, page);
-          return;
-        }
-      }
+      // Tap anywhere on the page to toggle immersive controls.
+      // Opening Ayah actions is strictly reserved for Long Press.
       onToggleControls?.();
     }
   };

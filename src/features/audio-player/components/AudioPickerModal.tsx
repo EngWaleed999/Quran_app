@@ -9,6 +9,7 @@ import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { SelectedAyahInfo } from '../../mushaf/components/AyahActionModal';
 import { AudioDownloader } from '../services/audioDownloader';
 import { RECITERS } from '../services/recitersCatalog';
+import { getFriendlyAudioErrorMessage } from '../services/audioSourceAdapter';
 import { useAudioStore } from '../stores/useAudioStore';
 import {
   AudioActionMode,
@@ -93,7 +94,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
     } catch (error) {
       setSummary(null);
       setLocalError(
-        error instanceof Error ? error.message : 'تعذر فحص الملفات الصوتية.'
+        getFriendlyAudioErrorMessage(error)
       );
     }
   }, [visible, ayah, selectedReciter, buildTarget]);
@@ -128,7 +129,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
       }
     } catch (error) {
       setLocalError(
-        error instanceof Error ? error.message : 'حدث خطأ أثناء تجهيز التلاوة.'
+        getFriendlyAudioErrorMessage(error)
       );
     } finally {
       setIsPreparing(false);

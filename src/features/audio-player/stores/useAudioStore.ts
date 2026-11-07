@@ -13,10 +13,13 @@ import {
 import { RECITERS } from '../services/recitersCatalog';
 import { audioEngine } from '../services/audioPlayerEngine';
 import { AudioDownloader } from '../services/audioDownloader';
+import { getFriendlyAudioErrorMessage } from '../services/audioSourceAdapter';
 import type { PlaybackDelayKind } from '../services/audioPlaybackRules';
 
 interface AudioState {
   selectedReciter: Reciter;
+  tilawahConfig: RepeatConfig;
+  repeatModeConfig: RepeatConfig;
   repeatConfig: RepeatConfig;
   status: PlaybackStatus;
   activeMode: AudioActionMode;
@@ -32,7 +35,9 @@ interface AudioState {
   lastError: string | null;
 
   setSelectedReciter: (reciter: Reciter) => void;
-  setRepeatConfig: (config: RepeatConfig) => void;
+  setRepeatConfig: (config: RepeatConfig, targetMode?: AudioActionMode) => void;
+  setTilawahConfig: (config: RepeatConfig) => void;
+  setRepeatModeConfig: (config: RepeatConfig) => void;
   requestPlayback: (target: PlaybackTarget, mode: AudioActionMode) => Promise<{
     needsDownload: boolean;
     missingAyahs: PlaybackVerse[];
@@ -66,13 +71,15 @@ export const useAudioStore = create<AudioState>()(
         onDelayKindChange: (pendingDelayKind) => set({ pendingDelayKind }),
         onError: (message) => {
           console.error('[AudioStore] Engine error:', message);
-          set({ status: 'error', lastError: message });
+          set({ status: 'error', lastError: getFriendlyAudioErrorMessage(message) });
         },
       });
 
       return {
         selectedReciter: RECITERS[0],
-        repeatConfig: { repeatCount: 3, pauseDelaySeconds: 2, verseGapDelaySeconds: 0, surahRepeatCount: 1 },
+        tilawahConfig: { repeatCount: 1, pauseDelaySeconds: 0, verseGapDelaySeconds: 0, surahRepeatCount: 1 },
+        repeatModeConfig: { repeatCount: 3, pauseDelaySeconds: 2, verseGapDelaySeconds: 0, surahRepeatCount: 1 },
+        repeatConfig: { repeatCount: 1, pauseDelaySeconds: 0, verseGapDelaySeconds: 0, surahRepeatCount: 1 },
         status: 'idle',
         activeMode: 'tilawah',
         activeAyah: null,
@@ -87,7 +94,8 @@ export const useAudioStore = create<AudioState>()(
         lastError: null,
 
         setSelectedReciter: (reciter) => set({ selectedReciter: reciter }),
-        setRepeatConfig: (config) => {
+        setRepeatConfig: (config, targetMode) => {
+          const mode = targetMode ?? get().activeMode;
           const normalized: RepeatConfig = {
             repeatCount: Math.max(1, Math.floor(config.repeatCount)),
             pauseDelaySeconds: Math.max(0, config.pauseDelaySeconds),
@@ -97,18 +105,33 @@ export const useAudioStore = create<AudioState>()(
                 ? null
                 : Math.max(1, Math.floor(config.surahRepeatCount ?? 1)),
           };
-          set({ repeatConfig: normalized });
-          audioEngine.updateRepeatConfig(
-            get().activeMode === 'repeat'
-              ? normalized
-              : { ...normalized, repeatCount: 1 }
-          );
+
+          if (mode === 'repeat') {
+            set({ repeatModeConfig: normalized, repeatConfig: normalized });
+            if (get().activeMode === 'repeat') {
+              audioEngine.updateRepeatConfig(normalized);
+            }
+          } else {
+            const tilawahNormalized: RepeatConfig = {
+              ...normalized,
+              repeatCount: 1,
+              pauseDelaySeconds: 0,
+            };
+            set({ tilawahConfig: tilawahNormalized, repeatConfig: tilawahNormalized });
+            if (get().activeMode === 'tilawah') {
+              audioEngine.updateRepeatConfig(tilawahNormalized);
+            }
+          }
         },
+        setTilawahConfig: (config) => get().setRepeatConfig(config, 'tilawah'),
+        setRepeatModeConfig: (config) => get().setRepeatConfig(config, 'repeat'),
 
         requestPlayback: async (target, mode) => {
-          const { selectedReciter } = get();
-          set({ activeMode: mode });
+          const { selectedReciter, tilawahConfig, repeatModeConfig } = get();
+          const effectiveConfig = mode === 'repeat' ? repeatModeConfig : tilawahConfig;
           set({
+            activeMode: mode,
+            repeatConfig: effectiveConfig,
             target,
             status: 'checking_files',
             pendingDelayKind: null,
@@ -123,11 +146,10 @@ export const useAudioStore = create<AudioState>()(
 
             if (allDownloaded) {
               set({ downloadMissingAyahs: null });
-              const savedConfig = get().repeatConfig;
               await audioEngine.startPlayback(
                 selectedReciter,
                 target,
-                mode === 'repeat' ? savedConfig : { ...savedConfig, repeatCount: 1 }
+                effectiveConfig
               );
               return { needsDownload: false, missingAyahs: [] };
             }
@@ -139,16 +161,16 @@ export const useAudioStore = create<AudioState>()(
 
             return { needsDownload: true, missingAyahs };
           } catch (error) {
-            const message =
-              error instanceof Error ? error.message : 'تعذر فحص الملفات الصوتية.';
+            const message = getFriendlyAudioErrorMessage(error);
             set({ status: 'error', lastError: message });
             return { needsDownload: true, missingAyahs: target.verses };
           }
         },
 
         startDownloadAndPlay: async (target, ayahsToDownload, mode) => {
-          const { selectedReciter, repeatConfig } = get();
-          set({ activeMode: mode });
+          const { selectedReciter, tilawahConfig, repeatModeConfig } = get();
+          const effectiveConfig = mode === 'repeat' ? repeatModeConfig : tilawahConfig;
+          set({ activeMode: mode, repeatConfig: effectiveConfig });
           const activeToken = { isCancelled: false };
           cancellationToken = activeToken;
 
@@ -199,11 +221,10 @@ export const useAudioStore = create<AudioState>()(
             await audioEngine.startPlayback(
               selectedReciter,
               target,
-              mode === 'repeat' ? repeatConfig : { ...repeatConfig, repeatCount: 1 }
+              effectiveConfig
             );
           } catch (error) {
-            const message =
-              error instanceof Error ? error.message : 'فشل تنزيل الملفات الصوتية.';
+            const message = getFriendlyAudioErrorMessage(error);
             console.error('[AudioStore] Download error:', error);
             set({
               isDownloading: false,
@@ -287,22 +308,39 @@ export const useAudioStore = create<AudioState>()(
         const selectedReciter =
           RECITERS.find((reciter) => reciter.id === migratedId) || RECITERS[0];
 
+        const rawRepeat = persistedState?.repeatConfig;
+        const tilawahConfig: RepeatConfig = persistedState?.tilawahConfig ?? {
+          repeatCount: 1,
+          pauseDelaySeconds: 0,
+          verseGapDelaySeconds: Math.max(0, Number(rawRepeat?.verseGapDelaySeconds) || 0),
+          surahRepeatCount:
+            rawRepeat?.surahRepeatCount === null
+              ? null
+              : Math.max(1, Number(rawRepeat?.surahRepeatCount) || 1),
+        };
+
+        const repeatModeConfig: RepeatConfig = persistedState?.repeatModeConfig ?? {
+          repeatCount: Math.max(1, Number(rawRepeat?.repeatCount) || 3),
+          pauseDelaySeconds: Math.max(0, Number(rawRepeat?.pauseDelaySeconds) || 2),
+          verseGapDelaySeconds: Math.max(0, Number(rawRepeat?.verseGapDelaySeconds) || 0),
+          surahRepeatCount:
+            rawRepeat?.surahRepeatCount === null
+              ? null
+              : Math.max(1, Number(rawRepeat?.surahRepeatCount) || 1),
+        };
+
         return {
           ...persistedState,
           selectedReciter,
-          repeatConfig: {
-            repeatCount: Math.max(1, Number(persistedState?.repeatConfig?.repeatCount) || 3),
-            pauseDelaySeconds: Math.max(0, Number(persistedState?.repeatConfig?.pauseDelaySeconds) || 0),
-            verseGapDelaySeconds: Math.max(0, Number(persistedState?.repeatConfig?.verseGapDelaySeconds) || 0),
-            surahRepeatCount:
-              persistedState?.repeatConfig?.surahRepeatCount === null
-                ? null
-                : Math.max(1, Number(persistedState?.repeatConfig?.surahRepeatCount) || 1),
-          },
+          tilawahConfig,
+          repeatModeConfig,
+          repeatConfig: persistedState?.activeMode === 'repeat' ? repeatModeConfig : tilawahConfig,
         };
       },
       partialize: (state) => ({
         selectedReciter: state.selectedReciter,
+        tilawahConfig: state.tilawahConfig,
+        repeatModeConfig: state.repeatModeConfig,
         repeatConfig: state.repeatConfig,
       }),
     }

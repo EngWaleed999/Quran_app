@@ -14,9 +14,6 @@ interface PageHeaderProps {
   onOpenSearch: () => void;
   onOpenSettings: () => void;
   onOpenSurahList: () => void;
-  onOpenBookmarks: () => void;
-  onOpenNotes: () => void;
-  onOpenKhatmah: () => void;
   controlsAnim: Animated.Value;
   isControlsVisible: boolean;
 }
@@ -29,9 +26,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onOpenSearch,
   onOpenSettings,
   onOpenSurahList,
-  onOpenBookmarks,
-  onOpenNotes,
-  onOpenKhatmah,
   controlsAnim,
   isControlsVisible,
 }) => {
@@ -74,15 +68,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               color={theme.colors.primary}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={onOpenBookmarks} accessibilityLabel="الفواصل المحفوظة" hitSlop={8}>
-            <MaterialCommunityIcons name="bookmark-multiple-outline" size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={onOpenNotes} accessibilityLabel="ملاحظاتي" hitSlop={8}>
-            <MaterialCommunityIcons name="note-text-outline" size={19} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={onOpenKhatmah} accessibilityLabel="ختمتي" hitSlop={8}>
-            <MaterialCommunityIcons name="book-check-outline" size={21} color={theme.colors.primary} />
-          </TouchableOpacity>
         </Animated.View>
 
         <View style={styles.centerMetadata}>
@@ -101,7 +86,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </Text>
           </View>
 
-          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]} >
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]}>
             {pageNumber
               ? 'صفحة ' + toArabicNumerals(pageNumber)
               : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
@@ -113,7 +98,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
         >
           <TouchableOpacity
-            style={styles.iconBtn}
+            style={[styles.iconBtn, { backgroundColor: theme.colors.surfaceVariant }]}
             onPress={onOpenSearch}
             accessibilityLabel="البحث في المصحف"
             hitSlop={8}
@@ -126,7 +111,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconBtn}
+            style={[styles.iconBtn, { backgroundColor: theme.colors.surfaceVariant }]}
             onPress={onOpenSettings}
             accessibilityLabel="الإعدادات"
             hitSlop={8}
@@ -141,9 +126,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </View>
 
       <View style={styles.separatorContainer}>
-        <View style={styles.line} />
+        <View style={[styles.line, { backgroundColor: theme.colors.outline }]} />
         <View style={styles.diamond} />
-        <View style={styles.line} />
+        <View style={[styles.line, { backgroundColor: theme.colors.outline }]} />
       </View>
     </View>
   );
@@ -179,12 +164,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   iconBtn: {
-    width: 30,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(31, 81, 63, 0.06)',
   },
   centerMetadata: {
     flexDirection: 'row-reverse',
@@ -195,7 +179,6 @@ const styles = StyleSheet.create({
   },
   textSide: {
     fontSize: 12,
-    color: QuranColors.textMuted,
     fontFamily: 'System',
     fontWeight: '600',
     flexShrink: 0,
@@ -212,7 +195,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   surahText: {
-    color: QuranColors.emerald,
     fontWeight: 'bold',
     textAlign: 'center',
     lineHeight: 17,
@@ -226,7 +208,6 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: QuranColors.parchmentBorder,
   },
   diamond: {
     width: 6,
