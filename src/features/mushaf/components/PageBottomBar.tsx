@@ -55,12 +55,12 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
 
         {/* Left: Next Page Button (advances towards Page 604 on the left in RTL) */}
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: theme.colors.surfaceVariant }]}
           onPress={onNextPage}
           disabled={currentPage >= totalPages}
           accessibilityLabel="الصفحة التالية"
         >
-          <Text style={[styles.navButtonText, currentPage >= totalPages && styles.disabledText]}>
+          <Text style={[styles.navButtonText, { color: theme.colors.primary }, currentPage >= totalPages && styles.disabledText]}>
             التالية
           </Text>
         </TouchableOpacity>
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: theme.colors.surfaceVariant,
+    backgroundColor: 'rgba(31, 81, 63, 0.08)',
   },
   navButtonText: {
     fontSize: 15,
