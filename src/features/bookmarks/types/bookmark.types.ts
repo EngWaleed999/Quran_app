@@ -1,9 +1,24 @@
+export type BookmarkType = 'tracking' | 'reading' | 'memorization';
+
+export const BOOKMARK_TYPE_LABELS: Record<BookmarkType, string> = {
+  tracking: 'متابعة',
+  reading: 'قراءة',
+  memorization: 'حفظ',
+};
+
+export const BOOKMARK_TYPE_COLORS: Record<BookmarkType, string> = {
+  tracking: '#2F785E',
+  reading: '#C59B27',
+  memorization: '#6373C5',
+};
+
 export interface Bookmark {
-  verseKey: string;     // e.g. "2:255"
-  suraNo: number;       // e.g. 2
-  ayaNo: number;        // e.g. 255
-  page: number;         // e.g. 42
-  suraName: string;     // e.g. "البَقَرَة"
-  ayahText: string;     // text snippet
-  createdAt: number;    // timestamp
+  verseKey: string;
+  suraNo: number;
+  ayaNo: number;
+  page: number;
+  suraName: string;
+  ayahText: string;
+  createdAt: number;
+  type: BookmarkType;
 }
