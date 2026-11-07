@@ -63,7 +63,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
         >
           <TouchableOpacity
-            style={styles.iconBtn}
+            style={[styles.iconBtn, { backgroundColor: theme.colors.surfaceVariant }]}
             onPress={onOpenSurahList}
             accessibilityLabel="فهرس السور"
             hitSlop={8}
@@ -78,10 +78,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <MaterialCommunityIcons name="bookmark-multiple-outline" size={20} color={theme.colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenNotes} accessibilityLabel="ملاحظاتي" hitSlop={8}>
-            <MaterialCommunityIcons name="note-text-outline" size={21} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="note-text-outline" size={19} color={theme.colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenKhatmah} accessibilityLabel="ختمتي" hitSlop={8}>
-            <MaterialCommunityIcons name="book-check-outline" size={21} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="book-check-outline" size={21} color={theme.colors.primary} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -134,7 +134,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <MaterialCommunityIcons
               name="cog-outline"
               size={22}
-              color={QuranColors.emerald}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
         </Animated.View>
