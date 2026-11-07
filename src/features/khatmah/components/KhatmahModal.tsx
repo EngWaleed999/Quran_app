@@ -71,7 +71,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
 
     setLoading(true);
     void KhatmahService.getDailyWird(db)
-      .then((result) => {
+      .then(async (result) => {
         if (active) {
           setWird(result);
           onWirdChange?.(result);
@@ -931,6 +931,7 @@ const styles = StyleSheet.create({
   },
   startChoices: {
     flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
     gap: 8,
     alignSelf: 'stretch',
   },
