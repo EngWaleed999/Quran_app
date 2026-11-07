@@ -7,6 +7,7 @@ import { useFonts } from 'expo-font';
 import { SQLiteProvider } from 'expo-sqlite';
 import { CustomLightTheme, QuranColors } from './src/core/theme/theme';
 import { MushafPageView } from './src/features/mushaf/components/MushafPageView';
+import { initializeAppSchema } from './src/core/database/appSchema';
 
 try {
   I18nManager.allowRTL(true);
@@ -32,6 +33,7 @@ export default function App() {
         <SafeAreaView style={styles.safeArea}>
           <SQLiteProvider
             databaseName="quran.db"
+            onInit={initializeAppSchema}
             assetSource={{
               assetId: require('./assets/data/quran.db'),
               // Keep the bundled database as a first-install seed. Re-copying it
