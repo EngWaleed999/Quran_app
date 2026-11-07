@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { initializeAppSchema } from '../src/core/database/appSchema.ts';
+import { initializeAppSchema } from '../../src/core/database/appSchema.ts';
 
 export function createQuranTestDatabase() {
   const raw = new DatabaseSync(':memory:');
