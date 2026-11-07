@@ -367,6 +367,7 @@ export const MushafPageView: React.FC = () => {
                   khatmahWrapsAroundEnd={dailyWird?.wrapsAroundEnd ?? false}
                   searchHighlightVerseKey={searchHighlightVerseKey}
                   playingVerseKey={playingVerseKey}
+                  onAyahPress={handleAyahLongPress}
                   onAyahLongPress={handleAyahLongPress}
                 />
               </View>
