@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ProgressBar } from 'react-native-paper';
 import { useAudioStore } from '../stores/useAudioStore';
@@ -132,7 +132,7 @@ export const AudioPlayerBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFCF7',
+    backgroundColor: '#98763b',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
     paddingHorizontal: 14,
@@ -140,24 +140,28 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 10,
     marginBottom: 6,
   },
   trackInfo: {
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: I18nManager.isRTL ? 'flex-start' : 'flex-end',
   },
   surahName: {
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
     fontSize: 13,
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
   trackStatus: {
     color: QuranColors.textMuted,
     fontSize: 11,
     marginTop: 2,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   stopButton: {
     width: 30,

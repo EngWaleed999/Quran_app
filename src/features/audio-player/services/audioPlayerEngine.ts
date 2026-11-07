@@ -101,6 +101,7 @@ export class AudioPlayerEngine {
     this.repeatConfig = {
       repeatCount: Math.max(1, Math.floor(repeatConfig.repeatCount)),
       pauseDelaySeconds: Math.max(0, repeatConfig.pauseDelaySeconds),
+      verseGapDelaySeconds: Math.max(0, repeatConfig.verseGapDelaySeconds ?? 0),
     };
     this.isEngineRunning = true;
 
@@ -155,11 +156,19 @@ export class AudioPlayerEngine {
       }
 
       player.replace({ uri: localUri });
-      player.setActiveForLockScreen(true, {
-        title: 'سورة ' + this.target.suraName + ' • الآية ' + track.ayaNo,
-        artist: this.reciter.name,
-        albumTitle: 'القرآن الكريم',
-      });
+      // تفعيل شاشة القفل متاح فقط في حزم الإنتاج المخصصة (Standalone APK) لوجود Foreground Service
+      // في Expo Go يتم تخطيه لمنع خطأ Service binding failed
+      if (__DEV__ === false) {
+        try {
+          player.setActiveForLockScreen(true, {
+            title: 'سورة ' + this.target.suraName + ' • الآية ' + track.ayaNo,
+            artist: this.reciter.name,
+            albumTitle: 'القرآن الكريم',
+          });
+        } catch {
+          // تجاهل آمن في بيئات التطوير
+        }
+      }
       player.play();
 
       void this.preloadUpcomingAyah();
@@ -247,7 +256,12 @@ export class AudioPlayerEngine {
     this.currentAyahRepeatCount = 0;
     if (this.currentIndex < this.tracks.length - 1) {
       this.currentIndex += 1;
-      await this.playCurrentAyah();
+      const verseGap = this.repeatConfig.verseGapDelaySeconds ?? 0;
+      if (verseGap > 0) {
+        this.beginRepeatDelay(verseGap * 1000);
+      } else {
+        await this.playCurrentAyah();
+      }
     } else {
       this.completePlayback();
     }
@@ -340,7 +354,13 @@ export class AudioPlayerEngine {
     this.isEngineRunning = false;
     this.clearDelayTimers();
     this.player?.pause();
-    this.player?.setActiveForLockScreen(false);
+    if (__DEV__ === false) {
+      try {
+        this.player?.setActiveForLockScreen(false);
+      } catch {
+        // ignore
+      }
+    }
     this.callbacks?.onRepeatCountdown?.(0);
     this.callbacks?.onStatusChange('completed');
     this.preloadedUri = null;

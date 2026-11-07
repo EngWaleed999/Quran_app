@@ -7,6 +7,7 @@ import {
   Modal,
   ScrollView,
   Share,
+  I18nManager,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
@@ -281,12 +282,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   badgesRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 6,
   },
   badgePill: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -379,6 +380,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: QuranColors.textDark,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   bookmarkedTitle: {
     color: QuranColors.emerald,
@@ -387,5 +389,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: QuranColors.textMuted,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  I18nManager,
 } from 'react-native';
 import { ProgressBar } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -58,6 +59,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
 
   const [repeatCount, setRepeatCount] = useState(3);
   const [pauseDelaySeconds, setPauseDelaySeconds] = useState(2);
+  const [verseGapSeconds, setVerseGapSeconds] = useState(0);
   const [summary, setSummary] = useState<SurahDownloadSummary | null>(null);
   const [storageBytes, setStorageBytes] = useState(0);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -125,8 +127,8 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
       const target = buildTarget();
       setRepeatConfig(
         mode === 'repeat'
-          ? { repeatCount, pauseDelaySeconds }
-          : { repeatCount: 1, pauseDelaySeconds: 0 }
+          ? { repeatCount, pauseDelaySeconds, verseGapDelaySeconds: verseGapSeconds }
+          : { repeatCount: 1, pauseDelaySeconds: 0, verseGapDelaySeconds: 0 }
       );
 
       const result = await requestPlayback(target);
@@ -275,6 +277,30 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                <Text style={styles.optionLabel}>التأخير بين الآيات (فاصل الانتقال)</Text>
+                <View style={styles.optionsRow}>
+                  {[0, 2, 3, 5].map((value) => (
+                    <TouchableOpacity
+                      key={value}
+                      onPress={() => setVerseGapSeconds(value)}
+                      style={[
+                        styles.option,
+                        verseGapSeconds === value && styles.optionSelected,
+                      ]}
+                      disabled={isDownloading || isPreparing}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          verseGapSeconds === value && styles.optionTextSelected,
+                        ]}
+                      >
+                        {value === 0 ? 'بدون' : toArabicNumerals(value) + ' ث'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
                 <Text style={styles.helperText}>
                   سيُعاد تشغيل كل آية قبل الانتقال إلى الآية التالية.
                 </Text>
@@ -386,7 +412,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 18,
@@ -430,11 +456,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
     textAlign: 'right',
+    writingDirection: 'rtl',
     marginTop: 4,
     marginBottom: 4,
   },
   reciterRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: QuranColors.parchmentBorder,
@@ -491,11 +518,12 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     textAlign: 'right',
+    writingDirection: 'rtl',
     fontSize: 12,
     color: QuranColors.textMuted,
   },
   optionsRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     gap: 7,
     flexWrap: 'wrap',
   },
@@ -524,6 +552,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 11,
     textAlign: 'right',
+    writingDirection: 'rtl',
     marginTop: 3,
   },
   downloadSummary: {
@@ -538,6 +567,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   deleteButton: {
     alignSelf: 'flex-end',
@@ -584,6 +614,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#B23A3A',
     textAlign: 'right',
+    writingDirection: 'rtl',
     fontSize: 12,
     marginTop: 6,
   },

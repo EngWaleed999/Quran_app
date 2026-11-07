@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Share,
   ActivityIndicator,
+  I18nManager,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -48,6 +49,13 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
   const [isError, setIsError] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const latestRequestIdRef = React.useRef<number>(0);
+
+  // تقسيم النص إلى جمل تنتهي بنقطة لتسهيل القراءة وتتبع التفسير مع فواصل جمالية
+  const sentences = useMemo(() => {
+    if (!tafsirText) return [];
+    const raw = tafsirText.split(/(?<=\.)\s+/);
+    return raw.map((s) => s.trim()).filter((s) => s.length > 0);
+  }, [tafsirText]);
 
   // تحميل التفسير عند تغيير الآية أو التفسير النشط مع منع Race Conditions
   const loadTafsir = useCallback(async () => {
@@ -210,12 +218,27 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
               </View>
             ) : (
               <View style={styles.tafsirBodyContainer}>
-                <Text
-                  style={[styles.tafsirBodyText, isDark && styles.tafsirBodyTextDark]}
-                  selectable
-                >
-                  {tafsirText}
-                </Text>
+                {sentences.map((sentence, index) => (
+                  <View key={index} style={styles.sentenceWrapper}>
+                    {index > 0 && (
+                      <View
+                        style={[
+                          styles.sentenceDivider,
+                          isDark && styles.sentenceDividerDark,
+                        ]}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.tafsirBodyText,
+                        isDark && styles.tafsirBodyTextDark,
+                      ]}
+                      selectable
+                    >
+                      {sentence}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
           </ScrollView>
@@ -248,7 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: QuranColors.nightSurface,
   },
   headerBar: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -290,7 +313,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tabsRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 10,
@@ -357,6 +380,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     color: QuranColors.emeraldDark,
     textAlign: 'center',
+    writingDirection: 'rtl',
     fontWeight: '600',
   },
   ayahTextDark: {
@@ -374,14 +398,30 @@ const styles = StyleSheet.create({
   },
   tafsirBodyContainer: {
     paddingVertical: 4,
+    width: '100%',
+  },
+  sentenceWrapper: {
+    width: '100%',
+  },
+  sentenceDivider: {
+    height: 1,
+    backgroundColor: 'rgba(197, 155, 39, 0.2)',
+    marginVertical: 12,
+    width: '100%',
+  },
+  sentenceDividerDark: {
+    backgroundColor: 'rgba(229, 192, 88, 0.18)',
   },
   tafsirBodyText: {
     fontSize: 16.5,
-    lineHeight: 30,
+    lineHeight: 32,
     color: '#2C2B29',
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   tafsirBodyTextDark: {
     color: '#D8D5CD',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

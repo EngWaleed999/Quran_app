@@ -50,3 +50,6 @@ quran_svg_1
 assets/data/tafsir.db
 .tafsir
 assets/data/quran.db
+src/features/audio-player/components/AudioPlayerBar.tsx
+assets/data/quran.db
+tafsir

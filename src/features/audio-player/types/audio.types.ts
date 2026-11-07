@@ -23,6 +23,8 @@ export interface RepeatConfig {
   repeatCount: number;
   /** Delay in seconds between repetitions of the same ayah. */
   pauseDelaySeconds: number;
+  /** Delay in seconds before moving to the next ayah (Verse Gap). */
+  verseGapDelaySeconds?: number;
 }
 
 export interface PlaybackVerse {

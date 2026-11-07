@@ -66,7 +66,7 @@ export const useAudioStore = create<AudioState>()(
 
       return {
         selectedReciter: RECITERS[0],
-        repeatConfig: { repeatCount: 3, pauseDelaySeconds: 2 },
+        repeatConfig: { repeatCount: 3, pauseDelaySeconds: 2, verseGapDelaySeconds: 0 },
         status: 'idle',
         activeAyah: null,
         target: null,
@@ -84,6 +84,7 @@ export const useAudioStore = create<AudioState>()(
             repeatConfig: {
               repeatCount: Math.max(1, Math.floor(config.repeatCount)),
               pauseDelaySeconds: Math.max(0, config.pauseDelaySeconds),
+              verseGapDelaySeconds: Math.max(0, config.verseGapDelaySeconds ?? 0),
             },
           }),
 
@@ -243,6 +244,7 @@ export const useAudioStore = create<AudioState>()(
     },
     {
       name: 'quran-audio-preferences',
+      storage: createJSONStorage(() => AsyncStorage),
       version: 2,
       migrate: (persistedState: any) => {
         const previousReciterId = persistedState?.selectedReciter?.id;
@@ -265,6 +267,10 @@ export const useAudioStore = create<AudioState>()(
             pauseDelaySeconds: Math.max(
               0,
               Number(persistedState?.repeatConfig?.pauseDelaySeconds) || 0
+            ),
+            verseGapDelaySeconds: Math.max(
+              0,
+              Number(persistedState?.repeatConfig?.verseGapDelaySeconds) || 0
             ),
           },
         };

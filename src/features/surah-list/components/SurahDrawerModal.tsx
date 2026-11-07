@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
+  I18nManager,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: QuranColors.parchment,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   surahRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     paddingVertical: 12,
@@ -400,7 +401,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   surahTitleRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -408,10 +409,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   currentSurahName: {
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   typeBadge: {
     paddingHorizontal: 6,
@@ -444,6 +449,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: QuranColors.textMuted,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   pageIndicatorWrapper: {
     alignItems: 'center',
@@ -501,7 +507,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookmarkBadge: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     backgroundColor: QuranColors.emerald,
     paddingHorizontal: 10,
@@ -533,7 +539,7 @@ const styles = StyleSheet.create({
     fontFamily: 'UthmanicHafs',
   },
   jumpBookmarkBtn: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: QuranColors.emerald,
@@ -548,7 +554,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bottomNavContainer: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
