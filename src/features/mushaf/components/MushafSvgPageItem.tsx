@@ -18,6 +18,7 @@ import { SvgAyahHighlightOverlay } from './SvgAyahHighlightOverlay';
 import { SurahBanner } from './SurahBanner';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { QuranColors } from '../../../core/theme/theme';
+import { BookmarkType } from '../../bookmarks/types/bookmark.types';
 
 interface MushafSvgPageItemProps {
   page: number;
@@ -26,7 +27,10 @@ interface MushafSvgPageItemProps {
   onToggleControls?: () => void;
   selectedVerseKey?: string | null;
   playingVerseKey?: string | null;
-  bookmarkedVerseKey?: string | null;
+  bookmarkTypesByVerse?: Record<string, BookmarkType[]>;
+  khatmahStartGlobalAyah?: number | null;
+  khatmahEndGlobalAyah?: number | null;
+  khatmahWrapsAroundEnd?: boolean;
   searchHighlightVerseKey?: string | null;
   onAyahLongPress?: (verseKey: string, page: number) => void;
 }
@@ -38,7 +42,10 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   onToggleControls,
   selectedVerseKey,
   playingVerseKey,
-  bookmarkedVerseKey,
+  bookmarkTypesByVerse,
+  khatmahStartGlobalAyah,
+  khatmahEndGlobalAyah,
+  khatmahWrapsAroundEnd,
   searchHighlightVerseKey,
   onAyahLongPress,
 }) => {
@@ -72,6 +79,36 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   }, [pageAsset, page]);
 
   // تكييف ألوان الـ SVG مع الوضع الليلي (Dark Mode) بسلاسة تامة
+  const khatmahVerseKeys = useMemo(() => {
+    if (
+      !db ||
+      !normalizedData ||
+      !khatmahStartGlobalAyah ||
+      !khatmahEndGlobalAyah
+    ) {
+      return [];
+    }
+
+    return normalizedData.ayahs
+      .filter((ayah) => {
+        const globalNumber = QuranRepository.getGlobalAyahNumberSync(
+          db,
+          ayah.surah,
+          ayah.ayah
+        );
+        return khatmahWrapsAroundEnd
+          ? globalNumber >= khatmahStartGlobalAyah || globalNumber <= khatmahEndGlobalAyah
+          : globalNumber >= khatmahStartGlobalAyah && globalNumber <= khatmahEndGlobalAyah;
+      })
+      .map((ayah) => ayah.verseKey);
+  }, [
+    db,
+    normalizedData,
+    khatmahStartGlobalAyah,
+    khatmahEndGlobalAyah,
+    khatmahWrapsAroundEnd,
+  ]);
+
   const processedSvgXml = useMemo(() => {
     if (!pageAsset) return '';
     if (!isDark) return pageAsset.svgXml;
@@ -217,7 +254,8 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
           ayahs={normalizedData.ayahs}
           selectedVerseKey={selectedVerseKey}
           playingVerseKey={playingVerseKey}
-          bookmarkedVerseKey={bookmarkedVerseKey}
+          bookmarkTypesByVerse={bookmarkTypesByVerse}
+          khatmahVerseKeys={khatmahVerseKeys}
           searchHighlightVerseKey={searchHighlightVerseKey}
         />
       </View>
@@ -233,7 +271,10 @@ export const MushafSvgPageItem = React.memo(
     prev.isNear === next.isNear &&
     prev.selectedVerseKey === next.selectedVerseKey &&
     prev.playingVerseKey === next.playingVerseKey &&
-    prev.bookmarkedVerseKey === next.bookmarkedVerseKey &&
+    prev.bookmarkTypesByVerse === next.bookmarkTypesByVerse &&
+    prev.khatmahStartGlobalAyah === next.khatmahStartGlobalAyah &&
+    prev.khatmahEndGlobalAyah === next.khatmahEndGlobalAyah &&
+    prev.khatmahWrapsAroundEnd === next.khatmahWrapsAroundEnd &&
     prev.searchHighlightVerseKey === next.searchHighlightVerseKey
 );
 
