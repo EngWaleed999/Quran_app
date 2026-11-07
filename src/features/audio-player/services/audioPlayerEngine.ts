@@ -21,6 +21,7 @@ export interface AudioEngineCallbacks {
   onActiveAyahChange: (suraNo: number, ayaNo: number) => void;
   onPositionUpdate?: (currentSeconds: number, durationSeconds: number) => void;
   onRepeatCountdown?: (secondsRemaining: number) => void;
+  onDelayKindChange?: (kind: PlaybackDelayKind) => void;
   onError: (errorMessage: string) => void;
 }
 
@@ -307,6 +308,7 @@ export class AudioPlayerEngine {
   private beginRepeatDelay(durationMs: number, kind: PlaybackDelayKind): void {
     this.clearDelayTimers(false);
     this.delayKind = kind;
+    this.callbacks?.onDelayKindChange?.(kind);
     this.remainingDelayMs = durationMs;
     this.delayEndsAt = Date.now() + durationMs;
     this.callbacks?.onStatusChange('waiting_user_repeat');
@@ -332,7 +334,10 @@ export class AudioPlayerEngine {
     if (this.delayInterval) clearInterval(this.delayInterval);
     this.delayTimer = null;
     this.delayInterval = null;
-    if (resetDelayKind) this.delayKind = null;
+    if (resetDelayKind && this.delayKind !== null) {
+      this.delayKind = null;
+      this.callbacks?.onDelayKindChange?.(null);
+    }
   }
 
   async pause(): Promise<void> {

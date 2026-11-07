@@ -13,6 +13,7 @@ import {
 import { RECITERS } from '../services/recitersCatalog';
 import { audioEngine } from '../services/audioPlayerEngine';
 import { AudioDownloader } from '../services/audioDownloader';
+import type { PlaybackDelayKind } from '../services/audioPlaybackRules';
 
 interface AudioState {
   selectedReciter: Reciter;
@@ -22,6 +23,7 @@ interface AudioState {
   activeAyah: { suraNo: number; ayaNo: number } | null;
   target: PlaybackTarget | null;
   countdown: number;
+  pendingDelayKind: PlaybackDelayKind;
   isDownloading: boolean;
   downloadProgress: DownloadProgress | null;
   downloadMissingAyahs: PlaybackVerse[] | null;
@@ -61,6 +63,7 @@ export const useAudioStore = create<AudioState>()(
         onPositionUpdate: (positionSeconds, durationSeconds) =>
           set({ positionSeconds, durationSeconds }),
         onRepeatCountdown: (countdown) => set({ countdown }),
+        onDelayKindChange: (pendingDelayKind) => set({ pendingDelayKind }),
         onError: (message) => {
           console.error('[AudioStore] Engine error:', message);
           set({ status: 'error', lastError: message });
@@ -75,6 +78,7 @@ export const useAudioStore = create<AudioState>()(
         activeAyah: null,
         target: null,
         countdown: 0,
+        pendingDelayKind: null,
         isDownloading: false,
         downloadProgress: null,
         downloadMissingAyahs: null,
@@ -107,6 +111,7 @@ export const useAudioStore = create<AudioState>()(
           set({
             target,
             status: 'checking_files',
+            pendingDelayKind: null,
             lastError: null,
             downloadProgress: null,
             isDownloading: false,
@@ -151,6 +156,7 @@ export const useAudioStore = create<AudioState>()(
             target,
             isDownloading: true,
             status: 'downloading',
+            pendingDelayKind: null,
             lastError: null,
             downloadProgress: {
               current: 0,
@@ -254,6 +260,7 @@ export const useAudioStore = create<AudioState>()(
             activeMode: 'tilawah',
             target: null,
             countdown: 0,
+            pendingDelayKind: null,
             isDownloading: false,
             downloadProgress: null,
             downloadMissingAyahs: null,

@@ -31,6 +31,7 @@ export const AudioPlayerBar: React.FC = () => {
     selectedReciter,
     activeAyah,
     countdown,
+    pendingDelayKind,
     positionSeconds,
     durationSeconds,
     lastError,
@@ -52,7 +53,10 @@ export const AudioPlayerBar: React.FC = () => {
   if (status === 'downloading') statusText = 'جاري تنزيل السورة...';
   if (status === 'paused') statusText = 'متوقف مؤقتاً';
   if (status === 'waiting_user_repeat') {
-    statusText = 'إعادة الآية بعد ' + toArabicNumerals(countdown) + ' ث';
+    const waitLabel = pendingDelayKind === 'verse-gap'
+      ? 'الآية التالية بعد '
+      : 'إعادة الآية بعد ';
+    statusText = waitLabel + toArabicNumerals(countdown) + ' ث';
   }
   if (status === 'completed') statusText = 'اكتملت التلاوة';
   if (status === 'error') statusText = lastError || 'تعذر تشغيل الصوت';
