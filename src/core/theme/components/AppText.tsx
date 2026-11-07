@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text as RNText, TextProps, StyleSheet, I18nManager } from 'react-native';
+import { Text as RNText, TextProps, StyleSheet } from 'react-native';
 
 export interface AppTextProps extends TextProps {
   /** Force centering or custom alignment if needed */
