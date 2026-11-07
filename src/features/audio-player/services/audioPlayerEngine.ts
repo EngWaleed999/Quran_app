@@ -36,8 +36,10 @@ export class AudioPlayerEngine {
   private reciter: Reciter | null = null;
   private tracks: PlaybackTarget['verses'] = [];
   private currentIndex = 0;
+  private startIndex = 0;
+  private completedSurahPlays = 1;
   private currentAyahRepeatCount = 0;
-  private repeatConfig: RepeatConfig = { repeatCount: 1, pauseDelaySeconds: 0 };
+  private repeatConfig: RepeatConfig = { repeatCount: 1, pauseDelaySeconds: 0, surahRepeatCount: 1 };
   private callbacks: AudioEngineCallbacks | null = null;
   private delayTimer: ReturnType<typeof setTimeout> | null = null;
   private delayInterval: ReturnType<typeof setInterval> | null = null;
@@ -61,6 +63,17 @@ export class AudioPlayerEngine {
 
   setCallbacks(callbacks: AudioEngineCallbacks): void {
     this.callbacks = callbacks;
+  }
+
+  updateRepeatConfig(config: RepeatConfig): void {
+    this.repeatConfig = {
+      repeatCount: Math.max(1, Math.floor(config.repeatCount)),
+      pauseDelaySeconds: Math.max(0, config.pauseDelaySeconds),
+      verseGapDelaySeconds: Math.max(0, config.verseGapDelaySeconds ?? 0),
+      surahRepeatCount: config.surahRepeatCount === null
+        ? null
+        : Math.max(1, Math.floor(config.surahRepeatCount ?? 1)),
+    };
   }
 
   private ensurePlayer(): AudioPlayer {
@@ -96,13 +109,11 @@ export class AudioPlayerEngine {
     this.target = target;
     this.reciter = reciter;
     this.tracks = target.verses;
+    this.startIndex = startIndex;
     this.currentIndex = startIndex;
+    this.completedSurahPlays = 1;
     this.currentAyahRepeatCount = 0;
-    this.repeatConfig = {
-      repeatCount: Math.max(1, Math.floor(repeatConfig.repeatCount)),
-      pauseDelaySeconds: Math.max(0, repeatConfig.pauseDelaySeconds),
-      verseGapDelaySeconds: Math.max(0, repeatConfig.verseGapDelaySeconds ?? 0),
-    };
+    this.updateRepeatConfig(repeatConfig);
     this.isEngineRunning = true;
 
     this.playCurrentAyah();
@@ -189,7 +200,13 @@ export class AudioPlayerEngine {
     if (willRepeatCurrent) return;
 
     const scheduledIndex = this.currentIndex;
-    const nextTrack = this.tracks[scheduledIndex + 1];
+    const nextTrack = this.tracks[scheduledIndex + 1] ?? (
+      scheduledIndex === this.tracks.length - 1 &&
+      (this.repeatConfig.surahRepeatCount === null ||
+        this.completedSurahPlays < this.repeatConfig.surahRepeatCount)
+        ? this.tracks[this.startIndex]
+        : undefined
+    );
     if (!nextTrack) return;
 
     const nextUri = AudioDownloader.getLocalAyahUri(
@@ -263,7 +280,14 @@ export class AudioPlayerEngine {
         this.playCurrentAyah();
       }
     } else {
-      this.completePlayback();
+      const repeatLimit = this.repeatConfig.surahRepeatCount;
+      if (repeatLimit === null || this.completedSurahPlays < repeatLimit) {
+        this.completedSurahPlays += 1;
+        this.currentIndex = this.startIndex;
+        this.playCurrentAyah();
+      } else {
+        this.completePlayback();
+      }
     }
   }
 
@@ -329,8 +353,8 @@ export class AudioPlayerEngine {
   }
 
   async previousAyah(): Promise<void> {
-    if (!this.isEngineRunning || this.currentIndex <= 0) {
-      if (this.isEngineRunning && this.currentIndex === 0) {
+    if (!this.isEngineRunning || this.currentIndex <= this.startIndex) {
+      if (this.isEngineRunning && this.currentIndex === this.startIndex) {
         this.playCurrentAyah();
       }
       return;
