@@ -52,9 +52,9 @@ export const AppText: React.FC<AppTextProps> = ({
       style={[
         styles.defaultText,
         { color: theme.colors.onSurface },
+        style,
         resolvedColor ? { color: resolvedColor } : null,
         align ? { textAlign: align } : null,
-        style,
       ]}
       {...rest}
     >

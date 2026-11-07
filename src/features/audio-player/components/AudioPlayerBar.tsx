@@ -4,6 +4,7 @@ import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ProgressBar } from 'react-native-paper';
 import { useAudioStore } from '../stores/useAudioStore';
+import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { AudioSettingsModal } from './AudioSettingsModal';
 import { useTheme } from 'react-native-paper';
