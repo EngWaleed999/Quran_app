@@ -130,6 +130,7 @@ test('legacy partial progress resumes at the exact next ayah after schema migrat
       completed_at INTEGER
     );
     DROP TABLE khatmah_plans;
+    DROP TABLE app_schema_migrations;
     CREATE TABLE khatmah_plans (
       id TEXT PRIMARY KEY NOT NULL,
       khatmah_count INTEGER NOT NULL,
