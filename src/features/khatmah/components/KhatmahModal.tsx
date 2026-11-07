@@ -162,7 +162,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
           {loading ? <Text style={styles.helper}>جاري تحديث الخطة...</Text> : null}
 
           {completed ? (
-            <View style={styles.successCard}>
+            <View style={[styles.successCard, { backgroundColor: theme.colors.surface }]}>
               <MaterialCommunityIcons name="trophy-outline" size={54} color={QuranColors.gold} />
               <Text style={styles.successTitle}>تقبّل الله منك ختمتك</Text>
               <Text style={styles.helper}>أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.</Text>
