@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, I18nManager } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
 
