@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextProps, StyleSheet } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { MD3Theme, useTheme } from 'react-native-paper';
 
 export interface AppTextProps extends TextProps {
   /** Force centering or custom alignment if needed */
@@ -14,7 +14,7 @@ export interface AppTextProps extends TextProps {
  * Resolve those semantic colors against the active Paper theme at render time,
  * so a screen does not keep dark ink on a dark surface after a theme switch.
  */
-function resolveSemanticColor(color: unknown, theme: ReturnType<typeof useTheme>): unknown {
+function resolveSemanticColor(color: unknown, theme: MD3Theme): string | undefined {
   if (typeof color !== 'string') return color;
 
   const semanticColors: Record<string, string> = {
@@ -31,7 +31,6 @@ function resolveSemanticColor(color: unknown, theme: ReturnType<typeof useTheme>
     '#E5C058': theme.colors.secondary,
     '#D4B25E': theme.colors.primary,
     '#FFF8F0FF': theme.colors.onSurface,
-    '#FFFFFF': theme.colors.onPrimary,
   };
 
   return semanticColors[color.toUpperCase()] ?? color;
@@ -43,7 +42,7 @@ export const AppText: React.FC<AppTextProps> = ({
   children,
   ...rest
 }) => {
-  const theme = useTheme();
+  const theme = useTheme<MD3Theme>();
   const flattenedStyle = StyleSheet.flatten(style);
   const resolvedColor = resolveSemanticColor(flattenedStyle?.color, theme);
 

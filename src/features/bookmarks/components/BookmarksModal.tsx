@@ -3,6 +3,7 @@ import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-nat
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
+import { QuranColors } from '../../../core/theme/theme';
 import {
   Bookmark,
   BookmarkType,

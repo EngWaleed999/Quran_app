@@ -281,7 +281,7 @@ export const MushafPageView: React.FC = () => {
       if (existing) {
         setBookmarks(await BookmarkService.removeBookmark(existing.id));
       } else {
-        const newBookmark: Omit<Bookmark, 'type'> = {
+        const newBookmark: Omit<Bookmark, 'type' | 'id'> = {
           verseKey: ayah.verseKey,
           suraNo: ayah.suraNo,
           ayaNo: ayah.ayaNo,

@@ -37,7 +37,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
   const renderNumbers = (values: number[], selected: number, onSelect: (value: number) => void, suffix?: string) => (
     <View style={styles.optionsRow}>
       {values.map((value) => (
-        <TouchableOpacity key={value} onPress={() => onSelect(value)} style={[styles.option, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, selected && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }]}>
+        <TouchableOpacity key={value} onPress={() => onSelect(value)} style={[styles.option, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, selected === value && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }]}>
           <Text style={[styles.optionText, selected === value && styles.optionTextSelected]}>
             {suffix ? (value === 0 ? 'بدون' : value + ' ' + suffix) : value}
           </Text>
