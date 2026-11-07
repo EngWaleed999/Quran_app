@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, I18nManager } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { SQLiteProvider } from 'expo-sqlite';
-import { CustomLightTheme, QuranColors } from './src/core/theme/theme';
+import { getPaperTheme, getQuranPalette, QuranColors } from './src/core/theme/theme';
+import { useAppPreferences } from './src/core/theme/preferencesStore';
 import { MushafPageView } from './src/features/mushaf/components/MushafPageView';
+import { initializeAppSchema } from './src/core/database/appSchema';
 
 try {
   I18nManager.allowRTL(true);
@@ -16,6 +18,9 @@ try {
 }
 
 export default function App() {
+  const appearance = useAppPreferences((state) => state.appearance);
+  const palette = useMemo(() => getQuranPalette(appearance), [appearance]);
+  const paperTheme = useMemo(() => getPaperTheme(appearance), [appearance]);
   const [fontsLoaded] = useFonts({
     HafsSmart: require('./assets/fonts/HafsSmart_08.ttf'),
     UthmanicHafs: require('./assets/fonts/UthmanicHafs1Ver18.ttf'),
@@ -27,14 +32,17 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={CustomLightTheme}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeArea}>
+      <PaperProvider theme={paperTheme}>
+        <StatusBar style={appearance === 'dark' ? 'light' : 'dark'} />
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
           <SQLiteProvider
             databaseName="quran.db"
+            onInit={initializeAppSchema}
             assetSource={{
-              assetId: require('./assets/data/quran.db'),
-              forceOverwrite: true,
+              assetId: require('./assets/data/quran-full.db'),
+              // Keep the bundled database as a first-install seed. Re-copying it
+              // on every app reload causes avoidable disk I/O and startup delay.
+              forceOverwrite: false,
             }}
           >
             <MushafPageView />

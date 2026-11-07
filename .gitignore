@@ -56,3 +56,9 @@ scratch/
 testing_font/
 testing_svg_json/
 font_fix/
+
+# Large generated database asset (provisioned locally or during EAS build)
+assets/data/quran-full.db
+backups/
+*.db-wal
+*.db-shm

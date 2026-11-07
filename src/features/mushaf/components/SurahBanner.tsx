@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, Text, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { useTheme } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
 

@@ -1,16 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Modal,
-  I18nManager,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList, Modal, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
+import { useTheme } from 'react-native-paper';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { Surah } from '../types/surah.types';
@@ -37,6 +31,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
   currentPage,
   activeBookmark,
 }) => {
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState<NavRouteTab>('surahs');
   const flatListRef = useRef<FlatList<Surah>>(null);
 
@@ -130,16 +125,16 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Top Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="إغلاق الفهرس">
-            <MaterialCommunityIcons name="arrow-right" size={24} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
 
           <View style={styles.titleWrapper}>
-            <Text style={styles.headerTitle}>فهرس القرآن الكريم</Text>
-            <Text style={styles.headerSubtitle}>١١٤ سُورَة • ٣٠ جُزءاً</Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>فهرس القرآن الكريم</Text>
+            <Text style={[styles.headerSubtitle, { color: theme.colors.onSurfaceVariant }]}>١١٤ سُورَة • ٣٠ جُزءاً</Text>
           </View>
 
           {/* متطلب 1: زر البحث الذكي المدمج في رأس الفهرس لتوحيد ميزة البحث ومنع التكرار */}

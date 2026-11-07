@@ -8,18 +8,22 @@ import {
   PlaybackVerse,
   Reciter,
   RepeatConfig,
+  AudioActionMode,
 } from '../types/audio.types';
 import { RECITERS } from '../services/recitersCatalog';
 import { audioEngine } from '../services/audioPlayerEngine';
 import { AudioDownloader } from '../services/audioDownloader';
+import type { PlaybackDelayKind } from '../services/audioPlaybackRules';
 
 interface AudioState {
   selectedReciter: Reciter;
   repeatConfig: RepeatConfig;
   status: PlaybackStatus;
+  activeMode: AudioActionMode;
   activeAyah: { suraNo: number; ayaNo: number } | null;
   target: PlaybackTarget | null;
   countdown: number;
+  pendingDelayKind: PlaybackDelayKind;
   isDownloading: boolean;
   downloadProgress: DownloadProgress | null;
   downloadMissingAyahs: PlaybackVerse[] | null;
@@ -29,13 +33,14 @@ interface AudioState {
 
   setSelectedReciter: (reciter: Reciter) => void;
   setRepeatConfig: (config: RepeatConfig) => void;
-  requestPlayback: (target: PlaybackTarget) => Promise<{
+  requestPlayback: (target: PlaybackTarget, mode: AudioActionMode) => Promise<{
     needsDownload: boolean;
     missingAyahs: PlaybackVerse[];
   }>;
   startDownloadAndPlay: (
     target: PlaybackTarget,
-    ayahsToDownload: PlaybackVerse[]
+    ayahsToDownload: PlaybackVerse[],
+    mode: AudioActionMode
   ) => Promise<void>;
   cancelDownload: () => void;
   pause: () => Promise<void>;
@@ -58,6 +63,7 @@ export const useAudioStore = create<AudioState>()(
         onPositionUpdate: (positionSeconds, durationSeconds) =>
           set({ positionSeconds, durationSeconds }),
         onRepeatCountdown: (countdown) => set({ countdown }),
+        onDelayKindChange: (pendingDelayKind) => set({ pendingDelayKind }),
         onError: (message) => {
           console.error('[AudioStore] Engine error:', message);
           set({ status: 'error', lastError: message });
@@ -66,11 +72,13 @@ export const useAudioStore = create<AudioState>()(
 
       return {
         selectedReciter: RECITERS[0],
-        repeatConfig: { repeatCount: 3, pauseDelaySeconds: 2, verseGapDelaySeconds: 0 },
+        repeatConfig: { repeatCount: 3, pauseDelaySeconds: 2, verseGapDelaySeconds: 0, surahRepeatCount: 1 },
         status: 'idle',
+        activeMode: 'tilawah',
         activeAyah: null,
         target: null,
         countdown: 0,
+        pendingDelayKind: null,
         isDownloading: false,
         downloadProgress: null,
         downloadMissingAyahs: null,
@@ -79,20 +87,31 @@ export const useAudioStore = create<AudioState>()(
         lastError: null,
 
         setSelectedReciter: (reciter) => set({ selectedReciter: reciter }),
-        setRepeatConfig: (config) =>
-          set({
-            repeatConfig: {
-              repeatCount: Math.max(1, Math.floor(config.repeatCount)),
-              pauseDelaySeconds: Math.max(0, config.pauseDelaySeconds),
-              verseGapDelaySeconds: Math.max(0, config.verseGapDelaySeconds ?? 0),
-            },
-          }),
+        setRepeatConfig: (config) => {
+          const normalized: RepeatConfig = {
+            repeatCount: Math.max(1, Math.floor(config.repeatCount)),
+            pauseDelaySeconds: Math.max(0, config.pauseDelaySeconds),
+            verseGapDelaySeconds: Math.max(0, config.verseGapDelaySeconds ?? 0),
+            surahRepeatCount:
+              config.surahRepeatCount === null
+                ? null
+                : Math.max(1, Math.floor(config.surahRepeatCount ?? 1)),
+          };
+          set({ repeatConfig: normalized });
+          audioEngine.updateRepeatConfig(
+            get().activeMode === 'repeat'
+              ? normalized
+              : { ...normalized, repeatCount: 1 }
+          );
+        },
 
-        requestPlayback: async (target) => {
+        requestPlayback: async (target, mode) => {
           const { selectedReciter } = get();
+          set({ activeMode: mode });
           set({
             target,
             status: 'checking_files',
+            pendingDelayKind: null,
             lastError: null,
             downloadProgress: null,
             isDownloading: false,
@@ -104,10 +123,11 @@ export const useAudioStore = create<AudioState>()(
 
             if (allDownloaded) {
               set({ downloadMissingAyahs: null });
+              const savedConfig = get().repeatConfig;
               await audioEngine.startPlayback(
                 selectedReciter,
                 target,
-                get().repeatConfig
+                mode === 'repeat' ? savedConfig : { ...savedConfig, repeatCount: 1 }
               );
               return { needsDownload: false, missingAyahs: [] };
             }
@@ -126,8 +146,9 @@ export const useAudioStore = create<AudioState>()(
           }
         },
 
-        startDownloadAndPlay: async (target, ayahsToDownload) => {
+        startDownloadAndPlay: async (target, ayahsToDownload, mode) => {
           const { selectedReciter, repeatConfig } = get();
+          set({ activeMode: mode });
           const activeToken = { isCancelled: false };
           cancellationToken = activeToken;
 
@@ -135,6 +156,7 @@ export const useAudioStore = create<AudioState>()(
             target,
             isDownloading: true,
             status: 'downloading',
+            pendingDelayKind: null,
             lastError: null,
             downloadProgress: {
               current: 0,
@@ -174,7 +196,11 @@ export const useAudioStore = create<AudioState>()(
               },
             });
 
-            await audioEngine.startPlayback(selectedReciter, target, repeatConfig);
+            await audioEngine.startPlayback(
+              selectedReciter,
+              target,
+              mode === 'repeat' ? repeatConfig : { ...repeatConfig, repeatCount: 1 }
+            );
           } catch (error) {
             const message =
               error instanceof Error ? error.message : 'فشل تنزيل الملفات الصوتية.';
@@ -231,8 +257,10 @@ export const useAudioStore = create<AudioState>()(
           set({
             activeAyah: null,
             status: 'idle',
+            activeMode: 'tilawah',
             target: null,
             countdown: 0,
+            pendingDelayKind: null,
             isDownloading: false,
             downloadProgress: null,
             downloadMissingAyahs: null,
@@ -245,7 +273,7 @@ export const useAudioStore = create<AudioState>()(
     {
       name: 'quran-audio-preferences',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: (persistedState: any) => {
         const previousReciterId = persistedState?.selectedReciter?.id;
         const legacyReciterMap: Record<string, string> = {
@@ -264,14 +292,12 @@ export const useAudioStore = create<AudioState>()(
           selectedReciter,
           repeatConfig: {
             repeatCount: Math.max(1, Number(persistedState?.repeatConfig?.repeatCount) || 3),
-            pauseDelaySeconds: Math.max(
-              0,
-              Number(persistedState?.repeatConfig?.pauseDelaySeconds) || 0
-            ),
-            verseGapDelaySeconds: Math.max(
-              0,
-              Number(persistedState?.repeatConfig?.verseGapDelaySeconds) || 0
-            ),
+            pauseDelaySeconds: Math.max(0, Number(persistedState?.repeatConfig?.pauseDelaySeconds) || 0),
+            verseGapDelaySeconds: Math.max(0, Number(persistedState?.repeatConfig?.verseGapDelaySeconds) || 0),
+            surahRepeatCount:
+              persistedState?.repeatConfig?.surahRepeatCount === null
+                ? null
+                : Math.max(1, Number(persistedState?.repeatConfig?.surahRepeatCount) || 1),
           },
         };
       },

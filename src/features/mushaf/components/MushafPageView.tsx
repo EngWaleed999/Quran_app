@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { View, StyleSheet, Animated } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useTheme } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from './PageHeader';
 import { PageBottomBar } from './PageBottomBar';
@@ -20,6 +21,13 @@ import { useAudioStore } from '../../audio-player/stores/useAudioStore';
 import { AudioPickerModal } from '../../audio-player/components/AudioPickerModal';
 import { AudioPlayerBar } from '../../audio-player/components/AudioPlayerBar';
 import { AudioActionMode } from '../../audio-player/types/audio.types';
+import { BookmarkType } from '../../bookmarks/types/bookmark.types';
+import { BookmarksModal } from '../../bookmarks/components/BookmarksModal';
+import { NotesModal } from '../../notes/components/NotesModal';
+import { KhatmahModal } from '../../khatmah/components/KhatmahModal';
+import { KhatmahService } from '../../khatmah/services/khatmahService';
+import { DailyWird } from '../../khatmah/types/khatmah.types';
+import { AyahNote } from '../../notes/types/note.types';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -32,6 +40,7 @@ interface AudioPickerState {
 
 export const MushafPageView: React.FC = () => {
   const db = useSQLiteContext();
+  const theme = useTheme();
   const pagerRef = useRef<PagerView>(null);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -39,7 +48,13 @@ export const MushafPageView: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isSurahListOpen, setIsSurahListOpen] = useState<boolean>(false);
-  const [activeBookmark, setActiveBookmark] = useState<Bookmark | null>(null);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const activeBookmark = bookmarks.find((item) => item.type === 'reading') ?? bookmarks[0] ?? null;
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState<SelectedAyahInfo | null>(null);
+  const [isKhatmahOpen, setIsKhatmahOpen] = useState(false);
+  const [dailyWird, setDailyWird] = useState<DailyWird | null>(null);
   const [selectedAyah, setSelectedAyah] = useState<SelectedAyahInfo | null>(null);
   const [tafsirAyah, setTafsirAyah] = useState<SelectedAyahInfo | null>(null);
   const [audioPicker, setAudioPicker] = useState<AudioPickerState | null>(null);
@@ -50,7 +65,11 @@ export const MushafPageView: React.FC = () => {
   const [isControlsVisible, setIsControlsVisible] = useState<boolean>(true);
   const controlsAnim = useRef(new Animated.Value(1)).current;
 
-  const { status: audioStatus, activeAyah } = useAudioStore();
+  // Subscribe only to playback fields that affect the Mushaf. Position updates
+  // arrive every 100 ms; subscribing to the whole store would rerender all 604
+  // PagerView children on every progress tick.
+  const audioStatus = useAudioStore((state) => state.status);
+  const activeAyah = useAudioStore((state) => state.activeAyah);
   const playingVerseKey = useMemo(() => {
     if (
       (audioStatus === 'playing' ||
@@ -69,10 +88,38 @@ export const MushafPageView: React.FC = () => {
   });
 
   useEffect(() => {
-    BookmarkService.getActiveBookmark().then(setActiveBookmark).catch((error) => {
-      console.warn('[MushafPageView] Could not load bookmark:', error);
-    });
-  }, []);
+    let isMounted = true;
+
+    const loadReadingState = async () => {
+      const [savedBookmarks, currentWird] = await Promise.all([
+        BookmarkService.getBookmarks().catch((error) => {
+          console.warn('[MushafPageView] Could not restore bookmarks:', error);
+          return [] as Bookmark[];
+        }),
+        KhatmahService.getDailyWird(db).catch((error) => {
+          console.warn('[MushafPageView] Could not restore Khatmah progress:', error);
+          return null;
+        }),
+      ]);
+
+      if (!isMounted) return;
+      setBookmarks(savedBookmarks);
+      setDailyWird(currentWird);
+    };
+
+    void loadReadingState();
+    return () => { isMounted = false; };
+  }, [db]);
+
+  const bookmarkTypesByVerse = useMemo(() => {
+    const result: Record<string, BookmarkType[]> = {};
+    for (const bookmark of bookmarks) {
+      const types = result[bookmark.verseKey] ?? [];
+      if (!types.includes(bookmark.type)) types.push(bookmark.type);
+      result[bookmark.verseKey] = types;
+    }
+    return result;
+  }, [bookmarks]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsControlsVisible(false), 2000);
@@ -239,12 +286,12 @@ export const MushafPageView: React.FC = () => {
   );
 
   const handleToggleBookmark = useCallback(
-    async (ayah: SelectedAyahInfo) => {
-      if (activeBookmark?.verseKey === ayah.verseKey) {
-        await BookmarkService.removeBookmark();
-        setActiveBookmark(null);
+    async (ayah: SelectedAyahInfo, type: BookmarkType) => {
+      const existing = bookmarks.find((item) => item.type === type && item.verseKey === ayah.verseKey);
+      if (existing) {
+        setBookmarks(await BookmarkService.removeBookmark(existing.id));
       } else {
-        const newBookmark: Bookmark = {
+        const newBookmark: Omit<Bookmark, 'type' | 'id'> = {
           verseKey: ayah.verseKey,
           suraNo: ayah.suraNo,
           ayaNo: ayah.ayaNo,
@@ -253,17 +300,31 @@ export const MushafPageView: React.FC = () => {
           ayahText: ayah.ayahText || '',
           createdAt: Date.now(),
         };
-        await BookmarkService.saveBookmark(newBookmark);
-        setActiveBookmark(newBookmark);
+        setBookmarks(await BookmarkService.saveBookmark({ ...newBookmark, type }));
       }
       setSelectedAyah(null);
     },
-    [activeBookmark]
+    [bookmarks]
   );
 
   const handleOpenAudio = useCallback((ayah: SelectedAyahInfo, mode: AudioActionMode) => {
     setAudioPicker({ ayah, mode });
   }, []);
+
+  const handleOpenNote = useCallback((ayah: SelectedAyahInfo) => {
+    setNoteDraft(ayah);
+    setIsNotesOpen(true);
+  }, []);
+
+  const handleNavigateToNote = useCallback((note: AyahNote) => {
+    setIsNotesOpen(false);
+    handleNavigateToPage(note.page, note.verseKey);
+  }, [handleNavigateToPage]);
+
+  const handleNavigateToBookmark = useCallback((bookmark: Bookmark) => {
+    setIsBookmarksOpen(false);
+    handleNavigateToPage(bookmark.page, bookmark.verseKey);
+  }, [handleNavigateToPage]);
 
   const handleNextPage = useCallback(() => {
     if (currentPage < TOTAL_PAGES) pagerRef.current?.setPage(currentPage);
@@ -274,11 +335,11 @@ export const MushafPageView: React.FC = () => {
   }, [currentPage]);
 
   if (!isReady) {
-    return <View style={styles.blankContainer} />;
+    return <View style={[styles.blankContainer, { backgroundColor: theme.colors.background }]} />;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <PageHeader
         surahNames={pageMetadata.surahNames}
         jozzNumber={pageMetadata.jozz}
@@ -286,6 +347,9 @@ export const MushafPageView: React.FC = () => {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenSurahList={() => setIsSurahListOpen(true)}
+        onOpenBookmarks={() => setIsBookmarksOpen(true)}
+        onOpenNotes={() => { setNoteDraft(null); setIsNotesOpen(true); }}
+        onOpenKhatmah={() => setIsKhatmahOpen(true)}
         controlsAnim={controlsAnim}
         isControlsVisible={isControlsVisible}
       />
@@ -311,9 +375,14 @@ export const MushafPageView: React.FC = () => {
                   isNear={isNear}
                   onToggleControls={toggleControls}
                   selectedVerseKey={selectedAyah?.verseKey}
-                  bookmarkedVerseKey={activeBookmark?.verseKey}
+                  bookmarkTypesByVerse={bookmarkTypesByVerse}
+                  khatmahStartGlobalAyah={dailyWird?.startGlobalAyah ?? null}
+                  khatmahEndGlobalAyah={dailyWird?.endGlobalAyah ?? null}
+                  khatmahWrapsAroundEnd={dailyWird?.wrapsAroundEnd ?? false}
+                  khatmahDailyTargetAyahs={dailyWird?.dailyTargetAyahs ?? 0}
                   searchHighlightVerseKey={searchHighlightVerseKey}
                   playingVerseKey={playingVerseKey}
+                  onAyahPress={handleAyahLongPress}
                   onAyahLongPress={handleAyahLongPress}
                 />
               </View>
@@ -370,17 +439,40 @@ export const MushafPageView: React.FC = () => {
         activeBookmark={activeBookmark}
       />
 
-      <SettingsModal
-        visible={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+      <SettingsModal visible={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      <BookmarksModal
+        visible={isBookmarksOpen}
+        bookmarks={bookmarks}
+        onClose={() => setIsBookmarksOpen(false)}
+        onNavigate={handleNavigateToBookmark}
+        onRemove={async (bookmarkId) => setBookmarks(await BookmarkService.removeBookmark(bookmarkId))}
+      />
+
+      <NotesModal
+        visible={isNotesOpen}
+        db={db}
+        draftAyah={noteDraft}
+        onClose={() => { setIsNotesOpen(false); setNoteDraft(null); }}
+        onNavigate={handleNavigateToNote}
+      />
+
+      <KhatmahModal
+        visible={isKhatmahOpen}
+        db={db}
+        currentPage={currentPage}
+        onClose={() => setIsKhatmahOpen(false)}
+        onNavigateToPage={handleNavigateToPage}
+        onWirdChange={setDailyWird}
       />
 
       <AyahActionModal
         visible={selectedAyah !== null}
         ayah={selectedAyah}
-        isBookmarked={activeBookmark?.verseKey === selectedAyah?.verseKey}
+        bookmarks={selectedAyah ? bookmarks.filter((item) => item.verseKey === selectedAyah.verseKey) : []}
         onClose={() => setSelectedAyah(null)}
         onToggleBookmark={handleToggleBookmark}
+        onOpenNote={handleOpenNote}
         onOpenTafsir={(ayah) => setTafsirAyah(ayah)}
         onPlayAudio={(ayah) => handleOpenAudio(ayah, 'tilawah')}
         onRepeatAudio={(ayah) => handleOpenAudio(ayah, 'repeat')}

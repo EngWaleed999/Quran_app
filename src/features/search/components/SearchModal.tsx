@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  Modal,
-  ActivityIndicator,
-  Keyboard,
-  I18nManager,
-} from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, Modal, ActivityIndicator, Keyboard, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
+import { useTheme } from 'react-native-paper';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { SearchService } from '../services/searchService';
 import { SurahSearchResult, AyahSearchResult, PageSearchResult } from '../types/search.types';
@@ -31,6 +22,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   onSelectPage,
   db,
 }) => {
+  const theme = useTheme();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pageResult, setPageResult] = useState<PageSearchResult | null>(null);
@@ -152,15 +144,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Top Search Input Bar */}
-        <View style={styles.headerBar}>
+        <View style={[styles.headerBar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
           <TouchableOpacity
             style={styles.closeBtn}
             onPress={onClose}
             accessibilityLabel="إغلاق البحث"
           >
-            <MaterialCommunityIcons name="arrow-right" size={24} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
 
           <View style={styles.searchFieldWrapper}>

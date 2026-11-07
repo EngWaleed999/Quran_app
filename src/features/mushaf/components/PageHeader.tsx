@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
+import { useTheme } from 'react-native-paper';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 
 interface PageHeaderProps {
@@ -12,6 +14,9 @@ interface PageHeaderProps {
   onOpenSearch: () => void;
   onOpenSettings: () => void;
   onOpenSurahList: () => void;
+  onOpenBookmarks: () => void;
+  onOpenNotes: () => void;
+  onOpenKhatmah: () => void;
   controlsAnim: Animated.Value;
   isControlsVisible: boolean;
 }
@@ -24,9 +29,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onOpenSearch,
   onOpenSettings,
   onOpenSurahList,
+  onOpenBookmarks,
+  onOpenNotes,
+  onOpenKhatmah,
   controlsAnim,
   isControlsVisible,
 }) => {
+  const theme = useTheme();
   const names = useMemo(() => {
     const source =
       surahNames && surahNames.length > 0
@@ -54,7 +63,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
         >
           <TouchableOpacity
-            style={styles.iconBtn}
+            style={[styles.iconBtn, { backgroundColor: theme.colors.surfaceVariant }]}
             onPress={onOpenSurahList}
             accessibilityLabel="فهرس السور"
             hitSlop={8}
@@ -62,19 +71,28 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <MaterialCommunityIcons
               name="format-list-bulleted"
               size={22}
-              color={QuranColors.emerald}
+              color={theme.colors.primary}
             />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenBookmarks} accessibilityLabel="الفواصل المحفوظة" hitSlop={8}>
+            <MaterialCommunityIcons name="bookmark-multiple-outline" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenNotes} accessibilityLabel="ملاحظاتي" hitSlop={8}>
+            <MaterialCommunityIcons name="note-text-outline" size={19} color={theme.colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenKhatmah} accessibilityLabel="ختمتي" hitSlop={8}>
+            <MaterialCommunityIcons name="book-check-outline" size={21} color={theme.colors.primary} />
           </TouchableOpacity>
         </Animated.View>
 
         <View style={styles.centerMetadata}>
-          <Text style={styles.textSide}>
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]}>
             الجزء {toArabicNumerals(jozzNumber)}
           </Text>
 
           <View style={styles.surahBadge}>
             <Text
-              style={[styles.surahText, { fontSize: surahFontSize }]}
+              style={[styles.surahText, { fontSize: surahFontSize, color: theme.colors.primary }]}
               numberOfLines={names.length <= 2 ? 2 : 3}
               adjustsFontSizeToFit
               minimumFontScale={0.78}
@@ -83,7 +101,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </Text>
           </View>
 
-          <Text style={styles.textSide}>
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]} >
             {pageNumber
               ? 'صفحة ' + toArabicNumerals(pageNumber)
               : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
@@ -102,8 +120,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           >
             <MaterialCommunityIcons
               name="magnify"
-              size={22}
-              color={QuranColors.emerald}
+              size={21}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
 
@@ -116,7 +134,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <MaterialCommunityIcons
               name="cog-outline"
               size={22}
-              color={QuranColors.emerald}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
         </Animated.View>
@@ -157,12 +175,12 @@ const styles = StyleSheet.create({
     left: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     zIndex: 10,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 34,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -189,8 +207,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31, 81, 63, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(31, 81, 63, 0.15)',
-    maxWidth: '62%',
-    minWidth: 100,
+    maxWidth: '42%',
+    minWidth: 72,
     flexShrink: 1,
   },
   surahText: {

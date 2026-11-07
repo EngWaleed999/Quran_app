@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  Modal,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Share,
-  ActivityIndicator,
-  I18nManager,
-} from 'react-native';
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Share, ActivityIndicator, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -115,7 +106,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, { backgroundColor: theme.dark ? 'rgba(0,0,0,0.68)' : 'rgba(0,0,0,0.42)' }]}>
         <View style={[styles.modalSheet, isDark && styles.modalSheetDark]}>
           {/* Header Bar */}
           <View style={[styles.headerBar, isDark && styles.headerBarDark]}>
@@ -136,7 +127,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
               <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>
                 تفسير الآية
               </Text>
-              <Text style={styles.headerSubtitle}>
+              <Text style={[styles.headerSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 سورة {ayah.suraName} • الآية {toArabicNumerals(ayah.ayaNo)} • تفسير السعدي
               </Text>
             </View>
