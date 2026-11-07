@@ -364,9 +364,9 @@ export class KhatmahService {
       return [{
         dayNumber: row.day_index + 1,
         scheduledDate: row.planned_date,
-        startSuraName: startAyah.sura_name_ar,
+        startSuraName: startAyah.sura_name_ar ?? '',
         startAyahNo: startAyah.aya_no,
-        endSuraName: endAyah.sura_name_ar,
+        endSuraName: endAyah.sura_name_ar ?? '',
         endAyahNo: endAyah.aya_no,
         completedAt: row.completed_at,
         source: row.completion_source,
