@@ -1,65 +1,102 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Bookmark } from '../types/bookmark.types';
+import { Bookmark, BookmarkType } from '../types/bookmark.types';
 
-const BOOKMARK_STORAGE_KEY = '@quran_active_bookmark';
+const BOOKMARKS_STORAGE_KEY = '@quran_bookmarks_v2';
+const LEGACY_BOOKMARK_STORAGE_KEY = '@quran_active_bookmark';
+
+const VALID_TYPES: BookmarkType[] = ['tracking', 'reading', 'memorization'];
+
+function isBookmark(value: unknown): value is Bookmark {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<Bookmark>;
+  return (
+    typeof item.verseKey === 'string' &&
+    typeof item.suraNo === 'number' &&
+    typeof item.ayaNo === 'number' &&
+    typeof item.page === 'number' &&
+    typeof item.suraName === 'string' &&
+    typeof item.ayahText === 'string' &&
+    typeof item.createdAt === 'number' &&
+    VALID_TYPES.includes(item.type as BookmarkType)
+  );
+}
 
 export class BookmarkService {
-  private static cachedBookmark: Bookmark | null = null;
-  private static isInitialized = false;
+  private static cachedBookmarks: Bookmark[] | null = null;
+  private static pendingLoad: Promise<Bookmark[]> | null = null;
 
-  /**
-   * جلب الفاصل النشط حالياً من الذاكرة أو التخزين المحلي
-   */
-  static async getActiveBookmark(): Promise<Bookmark | null> {
-    if (BookmarkService.isInitialized) {
-      return BookmarkService.cachedBookmark;
-    }
+  static async getBookmarks(): Promise<Bookmark[]> {
+    if (this.cachedBookmarks) return [...this.cachedBookmarks];
+    if (this.pendingLoad) return this.pendingLoad;
 
-    try {
-      const data = await AsyncStorage.getItem(BOOKMARK_STORAGE_KEY);
-      if (data) {
-        BookmarkService.cachedBookmark = JSON.parse(data) as Bookmark;
-      } else {
-        BookmarkService.cachedBookmark = null;
+    this.pendingLoad = (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BOOKMARKS_STORAGE_KEY);
+        if (stored) {
+          const parsed: unknown = JSON.parse(stored);
+          this.cachedBookmarks = Array.isArray(parsed) ? parsed.filter(isBookmark) : [];
+        } else {
+          // Migrate the original single reading bookmark without losing user data.
+          const legacy = await AsyncStorage.getItem(LEGACY_BOOKMARK_STORAGE_KEY);
+          if (legacy) {
+            const parsed: unknown = JSON.parse(legacy);
+            if (parsed && typeof parsed === 'object') {
+              const bookmark = { ...(parsed as object), type: 'reading' as const };
+              this.cachedBookmarks = isBookmark(bookmark) ? [bookmark] : [];
+              await AsyncStorage.setItem(
+                BOOKMARKS_STORAGE_KEY,
+                JSON.stringify(this.cachedBookmarks)
+              );
+            } else {
+              this.cachedBookmarks = [];
+            }
+          } else {
+            this.cachedBookmarks = [];
+          }
+        }
+        return [...this.cachedBookmarks];
+      } catch (error) {
+        console.warn('[BookmarkService] Could not load bookmarks:', error);
+        this.cachedBookmarks = [];
+        return [];
+      } finally {
+        this.pendingLoad = null;
       }
-      BookmarkService.isInitialized = true;
-      return BookmarkService.cachedBookmark;
-    } catch (err) {
-      console.warn('[BookmarkService] Failed to load bookmark:', err);
-      return null;
-    }
+    })();
+
+    return this.pendingLoad;
   }
 
-  /**
-   * حفظ فاصل جديد
-   */
-  static async saveBookmark(bookmark: Bookmark): Promise<void> {
-    try {
-      BookmarkService.cachedBookmark = bookmark;
-      BookmarkService.isInitialized = true;
-      await AsyncStorage.setItem(BOOKMARK_STORAGE_KEY, JSON.stringify(bookmark));
-    } catch (err) {
-      console.warn('[BookmarkService] Failed to save bookmark:', err);
-    }
+  static async saveBookmark(
+    bookmark: Omit<Bookmark, 'type'> & { type?: BookmarkType },
+    type: BookmarkType = bookmark.type ?? 'reading'
+  ): Promise<Bookmark[]> {
+    const current = await this.getBookmarks();
+    const nextBookmark: Bookmark = { ...bookmark, type };
+    const next = [
+      ...current.filter((item) => item.type !== type),
+      nextBookmark,
+    ].sort((a, b) => VALID_TYPES.indexOf(a.type) - VALID_TYPES.indexOf(b.type));
+
+    await AsyncStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(next));
+    this.cachedBookmarks = next;
+    return [...next];
   }
 
-  /**
-   * إزالة الفاصل الحالي
-   */
-  static async removeBookmark(): Promise<void> {
-    try {
-      BookmarkService.cachedBookmark = null;
-      BookmarkService.isInitialized = true;
-      await AsyncStorage.removeItem(BOOKMARK_STORAGE_KEY);
-    } catch (err) {
-      console.warn('[BookmarkService] Failed to remove bookmark:', err);
-    }
+  static async removeBookmark(type: BookmarkType = 'reading'): Promise<Bookmark[]> {
+    const current = await this.getBookmarks();
+    const next = current.filter((item) => item.type !== type);
+    await AsyncStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(next));
+    this.cachedBookmarks = next;
+    return [...next];
   }
 
-  /**
-   * فحص متزامن سريع إن كانت الآية محددة كفاصل
-   */
+  static async getActiveBookmark(): Promise<Bookmark | null> {
+    const bookmarks = await this.getBookmarks();
+    return bookmarks.find((item) => item.type === 'reading') ?? bookmarks[0] ?? null;
+  }
+
   static isVerseBookmarked(verseKey: string): boolean {
-    return BookmarkService.cachedBookmark?.verseKey === verseKey;
+    return this.cachedBookmarks?.some((item) => item.verseKey === verseKey) ?? false;
   }
 }
