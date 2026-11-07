@@ -34,3 +34,14 @@ export interface DailyWird {
   wrapsAroundEnd: boolean;
   remainingAyahsToday: number;
 }
+
+export interface KhatmahCompletion {
+  dayNumber: number;
+  scheduledDate: string;
+  startSuraName: string;
+  startAyahNo: number;
+  endSuraName: string;
+  endAyahNo: number;
+  completedAt: number;
+  source: 'manual' | 'legacy_migration';
+}

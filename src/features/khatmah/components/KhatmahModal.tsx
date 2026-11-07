@@ -15,7 +15,8 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { KhatmahService } from '../services/khatmahService';
-import { DailyWird } from '../types/khatmah.types';
+import { DailyWird, KhatmahCompletion } from '../types/khatmah.types';
+import { Surah } from '../../surah-list/types/surah.types';
 
 interface KhatmahModalProps {
   visible: boolean;
@@ -38,13 +39,30 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const [wird, setWird] = useState<DailyWird | null>(null);
   const [khatmahCount, setKhatmahCount] = useState(1);
   const [durationDays, setDurationDays] = useState('30');
-  const [startFrom, setStartFrom] = useState<'beginning' | 'current'>('beginning');
+  const [startFrom, setStartFrom] = useState<'beginning' | 'current' | 'custom'>('beginning');
+  const [startSurahNo, setStartSurahNo] = useState(1);
+  const [startAyahInput, setStartAyahInput] = useState('1');
+  const [surahOptions, setSurahOptions] = useState<Surah[]>([]);
+  const [isSurahPickerOpen, setIsSurahPickerOpen] = useState(false);
+  const [history, setHistory] = useState<KhatmahCompletion[]>([]);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const selectedStartSurah = surahOptions.find((surah) => surah.sura_no === startSurahNo) ?? null;
+
+  useEffect(() => {
+    setSurahOptions(QuranRepository.getAllSurahsSync(db));
+  }, [db]);
 
   const refresh = async () => {
     const current = await KhatmahService.getDailyWird(db);
     setWird(current);
     onWirdChange?.(current);
+    setHistory(
+      current
+        ? await KhatmahService.getCompletionHistory(db, current.plan.id)
+        : []
+    );
   };
 
   useEffect(() => {
@@ -57,6 +75,10 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
         if (active) {
           setWird(result);
           onWirdChange?.(result);
+          const rows = result
+            ? await KhatmahService.getCompletionHistory(db, result.plan.id)
+            : [];
+          if (active) setHistory(rows);
         }
       })
       .catch((error) => {
@@ -96,6 +118,22 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
           firstAyah.sura_no,
           firstAyah.aya_no
         );
+      } else if (startFrom === 'custom') {
+        const selectedAyahNo = Number(startAyahInput);
+        if (
+          !selectedStartSurah ||
+          !Number.isInteger(selectedAyahNo) ||
+          selectedAyahNo < 1 ||
+          selectedAyahNo > selectedStartSurah.ayahs_count
+        ) {
+          throw new Error('اختر سورة ورقم آية صالحاً ضمن عدد آيات السورة.');
+        }
+
+        startGlobalAyah = QuranRepository.getGlobalAyahNumberSync(
+          db,
+          selectedStartSurah.sura_no,
+          selectedAyahNo
+        );
       }
 
       await KhatmahService.createPlan(db, {
@@ -127,6 +165,9 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
             const next = await KhatmahService.completeDailyWird(db);
             setWird(next);
             onWirdChange?.(next);
+            setHistory(
+              await KhatmahService.getCompletionHistory(db, wird.plan.id)
+            );
           } catch (error) {
             Alert.alert(
               'تعذر تحديث التقدم',
@@ -388,6 +429,47 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 )}
               </View>
 
+              <View style={[styles.historyCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+                <TouchableOpacity
+                  style={styles.historyHeader}
+                  onPress={() => setIsHistoryExpanded((value) => !value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isHistoryExpanded }}
+                >
+                  <Text style={[styles.historyTitle, { color: theme.colors.onSurface }]}>
+                    سجل الإنجاز ({history.length.toLocaleString('ar')})
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={isHistoryExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={22}
+                    color={theme.colors.primary}
+                  />
+                </TouchableOpacity>
+                {isHistoryExpanded ? (
+                  history.length ? history.map((item) => (
+                    <View key={item.dayNumber} style={styles.historyRow}>
+                      <View style={styles.historyDateBlock}>
+                        <Text style={styles.historyDay}>اليوم {item.dayNumber.toLocaleString('ar')}</Text>
+                        <Text style={styles.historyDate}>{item.scheduledDate}</Text>
+                      </View>
+                      <View style={styles.historyRangeBlock}>
+                        <Text style={styles.historyRange}>
+                          {item.startSuraName} ({item.startAyahNo.toLocaleString('ar')}) — {item.endSuraName} ({item.endAyahNo.toLocaleString('ar')})
+                        </Text>
+                        <Text style={styles.historyTime}>
+                          {item.source === 'legacy_migration'
+                            ? 'تقدم محفوظ من إصدار سابق'
+                            : new Date(item.completedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                      <MaterialCommunityIcons name="check-circle" size={18} color={QuranColors.emerald} />
+                    </View>
+                  )) : (
+                    <Text style={styles.helper}>لم تسجل أي ورد مكتمل بعد.</Text>
+                  )
+                ) : null}
+              </View>
+
               <TouchableOpacity
                 onPress={stopPlan}
                 style={styles.stopButton}
@@ -480,6 +562,22 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  onPress={() => setStartFrom('custom')}
+                  style={[
+                    styles.startChoice,
+                    startFrom === 'custom' && styles.choiceSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.startChoiceText,
+                      startFrom === 'custom' && styles.choiceTextSelected,
+                    ]}
+                  >
+                    سورة وآية
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={() => setStartFrom('current')}
                   style={[
                     styles.startChoice,
@@ -496,6 +594,37 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {startFrom === 'custom' ? (
+                <View style={[styles.customStartCard, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+                  <Text style={styles.label}>السورة التي تبدأ منها</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsSurahPickerOpen(true)}
+                    style={[styles.surahSelect, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.surahSelectText, { color: theme.colors.onSurface }]}>
+                      {selectedStartSurah?.sura_name_ar ?? 'اختر السورة'}
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.label}>رقم الآية</Text>
+                  <TextInput
+                    value={startAyahInput}
+                    onChangeText={(value) => setStartAyahInput(value.replace(/[^0-9]/g, '').slice(0, 3))}
+                    keyboardType="number-pad"
+                    textAlign="right"
+                    style={[styles.daysInput, { color: theme.colors.onSurface, backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+                    maxLength={3}
+                    accessibilityLabel="رقم آية بداية الختمة"
+                  />
+                  {selectedStartSurah ? (
+                    <Text style={styles.helper}>
+                      عدد آيات سورة {selectedStartSurah.sura_name_ar}: {selectedStartSurah.ayahs_count.toLocaleString('ar')}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               {Number(durationDays) > 0 &&
               Number(durationDays) <= 3660 &&
@@ -521,6 +650,55 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
             </View>
           )}
         </ScrollView>
+      <Modal
+        visible={isSurahPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsSurahPickerOpen(false)}
+      >
+        <View style={styles.pickerOverlay}>
+          <TouchableOpacity
+            style={styles.pickerBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsSurahPickerOpen(false)}
+          />
+          <View style={[styles.surahPickerCard, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.pickerHeader}>
+              <Text style={[styles.pickerTitle, { color: theme.colors.onSurface }]}>اختر سورة البداية</Text>
+              <TouchableOpacity onPress={() => setIsSurahPickerOpen(false)} accessibilityLabel="إغلاق اختيار السورة">
+                <MaterialCommunityIcons name="close" size={23} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.surahPickerList} keyboardShouldPersistTaps="handled">
+              {surahOptions.map((surah) => (
+                <TouchableOpacity
+                  key={surah.sura_no}
+                  onPress={() => {
+                    setStartSurahNo(surah.sura_no);
+                    setStartAyahInput('1');
+                    setIsSurahPickerOpen(false);
+                  }}
+                  style={[
+                    styles.surahPickerItem,
+                    startSurahNo === surah.sura_no && styles.surahPickerItemSelected,
+                  ]}
+                >
+                  <Text style={[styles.surahPickerNumber, { color: theme.colors.onSurfaceVariant }]}>
+                    {surah.sura_no.toLocaleString('ar')}
+                  </Text>
+                  <Text style={[styles.surahPickerName, { color: theme.colors.onSurface }]}>
+                    {surah.sura_name_ar}
+                  </Text>
+                  {startSurahNo === surah.sura_no ? (
+                    <MaterialCommunityIcons name="check" size={18} color={theme.colors.primary} />
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       </View>
     </Modal>
   );
@@ -801,6 +979,135 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  historyCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  historyHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 38,
+  },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'right',
+  },
+  historyRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: QuranColors.parchmentBorder,
+    paddingTop: 9,
+  },
+  historyDateBlock: {
+    minWidth: 76,
+    gap: 3,
+  },
+  historyDay: {
+    color: QuranColors.emeraldDark,
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'right',
+  },
+  historyDate: {
+    color: QuranColors.textMuted,
+    fontSize: 10,
+    textAlign: 'right',
+  },
+  historyRangeBlock: {
+    flex: 1,
+    gap: 3,
+  },
+  historyRange: {
+    color: QuranColors.textDark,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    fontSize: 11,
+  },
+  historyTime: {
+    color: QuranColors.textMuted,
+    textAlign: 'right',
+    fontSize: 10,
+  },
+  customStartCard: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    gap: 9,
+  },
+  surahSelect: {
+    minHeight: 45,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  surahSelectText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  surahPickerCard: {
+    width: '100%',
+    maxHeight: '80%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 14,
+  },
+  pickerHeader: {
+    minHeight: 44,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  surahPickerList: {
+    flexGrow: 0,
+  },
+  surahPickerItem: {
+    minHeight: 46,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: QuranColors.parchmentBorder,
+  },
+  surahPickerItemSelected: {
+    backgroundColor: 'rgba(31,81,63,0.08)',
+    borderRadius: 7,
+  },
+  surahPickerNumber: {
+    width: 28,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  surahPickerName: {
+    flex: 1,
+    fontSize: 14,
+    textAlign: 'right',
   },
   finishedProgress: {
     backgroundColor: 'rgba(197,155,39,0.1)',

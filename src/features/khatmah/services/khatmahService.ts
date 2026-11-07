@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranRepository } from '../../../core/database/quranRepository';
-import { DailyWird, KhatmahPlan, DailyWirdStatus } from '../types/khatmah.types';
+import { DailyWird, KhatmahPlan, DailyWirdStatus, KhatmahCompletion } from '../types/khatmah.types';
 import { addDaysToDateKey, countPageVisits, daysBetweenDateKeys, getDailyAyahRange, localDateKey, TOTAL_MADINAH_PAGES, TOTAL_QURAN_AYAHS } from './khatmahRules';
 
 export { TOTAL_QURAN_AYAHS, TOTAL_MADINAH_PAGES } from './khatmahRules';
@@ -316,6 +316,62 @@ export class KhatmahService {
     });
 
     return this.getDailyWird(db);
+  }
+
+  static async getCompletionHistory(
+    db: SQLiteDatabase,
+    planId: string,
+    limit = 20
+  ): Promise<KhatmahCompletion[]> {
+    const planRow = await db.getFirstAsync<KhatmahPlanRow>(
+      'SELECT * FROM khatmah_plans WHERE id = ? LIMIT 1',
+      [planId]
+    );
+    if (!planRow) return [];
+
+    const plan = mapPlan(planRow);
+    const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+    const rows = await db.getAllAsync<{
+      day_index: number;
+      planned_date: string;
+      start_offset: number;
+      end_offset: number;
+      completed_at: number;
+      completion_source: 'manual' | 'legacy_migration';
+    }>(
+      `SELECT day_index, planned_date, start_offset, end_offset, completed_at, completion_source
+       FROM khatmah_daily_completions
+       WHERE plan_id = ?
+       ORDER BY day_index DESC
+       LIMIT ?`,
+      [planId, safeLimit]
+    );
+
+    return rows.flatMap((row) => {
+      const startGlobalAyah = modulo(
+        plan.startGlobalAyah - 1 + row.start_offset,
+        TOTAL_QURAN_AYAHS
+      ) + 1;
+      const endGlobalAyah = modulo(
+        plan.startGlobalAyah - 1 + row.end_offset - 1,
+        TOTAL_QURAN_AYAHS
+      ) + 1;
+      const startAyah = QuranRepository.getAyahByGlobalNumberSync(db, startGlobalAyah);
+      const endAyah = QuranRepository.getAyahByGlobalNumberSync(db, endGlobalAyah);
+
+      if (!startAyah || !endAyah) return [];
+
+      return [{
+        dayNumber: row.day_index + 1,
+        scheduledDate: row.planned_date,
+        startSuraName: startAyah.sura_name_ar,
+        startAyahNo: startAyah.aya_no,
+        endSuraName: endAyah.sura_name_ar,
+        endAyahNo: endAyah.aya_no,
+        completedAt: row.completed_at,
+        source: row.completion_source,
+      }];
+    });
   }
 
   static async deleteActivePlan(db: SQLiteDatabase): Promise<void> {
