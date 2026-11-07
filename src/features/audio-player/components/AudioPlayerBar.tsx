@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ProgressBar } from 'react-native-paper';
 import { useAudioStore } from '../stores/useAudioStore';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
+import { AudioSettingsModal } from './AudioSettingsModal';
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
@@ -19,8 +20,10 @@ function formatTime(seconds: number): string {
 }
 
 export const AudioPlayerBar: React.FC = () => {
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const {
     status,
+    activeMode,
     target,
     selectedReciter,
     activeAyah,
@@ -52,6 +55,7 @@ export const AudioPlayerBar: React.FC = () => {
   if (status === 'error') statusText = lastError || 'تعذر تشغيل الصوت';
 
   return (
+    <>
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.trackInfo}>
@@ -64,6 +68,14 @@ export const AudioPlayerBar: React.FC = () => {
               : statusText}
           </Text>
         </View>
+
+        <TouchableOpacity
+          style={styles.stopButton}
+          onPress={() => setIsSettingsVisible(true)}
+          accessibilityLabel="إعدادات التلاوة والترديد"
+        >
+          <MaterialCommunityIcons name="cog-outline" size={20} color={QuranColors.emerald} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.stopButton}
@@ -127,6 +139,12 @@ export const AudioPlayerBar: React.FC = () => {
         <Text style={styles.timeText}>{formatTime(durationSeconds)}</Text>
       </View>
     </View>
+    <AudioSettingsModal
+      visible={isSettingsVisible}
+      mode={activeMode}
+      onClose={() => setIsSettingsVisible(false)}
+    />
+    </>
   );
 };
 
