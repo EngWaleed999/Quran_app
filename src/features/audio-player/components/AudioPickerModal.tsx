@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, TouchableOpacity, View, I18nManager } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
-import { ProgressBar } from 'react-native-paper';
+import { ProgressBar, useTheme } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { QuranColors } from '../../../core/theme/theme';
@@ -38,6 +38,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
   db,
   onClose,
 }) => {
+  const theme = useTheme();
   const selectedReciter = useAudioStore((state) => state.selectedReciter);
   const isDownloading = useAudioStore((state) => state.isDownloading);
   const downloadProgress = useAudioStore((state) => state.downloadProgress);
@@ -172,14 +173,14 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
           onPress={isDownloading ? undefined : onClose}
         />
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.handle} />
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
             <View style={styles.headerText}>
-              <Text style={styles.title}>
+              <Text style={[styles.title, { color: theme.colors.onSurface }]}>
                 {mode === 'repeat' ? 'ترديد الآيات' : 'تشغيل التلاوة'}
               </Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
                 سورة {ayah?.suraName} • البداية من الآية {toArabicNumerals(ayah?.ayaNo || 1)}
               </Text>
             </View>
@@ -196,7 +197,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.sectionTitle}>اختر القارئ</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>اختر القارئ</Text>
 
             {RECITERS.map((reciter) => {
               const selected = selectedReciter.id === reciter.id;
@@ -268,7 +269,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
 
             {isPreparing && !isDownloading ? (
               <View style={styles.preparing}>
-                <ActivityIndicator color={QuranColors.emerald} />
+                <ActivityIndicator color={theme.colors.primary} />
                 <Text style={styles.helperText}>جاري التحقق من الملفات...</Text>
               </View>
             ) : null}
