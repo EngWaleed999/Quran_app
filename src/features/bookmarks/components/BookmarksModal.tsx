@@ -3,7 +3,6 @@ import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-nat
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
-import { QuranColors } from '../../../core/theme/theme';
 import {
   Bookmark,
   BookmarkType,
@@ -47,17 +46,17 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
         </View>
 
         <View style={styles.filters}>
-          <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterChip, filter === 'all' && styles.filterActive]}>
-            <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>الكل</Text>
+          <TouchableOpacity onPress={() => setFilter('all')} style={[styles.filterChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, filter === 'all' && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }]}>
+            <Text style={[styles.filterText, { color: theme.colors.onSurfaceVariant }, filter === 'all' && { color: theme.colors.primary }]}>الكل</Text>
           </TouchableOpacity>
           {TYPES.map((type) => (
             <TouchableOpacity
               key={type}
               onPress={() => setFilter(type)}
-              style={[styles.filterChip, filter === type && { borderColor: BOOKMARK_TYPE_COLORS[type], backgroundColor: BOOKMARK_TYPE_COLORS[type] + '18' }]}
+              style={[styles.filterChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, filter === type && { borderColor: BOOKMARK_TYPE_COLORS[type], backgroundColor: theme.colors.surfaceVariant }]}
             >
               <View style={[styles.dot, { backgroundColor: BOOKMARK_TYPE_COLORS[type] }]} />
-              <Text style={[styles.filterText, filter === type && { color: BOOKMARK_TYPE_COLORS[type] }]}>
+              <Text style={[styles.filterText, { color: theme.colors.onSurfaceVariant }, filter === type && { color: BOOKMARK_TYPE_COLORS[type] }]}>
                 {BOOKMARK_TYPE_LABELS[type]}
               </Text>
             </TouchableOpacity>
@@ -67,9 +66,9 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
         <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
           {filtered.length === 0 ? (
             <View style={styles.empty}>
-              <MaterialCommunityIcons name="bookmark-multiple-outline" size={48} color={QuranColors.gold} />
-              <Text style={styles.emptyTitle}>لا توجد فواصل هنا بعد</Text>
-              <Text style={styles.emptySubtitle}>اضغط مطولاً على آية واحفظ موضعاً للمتابعة أو القراءة أو الحفظ.</Text>
+              <MaterialCommunityIcons name="bookmark-multiple-outline" size={48} color={theme.colors.secondary} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>لا توجد فواصل هنا بعد</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>اضغط مطولاً على آية واحفظ موضعاً للمتابعة أو القراءة أو الحفظ.</Text>
             </View>
           ) : filtered.map((bookmark) => (
             <View key={bookmark.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
@@ -82,7 +81,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
                   </View>
                 </View>
                 <Text style={[styles.meta, { color: theme.colors.onSurfaceVariant }]}>الآية {bookmark.ayaNo} • الصفحة {bookmark.page}</Text>
-                {bookmark.ayahText ? <Text numberOfLines={2} style={styles.snippet}>{bookmark.ayahText}</Text> : null}
+                {bookmark.ayahText ? <Text numberOfLines={2} style={[styles.snippet, { color: theme.colors.onSurface }]}>{bookmark.ayahText}</Text> : null}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => onRemove(bookmark.id)} style={styles.removeButton} accessibilityLabel="حذف الفاصل">
                 <MaterialCommunityIcons name="delete-outline" size={21} color="#B23A3A" />
@@ -103,8 +102,8 @@ const styles = StyleSheet.create({
   filters: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, padding: 14 },
   filterChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: QuranColors.parchmentBorder, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#FFFFFF' },
   filterActive: { backgroundColor: 'rgba(31,81,63,0.08)', borderColor: QuranColors.emerald },
-  filterText: { fontSize: 12, color: QuranColors.textMuted, fontWeight: '600' },
-  filterTextActive: { color: QuranColors.emerald },
+  filterText: { fontSize: 12, fontWeight: '600' },
+  filterTextActive: { fontWeight: 'bold' },
   dot: { width: 7, height: 7, borderRadius: 4 },
   list: { paddingHorizontal: 14, paddingBottom: 30, gap: 10 },
   card: { flexDirection: 'row-reverse', alignItems: 'stretch', backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: QuranColors.parchmentBorder, overflow: 'hidden' },
@@ -115,9 +114,9 @@ const styles = StyleSheet.create({
   typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   typeBadgeText: { fontSize: 11, fontWeight: 'bold' },
   meta: { fontSize: 12, color: QuranColors.textMuted, textAlign: 'right', writingDirection: 'rtl' },
-  snippet: { marginTop: 2, fontFamily: 'UthmanicHafs', color: QuranColors.textDark, fontSize: 13, lineHeight: 23, textAlign: 'right', writingDirection: 'rtl' },
+  snippet: { marginTop: 2, fontFamily: 'UthmanicHafs', fontSize: 13, lineHeight: 23, textAlign: 'right', writingDirection: 'rtl' },
   removeButton: { width: 42, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingTop: 70, gap: 12 },
-  emptyTitle: { fontSize: 17, color: QuranColors.emeraldDark, fontWeight: 'bold' },
-  emptySubtitle: { fontSize: 13, color: QuranColors.textMuted, textAlign: 'center', lineHeight: 23, writingDirection: 'rtl' },
+  emptyTitle: { fontSize: 17, fontWeight: 'bold' },
+  emptySubtitle: { fontSize: 13, textAlign: 'center', lineHeight: 23, writingDirection: 'rtl' },
 });

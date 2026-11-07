@@ -3,7 +3,6 @@ import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-nat
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
-import { QuranColors } from '../../../core/theme/theme';
 import { AudioActionMode, RepeatConfig } from '../types/audio.types';
 import { useAudioStore } from '../stores/useAudioStore';
 
@@ -37,7 +36,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
   const renderNumbers = (values: number[], selected: number, onSelect: (value: number) => void, suffix?: string) => (
     <View style={styles.optionsRow}>
       {values.map((value) => (
-        <TouchableOpacity key={value} onPress={() => onSelect(value)} style={[styles.option, selected === value && styles.optionSelected]}>
+        <TouchableOpacity key={value} onPress={() => onSelect(value)} style={[styles.option, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, selected && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }]}>
           <Text style={[styles.optionText, selected === value && styles.optionTextSelected]}>
             {suffix ? (value === 0 ? 'بدون' : value + ' ' + suffix) : value}
           </Text>
@@ -69,14 +68,14 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
           </View>
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.section}>
+            <View style={[styles.section, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
               <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار المقطع حتى نهاية السورة</Text>
-              <Text style={styles.helper}>تبدأ كل دورة من الآية التي اخترتها وتستمر حتى نهاية السورة. لا تعود إلى الآيات السابقة لموضع البداية. يشمل العدد التشغيل الأول.</Text>
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>تبدأ كل دورة من الآية التي اخترتها وتستمر حتى نهاية السورة. لا تعود إلى الآيات السابقة لموضع البداية. يشمل العدد التشغيل الأول.</Text>
               <View style={styles.optionsRow}>
                 {SURAH_OPTIONS.map((option) => {
                   const selected = draft.surahRepeatCount === option.value;
                   return (
-                    <TouchableOpacity key={option.label} onPress={() => update('surahRepeatCount', option.value)} style={[styles.option, selected && styles.optionSelected, option.value === null && styles.infiniteOption]}>
+                    <TouchableOpacity key={option.label} onPress={() => update('surahRepeatCount', option.value)} style={[styles.option, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, selected && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }, option.value === null && styles.infiniteOption]}>
                       <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{option.label}</Text>
                     </TouchableOpacity>
                   );
@@ -86,22 +85,22 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
 
             {mode === 'repeat' ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>تكرار الآية</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار الآية</Text>
                 <Text style={styles.helper}>عدد مرات تشغيل كل آية قبل الانتقال إلى الآية التالية.</Text>
                 {renderNumbers(REPEAT_OPTIONS, draft.repeatCount, (value) => update('repeatCount', value), 'مرات')}
-                <Text style={styles.fieldLabel}>الفاصل بين تكرارات الآية</Text>
+                <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>الفاصل بين تكرارات الآية</Text>
                 {renderNumbers(DELAY_OPTIONS, draft.pauseDelaySeconds, (value) => update('pauseDelaySeconds', value), 'ث')}
                 <Text style={styles.fieldLabel}>الفاصل بين الآيات</Text>
                 {renderNumbers(DELAY_OPTIONS, draft.verseGapDelaySeconds ?? 0, (value) => update('verseGapDelaySeconds', value), 'ث')}
               </View>
             ) : null}
 
-            <View style={styles.info}>
-              <MaterialCommunityIcons name="information-outline" size={18} color={QuranColors.emerald} />
-              <Text style={styles.infoText}>عند اختيار «بلا نهاية» سيستمر تكرار المقطع من آية البداية المحددة دون حد تلقائي. أوقف التلاوة من شريط التشغيل عند الانتهاء.</Text>
+            <View style={[styles.info, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <MaterialCommunityIcons name="information-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.infoText, { color: theme.colors.onSurfaceVariant }]}>عند اختيار «بلا نهاية» سيستمر تكرار المقطع من آية البداية المحددة دون حد تلقائي. أوقف التلاوة من شريط التشغيل عند الانتهاء.</Text>
             </View>
-            <TouchableOpacity onPress={save} style={styles.saveButton}>
-              <Text style={styles.saveButtonText}>حفظ الإعدادات</Text>
+            <TouchableOpacity onPress={save} style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[styles.saveButtonText, { color: theme.colors.onPrimary }]}>حفظ الإعدادات</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

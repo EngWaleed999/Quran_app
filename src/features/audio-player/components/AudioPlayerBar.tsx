@@ -4,7 +4,6 @@ import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ProgressBar } from 'react-native-paper';
 import { useAudioStore } from '../stores/useAudioStore';
-import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { AudioSettingsModal } from './AudioSettingsModal';
 import { useTheme } from 'react-native-paper';
@@ -96,7 +95,7 @@ export const AudioPlayerBar: React.FC = () => {
       />
 
       <View style={styles.controls}>
-        <Text style={styles.timeText}>{formatTime(positionSeconds)}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.onSurfaceVariant }]}>{formatTime(positionSeconds)}</Text>
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -108,12 +107,12 @@ export const AudioPlayerBar: React.FC = () => {
             <MaterialCommunityIcons
               name="skip-previous"
               size={25}
-              color={QuranColors.emerald}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.playButton}
+            style={[styles.playButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => void togglePlayback()}
             disabled={status === 'downloading' || status === 'checking_files' || status === 'completed'}
             accessibilityLabel={status === 'paused' ? 'استئناف التلاوة' : 'إيقاف مؤقت'}
@@ -121,7 +120,7 @@ export const AudioPlayerBar: React.FC = () => {
             <MaterialCommunityIcons
               name={status === 'paused' ? 'play' : 'pause'}
               size={23}
-              color="#FFFFFF"
+              color={theme.colors.onPrimary}
             />
           </TouchableOpacity>
 
@@ -139,7 +138,7 @@ export const AudioPlayerBar: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.timeText}>{formatTime(durationSeconds)}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.onSurfaceVariant }]}>{formatTime(durationSeconds)}</Text>
       </View>
     </View>
     <AudioSettingsModal

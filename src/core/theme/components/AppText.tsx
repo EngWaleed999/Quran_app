@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextProps, StyleSheet } from 'react-native';
+import { useTheme } from 'react-native-paper';
 
 export interface AppTextProps extends TextProps {
   /** Force centering or custom alignment if needed */
@@ -7,19 +8,51 @@ export interface AppTextProps extends TextProps {
 }
 
 /**
- * Production-grade Arabic Text component with guaranteed RTL alignment.
- * Solves the default LTR / textAlign: 'auto' mismatch on mobile platforms.
+ * Shared Arabic text primitive.
+ *
+ * Legacy components still contain references to the original classic palette.
+ * Resolve those semantic colors against the active Paper theme at render time,
+ * so a screen does not keep dark ink on a dark surface after a theme switch.
  */
+function resolveSemanticColor(color: unknown, theme: ReturnType<typeof useTheme>): unknown {
+  if (typeof color !== 'string') return color;
+
+  const semanticColors: Record<string, string> = {
+    '#1E1E1E': theme.colors.onSurface,
+    '#20342A': theme.colors.onSurface,
+    '#5F5B54': theme.colors.onSurfaceVariant,
+    '#617268': theme.colors.onSurfaceVariant,
+    '#1F513F': theme.colors.primary,
+    '#14362A': theme.colors.primary,
+    '#2F785E': theme.colors.primary,
+    '#2F6E52': theme.colors.primary,
+    '#C59B27': theme.colors.secondary,
+    '#B68E35': theme.colors.secondary,
+    '#E5C058': theme.colors.secondary,
+    '#D4B25E': theme.colors.primary,
+    '#FFF8F0FF': theme.colors.onSurface,
+    '#FFFFFF': theme.colors.onPrimary,
+  };
+
+  return semanticColors[color.toUpperCase()] ?? color;
+}
+
 export const AppText: React.FC<AppTextProps> = ({
   style,
   align,
   children,
   ...rest
 }) => {
+  const theme = useTheme();
+  const flattenedStyle = StyleSheet.flatten(style);
+  const resolvedColor = resolveSemanticColor(flattenedStyle?.color, theme);
+
   return (
     <RNText
       style={[
         styles.defaultText,
+        { color: theme.colors.onSurface },
+        resolvedColor ? { color: resolvedColor } : null,
         align ? { textAlign: align } : null,
         style,
       ]}
