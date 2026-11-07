@@ -1,6 +1,6 @@
-import { SQLiteDatabase } from 'expo-sqlite';
-import { Ayah } from '../../features/mushaf/types/mushaf.types';
-import { Surah, JuzItem, AyahSearchResult } from '../../features/surah-list/types/surah.types';
+import type { SQLiteDatabase } from 'expo-sqlite';
+import type { Ayah } from '../../features/mushaf/types/mushaf.types';
+import type { Surah, JuzItem, AyahSearchResult } from '../../features/surah-list/types/surah.types';
 
 export class QuranRepository {
   private static pageCache = new Map<number, Ayah[]>();
