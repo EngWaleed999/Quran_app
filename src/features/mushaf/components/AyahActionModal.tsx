@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Modal, ScrollView, Share, I18nManager } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { Bookmark, BookmarkType, BOOKMARK_TYPE_COLORS } from '../../bookmarks/types/bookmark.types';
@@ -39,6 +40,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   onPlayAudio,
   onRepeatAudio,
 }) => {
+  const theme = useTheme();
   if (!ayah) return null;
 
   const hasBookmark = (type: BookmarkType) => bookmarks.some((item) => item.type === type && item.verseKey === ayah.verseKey);
@@ -77,7 +79,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
           onPress={onClose}
         />
 
-        <View style={styles.bottomSheetContainer}>
+        <View style={[styles.bottomSheetContainer, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.dragHandle} />
 
           <View style={styles.header}>
@@ -107,7 +109,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
           </View>
 
           {ayah.ayahText ? (
-            <View style={styles.snippetBox}>
+            <View style={[styles.snippetBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
               <Text style={styles.snippetText} numberOfLines={3}>
                 {ayah.ayahText}
               </Text>
@@ -132,7 +134,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
                   </View>
                   <View style={styles.actionDetails}>
                     <Text style={[styles.actionTitle, selected && { color: tint }]}>{selected ? 'إزالة ' + title : title}</Text>
-                    <Text style={styles.actionSubtitle}>{subtitle}</Text>
+                    <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]} >{subtitle}</Text>
                   </View>
                   <MaterialCommunityIcons name={selected ? 'check-circle' : 'plus-circle-outline'} size={20} color={tint} />
                 </TouchableOpacity>
@@ -151,7 +153,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>تلاوة</Text>
+                <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]} >تلاوة</Text>
                 <Text style={styles.actionSubtitle}>
                   اختر القارئ وشغّل السورة من هذه الآية
                 </Text>
