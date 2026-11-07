@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { AppearanceMode, getQuranPalette } from '../../../core/theme/theme';
 import { useAppPreferences } from '../../../core/theme/preferencesStore';
@@ -53,7 +52,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
   const appearance = useAppPreferences((state) => state.appearance);
   const setAppearance = useAppPreferences((state) => state.setAppearance);
   const palette = getQuranPalette(appearance);
-  const paperTheme = useTheme();
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
