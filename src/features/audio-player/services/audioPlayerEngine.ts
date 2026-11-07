@@ -353,8 +353,8 @@ export class AudioPlayerEngine {
   }
 
   async previousAyah(): Promise<void> {
-    if (!this.isEngineRunning || this.currentIndex <= this.startIndex) {
-      if (this.isEngineRunning && this.currentIndex === this.startIndex) {
+    if (!this.isEngineRunning || this.currentIndex <= 0) {
+      if (this.isEngineRunning && this.currentIndex === 0) {
         this.playCurrentAyah();
       }
       return;
