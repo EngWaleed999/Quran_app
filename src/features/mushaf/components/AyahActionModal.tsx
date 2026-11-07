@@ -7,6 +7,7 @@ import {
   Modal,
   ScrollView,
   Share,
+  I18nManager,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QuranColors } from '../../../core/theme/theme';
@@ -28,6 +29,9 @@ interface AyahActionModalProps {
   isBookmarked: boolean;
   onClose: () => void;
   onToggleBookmark: (ayah: SelectedAyahInfo) => void;
+  onOpenTafsir?: (ayah: SelectedAyahInfo) => void;
+  onPlayAudio?: (ayah: SelectedAyahInfo) => void;
+  onRepeatAudio?: (ayah: SelectedAyahInfo) => void;
 }
 
 export const AyahActionModal: React.FC<AyahActionModalProps> = ({
@@ -36,16 +40,29 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   isBookmarked,
   onClose,
   onToggleBookmark,
+  onOpenTafsir,
+  onPlayAudio,
+  onRepeatAudio,
 }) => {
   if (!ayah) return null;
 
   const handleShare = async () => {
     try {
-      const message = `سورة ${ayah.suraName} - الآية ${toArabicNumerals(ayah.ayaNo)} (صفحة ${toArabicNumerals(ayah.page)}):\n\n${ayah.ayahText || ''}\n\n— تطبيق القرآن الكريم`;
+      const message =
+        'سورة ' + ayah.suraName + ' - الآية ' + toArabicNumerals(ayah.ayaNo) +
+        ' (صفحة ' + toArabicNumerals(ayah.page) + '):\n\n' +
+        (ayah.ayahText || '') + '\n\n— تطبيق القرآن الكريم';
       await Share.share({ message });
-    } catch (e) {
-      console.warn('Share error:', e);
+    } catch (error) {
+      console.warn('Share error:', error);
     }
+  };
+
+  const runAudioAction = (
+    action: ((selectedAyah: SelectedAyahInfo) => void) | undefined
+  ) => {
+    onClose();
+    action?.(ayah);
   };
 
   return (
@@ -64,10 +81,8 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
         />
 
         <View style={styles.bottomSheetContainer}>
-          {/* Top Sheet Handle */}
           <View style={styles.dragHandle} />
 
-          {/* Ayah Header Information */}
           <View style={styles.header}>
             <View style={styles.headerTitleCol}>
               <Text style={styles.surahTitleText}>
@@ -75,21 +90,15 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               </Text>
               <View style={styles.badgesRow}>
                 <View style={styles.badgePill}>
-                  <Text style={styles.badgeText}>
-                    الجزء {toArabicNumerals(ayah.jozz)}
-                  </Text>
+                  <Text style={styles.badgeText}>الجزء {toArabicNumerals(ayah.jozz)}</Text>
                 </View>
                 <View style={styles.badgePill}>
-                  <Text style={styles.badgeText}>
-                    صفحة {toArabicNumerals(ayah.page)}
-                  </Text>
+                  <Text style={styles.badgeText}>صفحة {toArabicNumerals(ayah.page)}</Text>
                 </View>
                 {isBookmarked ? (
                   <View style={[styles.badgePill, styles.bookmarkedPill]}>
                     <MaterialCommunityIcons name="bookmark-check" size={13} color="#FFFFFF" />
-                    <Text style={[styles.badgeText, { color: '#FFFFFF', fontWeight: 'bold' }]}>
-                      فاصل محفوظ
-                    </Text>
+                    <Text style={[styles.badgeText, styles.bookmarkedText]}>فاصل محفوظ</Text>
                   </View>
                 ) : null}
               </View>
@@ -100,7 +109,6 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Ayah Snippet Preview */}
           {ayah.ayahText ? (
             <View style={styles.snippetBox}>
               <Text style={styles.snippetText} numberOfLines={3}>
@@ -109,13 +117,11 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
             </View>
           ) : null}
 
-          {/* Action List Grid */}
           <ScrollView
             style={styles.actionsScroll}
             contentContainerStyle={styles.actionsContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* 1. Bookmark Action (Fully Functional) */}
             <TouchableOpacity
               style={[styles.actionRow, isBookmarked && styles.bookmarkedActionRow]}
               onPress={() => onToggleBookmark(ayah)}
@@ -145,8 +151,11 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               />
             </TouchableOpacity>
 
-            {/* 2. Recitation Action (Visual UI) */}
-            <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              activeOpacity={0.7}
+              onPress={() => runAudioAction(onPlayAudio)}
+            >
               <View style={styles.actionIconBox}>
                 <MaterialCommunityIcons
                   name="play-circle-outline"
@@ -155,53 +164,53 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>تلاوة الآية</Text>
+                <Text style={styles.actionTitle}>تلاوة</Text>
                 <Text style={styles.actionSubtitle}>
-                  الاستماع لتلاوة الآية بصوت الشيخ ماهر المعيقلي (قريباً)
+                  اختر القارئ وشغّل السورة من هذه الآية
                 </Text>
               </View>
-              <View style={styles.comingSoonTag}>
-                <Text style={styles.comingSoonText}>قريباً</Text>
-              </View>
+              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
             </TouchableOpacity>
 
-            {/* 3. Repetition Action (Visual UI) */}
-            <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              activeOpacity={0.7}
+              onPress={() => runAudioAction(onRepeatAudio)}
+            >
               <View style={styles.actionIconBox}>
                 <MaterialCommunityIcons name="repeat" size={24} color={QuranColors.emerald} />
               </View>
               <View style={styles.actionDetails}>
                 <Text style={styles.actionTitle}>ترديد وتكرار</Text>
                 <Text style={styles.actionSubtitle}>
-                  تحديد نطاق وعدد مرات تكرار الآية للحفظ والتثبيت (قريباً)
+                  كرّر كل آية مع تأخير زمني قابل للتعديل
                 </Text>
               </View>
-              <View style={styles.comingSoonTag}>
-                <Text style={styles.comingSoonText}>قريباً</Text>
-              </View>
+              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
             </TouchableOpacity>
 
-            {/* 4. Tafsir Action (Visual UI) */}
-            <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              activeOpacity={0.7}
+              onPress={() => {
+                onClose();
+                onOpenTafsir?.(ayah);
+              }}
+            >
               <View style={styles.actionIconBox}>
                 <MaterialCommunityIcons
-                  name="book-open-outline"
+                  name="book-open-page-variant-outline"
                   size={24}
                   color={QuranColors.emerald}
                 />
               </View>
               <View style={styles.actionDetails}>
-                <Text style={styles.actionTitle}>التفسير الميسر</Text>
-                <Text style={styles.actionSubtitle}>
-                  عرض معاني الكلمات وتفسير الآية (قريباً)
-                </Text>
+                <Text style={styles.actionTitle}>التفسيرات</Text>
+                <Text style={styles.actionSubtitle}>تفسير السعدي، والتفسير الميسر</Text>
               </View>
-              <View style={styles.comingSoonTag}>
-                <Text style={styles.comingSoonText}>قريباً</Text>
-              </View>
+              <MaterialCommunityIcons name="chevron-left" size={20} color={QuranColors.textMuted} />
             </TouchableOpacity>
 
-            {/* 5. Share Action (Fully Functional) */}
             <TouchableOpacity style={styles.actionRow} onPress={handleShare} activeOpacity={0.7}>
               <View style={styles.actionIconBox}>
                 <MaterialCommunityIcons
@@ -254,7 +263,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
@@ -273,12 +282,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   badgesRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 6,
   },
   badgePill: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
@@ -288,6 +297,10 @@ const styles = StyleSheet.create({
   },
   bookmarkedPill: {
     backgroundColor: QuranColors.emerald,
+  },
+  bookmarkedText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   badgeText: {
     fontSize: 11,
@@ -329,7 +342,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -367,6 +380,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: QuranColors.textDark,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   bookmarkedTitle: {
     color: QuranColors.emerald,
@@ -375,16 +389,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: QuranColors.textMuted,
     textAlign: 'right',
-  },
-  comingSoonTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(197, 155, 39, 0.14)',
-  },
-  comingSoonText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: QuranColors.gold,
+    writingDirection: 'rtl',
   },
 });

@@ -9,6 +9,7 @@ import {
   Modal,
   ActivityIndicator,
   Keyboard,
+  I18nManager,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -307,12 +308,12 @@ const styles = StyleSheet.create({
     backgroundColor: QuranColors.parchment,
   },
   headerBar: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderBottomWidth: 1,
     borderBottomColor: QuranColors.parchmentBorder,
     gap: 12,
@@ -326,7 +327,7 @@ const styles = StyleSheet.create({
   },
   searchFieldWrapper: {
     flex: 1,
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     backgroundColor: QuranColors.parchment,
     borderRadius: 10,
@@ -341,6 +342,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: QuranColors.textDark,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   loadingContainer: {
     flex: 1,
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   chipsContainer: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
@@ -402,9 +404,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pageCard: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderRadius: 10,
     padding: 14,
     borderWidth: 1.5,
@@ -444,9 +446,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: QuranColors.textMuted,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   jumpBtnBadge: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     backgroundColor: QuranColors.emerald,
     paddingHorizontal: 12,
@@ -467,10 +470,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: QuranColors.textMuted,
     textAlign: 'right',
+    writingDirection: 'rtl',
     marginBottom: 8,
   },
   surahCard: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -505,7 +509,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   surahTitleRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -534,6 +538,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: QuranColors.textMuted,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   ayahCard: {
     backgroundColor: '#FFFFFF',
@@ -544,7 +549,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ayahCardHeader: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -567,6 +572,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: QuranColors.textDark,
     textAlign: 'right',
+    writingDirection: 'rtl',
     lineHeight: 24,
     fontFamily: 'UthmanicHafs',
   },

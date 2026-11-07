@@ -46,5 +46,13 @@ assets/fonts/qcf_v2/
 .agents
 
 quran_svg
-assets/data/tafsir.db
 quran_svg_1
+assets/data/tafsir.db
+.tafsir
+tafsir
+
+# Temporary & scratch folders
+scratch/
+testing_font/
+testing_svg_json/
+font_fix/

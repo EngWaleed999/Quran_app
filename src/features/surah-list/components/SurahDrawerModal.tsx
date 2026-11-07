@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
+  I18nManager,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -310,13 +311,13 @@ const styles = StyleSheet.create({
     backgroundColor: QuranColors.parchment,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderBottomWidth: 1,
     borderBottomColor: QuranColors.parchmentBorder,
   },
@@ -358,9 +359,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   surahRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -393,14 +394,14 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
   },
   currentSurahNumberText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
   },
   surahDetails: {
     flex: 1,
     gap: 3,
   },
   surahTitleRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -408,10 +409,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: QuranColors.emeraldDark,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   currentSurahName: {
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   typeBadge: {
     paddingHorizontal: 6,
@@ -436,7 +441,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   currentBadgeText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -444,6 +449,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: QuranColors.textMuted,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   pageIndicatorWrapper: {
     alignItems: 'center',
@@ -483,7 +489,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   bookmarkCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF8F0FF',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1.5,
@@ -501,7 +507,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookmarkBadge: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     backgroundColor: QuranColors.emerald,
     paddingHorizontal: 10,
@@ -510,7 +516,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bookmarkBadgeText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -533,7 +539,7 @@ const styles = StyleSheet.create({
     fontFamily: 'UthmanicHafs',
   },
   jumpBookmarkBtn: {
-    flexDirection: 'row-reverse',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: QuranColors.emerald,
@@ -543,13 +549,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   jumpBookmarkBtnText: {
-    color: '#FFFFFF',
+    color: '#FFF8F0FF',
     fontSize: 14,
     fontWeight: 'bold',
   },
   bottomNavContainer: {
-    flexDirection: 'row-reverse',
-    backgroundColor: '#FFFFFF',
+    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    backgroundColor: '#FFF8F0FF',
     borderTopWidth: 1,
     borderTopColor: QuranColors.parchmentBorder,
     paddingVertical: 6,
