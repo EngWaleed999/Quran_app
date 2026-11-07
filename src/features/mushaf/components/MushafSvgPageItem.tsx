@@ -53,15 +53,17 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
   // استخراج أصل صفحة الـ SVG من قاعدة البيانات فائقة السرعة
   const pageAsset = useMemo(() => {
-    if (!db) return null;
+    // PagerView keeps React children for every Mushaf page. Only load and parse
+    // SVG payloads for the small window around the visible page.
+    if (!db || !isNear) return null;
     return SvgMushafRepository.getPageAssetSync(db, page);
-  }, [db, page]);
+  }, [db, page, isNear]);
 
   // التحقق من وجود سورة تبدأ في هذه الصفحة من قاعدة البيانات
   const surahHeader = useMemo(() => {
-    if (!db) return null;
+    if (!db || !isNear) return null;
     return QuranRepository.getSurahStartingOnPage(db, page);
-  }, [db, page]);
+  }, [db, page, isNear]);
 
   // تحويل وتطبيع بيانات الإحداثيات والمضلعات
   const normalizedData = useMemo(() => {
@@ -89,7 +91,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     pageY: number;
     locationX: number;
     locationY: number;
-    time: number;
   } | null>(null);
 
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,7 +110,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
       pageY,
       locationX,
       locationY,
-      time: Date.now(),
     };
     hasTriggeredLongPressRef.current = false;
 
@@ -163,11 +163,11 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
     const deltaX = Math.abs(event.nativeEvent.pageX - touchStartRef.current.pageX);
     const deltaY = Math.abs(event.nativeEvent.pageY - touchStartRef.current.pageY);
-    const elapsed = Date.now() - touchStartRef.current.time;
     touchStartRef.current = null;
 
-    // نقر خفيف مستقر دون حركة للتبديل بين وضع ملء الشاشة والأدوات
-    if (deltaX < 10 && deltaY < 10 && elapsed < 300) {
+    // A stationary release is a tap even when the user holds it slightly longer.
+    // Long presses on an actual ayah are handled above and must not toggle controls.
+    if (deltaX < 10 && deltaY < 10) {
       onToggleControls?.();
     }
   };
