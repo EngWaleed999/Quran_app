@@ -33,7 +33,14 @@
     "typecheck": "tsc --noEmit",
     "test:khatmah": "node --experimental-strip-types --test tests/khatmahRules.test.mjs tests/khatmahService.test.mjs tests/bookmarkRules.test.mjs tests/audioPlaybackRules.test.mjs",
     "test:bookmarks": "node --experimental-strip-types --test tests/bookmarkRules.test.mjs",
-    "test:audio": "node --experimental-strip-types --test tests/audioPlaybackRules.test.mjs"
+    "test:audio": "node --experimental-strip-types --test tests/audioPlaybackRules.test.mjs",
+    "prestart": "node scripts/prepare-quran-db.mjs",
+    "preandroid": "node scripts/prepare-quran-db.mjs",
+    "preios": "node scripts/prepare-quran-db.mjs",
+    "eas-build-post-install": "node scripts/prepare-quran-db.mjs --eas",
+    "db:prepare": "node scripts/prepare-quran-db.mjs",
+    "db:analyze": "node scripts/analyze-quran-db.mjs",
+    "db:backup": "node scripts/backup-quran-db.mjs"
   },
   "private": true
 }

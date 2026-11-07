@@ -39,7 +39,7 @@ export default function App() {
             databaseName="quran.db"
             onInit={initializeAppSchema}
             assetSource={{
-              assetId: require('./assets/data/quran.db'),
+              assetId: require('./assets/data/quran-full.db'),
               // Keep the bundled database as a first-install seed. Re-copying it
               // on every app reload causes avoidable disk I/O and startup delay.
               forceOverwrite: false,
