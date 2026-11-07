@@ -76,7 +76,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
                 {SURAH_OPTIONS.map((option) => {
                   const selected = draft.surahRepeatCount === option.value;
                   return (
-                    <TouchableOpacity key={option.label} onPress={() => update('surahRepeatCount', option.value)} style={[styles.option, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, selected === value && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }, option.value === null && styles.infiniteOption]}>
+                    <TouchableOpacity key={option.label} onPress={() => update('surahRepeatCount', option.value)} style={[styles.option, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, selected && { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.primary }, option.value === null && styles.infiniteOption]}>
                       <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{option.label}</Text>
                     </TouchableOpacity>
                   );

@@ -15,7 +15,7 @@ export interface AppTextProps extends TextProps {
  * so a screen does not keep dark ink on a dark surface after a theme switch.
  */
 function resolveSemanticColor(color: unknown, theme: MD3Theme): string | undefined {
-  if (typeof color !== 'string') return color;
+  if (typeof color !== 'string') return undefined;
 
   const semanticColors: Record<string, string> = {
     '#1E1E1E': theme.colors.onSurface,
