@@ -28,11 +28,11 @@ try {
     ['ayahs', 'aya_text_emlaey'],
   ]) {
     try {
-      const row = db.prepare(`SELECT COUNT(*) AS rows, COALESCE(SUM(length("${column}")), 0) AS characters FROM "${table}"`).get();
+      const row = db.prepare(`SELECT COUNT(*) AS rows, COALESCE(SUM(length("${column}")), 0) AS characters, COALESCE(SUM(length(CAST("${column}" AS BLOB))), 0) AS payload_bytes FROM "${table}"`).get();
       contents[`${table}.${column}`] = {
         rows: Number(row.rows),
         characters: Number(row.characters),
-        approxBytesUtf8: Number(row.characters),
+        payloadBytes: Number(row.payload_bytes),
       };
     } catch {
       // This table/column may not exist in an older database.

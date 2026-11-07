@@ -18,7 +18,12 @@ mkdirSync(dirname(outputPath), { recursive: true });
 const source = new DatabaseSync(sourcePath);
 try {
   // Checkpoint WAL content before creating a standalone snapshot.
-  source.exec('PRAGMA wal_checkpoint(FULL)');
+  const checkpoint = source.prepare('PRAGMA wal_checkpoint(FULL)').get();
+  if (Number(checkpoint?.busy ?? 0) !== 0) {
+    throw new Error(
+      'SQLite WAL checkpoint is busy. Close Expo/the app and any database viewer, then retry.'
+    );
+  }
   const safePath = outputPath.replace(/'/g, "''");
   source.exec(`VACUUM INTO '${safePath}'`);
 } finally {

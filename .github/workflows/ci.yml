@@ -43,5 +43,8 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-      - name: Run Khatmah and bookmark unit tests
+      - name: Validate database tooling syntax
+        run: pnpm run check:db-tools
+
+      - name: Run feature unit tests
         run: pnpm run test:khatmah

@@ -1,11 +1,17 @@
 {
   "build": {
+    "base": {
+      "node": "22.23.4",
+      "pnpm": "9.15.9"
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development"
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
       "environment": "preview",
       "android": {
@@ -13,6 +19,7 @@
       }
     },
     "production": {
+      "extends": "base",
       "environment": "production",
       "android": {
         "buildType": "apk"

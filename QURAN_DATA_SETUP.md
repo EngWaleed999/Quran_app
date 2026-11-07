@@ -28,7 +28,7 @@ This creates a timestamped, standalone SQLite snapshot in `backups/` using `VACU
 pnpm db:analyze
 ```
 
-The report includes SQLite page allocation, free pages, table sizes (when SQLite's dbstat module is available), SVG/XML payload, coordinate JSON payload, and tafsir text totals.
+The report includes SQLite page allocation, free pages, table sizes (when SQLite's dbstat module is available), and both character counts and actual UTF-8 byte lengths for SVG/XML payload, coordinate JSON payload, Quran text, and tafsir.
 
 Do not run `VACUUM` or rebuild tables blindly. First inspect which tables consume the space. The 120 MB figure alone does not reveal whether the cause is SVG markup, duplicated coordinate JSON, indexes, or free pages.
 
@@ -51,7 +51,9 @@ The preparation script validates SQLite integrity and required data:
 - exactly 604 distinct SVG pages (1–604);
 - non-empty Saadi tafsir records.
 
-It copies the source to `assets/data/quran-full.db` without changing or deleting `quran.db`. The normal `pnpm start`, `pnpm android`, and `pnpm ios` scripts run the preparation check first.
+Before copying, it checkpoints the SQLite WAL and verifies the checkpoint is not busy. It then copies through a temporary file, validates that copy, and renames it to `assets/data/quran-full.db`. It never deletes or rewrites `quran.db`. The normal `pnpm start`, `pnpm android`, and `pnpm ios` scripts run the preparation check first.
+
+If you later replace your source database with a newer verified version, first create and verify an off-device backup. Then remove only the generated, ignored file `assets/data/quran-full.db` and run `pnpm db:prepare` again. Do not delete `assets/data/quran.db` as part of this refresh.
 
 ## 4. Configure cloud APK builds
 
@@ -80,7 +82,7 @@ In Expo dashboard → Project → Environment variables, add these variables to 
 
 Keep the URL and digest together. For a private object store, use a read-only signed URL and rotate it when needed. These values are used only by the build hook; they are not prefixed with `EXPO_PUBLIC_` and are not bundled into the app.
 
-The `eas-build-post-install` hook downloads the database to `assets/data/quran-full.db`, checks the checksum and SQLite integrity, validates the 604 pages and tafsir, and then lets Metro bundle the database. It fails the build rather than silently packaging the old 4 MB placeholder.
+The `eas-build-post-install` hook downloads the database to `assets/data/quran-full.db`, checks the checksum and SQLite integrity, validates the 604 pages and tafsir, and then lets Metro bundle the database. EAS is pinned to Node 22.23.4 (which includes `node:sqlite`) and pnpm 9.15.9 in all build profiles. It fails the build rather than silently packaging the old 4 MB placeholder.
 
 To create an Android APK, choose the `preview` profile (or `production`):
 

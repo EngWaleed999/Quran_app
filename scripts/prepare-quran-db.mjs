@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
+  createReadStream,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -19,6 +20,28 @@ const TARGET_PATH = resolve(ROOT, 'assets/data/quran-full.db');
 const TEMP_PATH = `${TARGET_PATH}.download`;
 const MAX_DOWNLOAD_BYTES = 1024 * 1024 * 1024;
 const MIN_DATABASE_BYTES = 1024 * 1024;
+
+async function sha256File(filePath) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) {
+    hash.update(chunk);
+  }
+  return hash.digest('hex');
+}
+
+function checkpointDatabase(filePath) {
+  const db = new DatabaseSync(filePath);
+  try {
+    const checkpoint = db.prepare('PRAGMA wal_checkpoint(FULL)').get();
+    if (Number(checkpoint?.busy ?? 0) !== 0) {
+      throw new Error(
+        'SQLite WAL checkpoint is busy. Close Expo/the app and any database viewer, then retry.'
+      );
+    }
+  } finally {
+    db.close();
+  }
+}
 
 function assertSha256(value) {
   if (!/^[a-f0-9]{64}$/i.test(value ?? '')) {
@@ -175,7 +198,7 @@ async function main() {
   if (existsSync(TARGET_PATH)) {
     metrics = validateDatabase(TARGET_PATH);
     if (expectedSha256) {
-      const actual = createHash('sha256').update(await import('node:fs').then((fs) => fs.readFileSync(TARGET_PATH))).digest('hex');
+      const actual = await sha256File(TARGET_PATH);
       if (actual !== expectedSha256) {
         throw new Error('The existing quran-full.db does not match QURAN_DB_SHA256.');
       }
@@ -190,11 +213,24 @@ async function main() {
   } else if (configuredUrl && expectedSha256) {
     metrics = await downloadDatabase(configuredUrl, expectedSha256);
   } else if (existsSync(SOURCE_PATH)) {
-    metrics = validateDatabase(SOURCE_PATH);
     if (existsSync(TARGET_PATH)) {
       throw new Error('The target quran-full.db already exists; refusing to overwrite it.');
     }
-    copyFileSync(SOURCE_PATH, TARGET_PATH);
+
+    // A database may use WAL mode. Checkpoint it before copying so committed
+    // rows are included in the standalone asset. The source remains untouched.
+    checkpointDatabase(SOURCE_PATH);
+    metrics = validateDatabase(SOURCE_PATH);
+
+    rmSync(TEMP_PATH, { force: true });
+    try {
+      copyFileSync(SOURCE_PATH, TEMP_PATH);
+      validateDatabase(TEMP_PATH);
+      renameSync(TEMP_PATH, TARGET_PATH);
+    } catch (error) {
+      rmSync(TEMP_PATH, { force: true });
+      throw error;
+    }
   } else {
     throw new Error(
       'Full Quran database not found. Put the complete database at assets/data/quran.db, or configure QURAN_DB_URL and QURAN_DB_SHA256.'
@@ -203,9 +239,7 @@ async function main() {
 
   // Revalidate the final path after a local copy. No source file is ever deleted or modified.
   metrics = validateDatabase(TARGET_PATH);
-  const digest = createHash('sha256')
-    .update(await import('node:fs').then((fs) => fs.readFileSync(TARGET_PATH)))
-    .digest('hex');
+  const digest = await sha256File(TARGET_PATH);
 
   console.log('Quran database is ready for Metro bundling.');
   console.log(JSON.stringify({ ...metrics, sha256: digest, asset: 'assets/data/quran-full.db' }, null, 2));
