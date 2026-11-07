@@ -65,7 +65,11 @@ export const MushafPageView: React.FC = () => {
   const [isControlsVisible, setIsControlsVisible] = useState<boolean>(true);
   const controlsAnim = useRef(new Animated.Value(1)).current;
 
-  const { status: audioStatus, activeAyah } = useAudioStore();
+  // Subscribe only to playback fields that affect the Mushaf. Position updates
+  // arrive every 100 ms; subscribing to the whole store would rerender all 604
+  // PagerView children on every progress tick.
+  const audioStatus = useAudioStore((state) => state.status);
+  const activeAyah = useAudioStore((state) => state.activeAyah);
   const playingVerseKey = useMemo(() => {
     if (
       (audioStatus === 'playing' ||
@@ -365,6 +369,7 @@ export const MushafPageView: React.FC = () => {
                   khatmahStartGlobalAyah={dailyWird?.startGlobalAyah ?? null}
                   khatmahEndGlobalAyah={dailyWird?.endGlobalAyah ?? null}
                   khatmahWrapsAroundEnd={dailyWird?.wrapsAroundEnd ?? false}
+                  khatmahDailyTargetAyahs={dailyWird?.dailyTargetAyahs ?? 0}
                   searchHighlightVerseKey={searchHighlightVerseKey}
                   playingVerseKey={playingVerseKey}
                   onAyahPress={handleAyahLongPress}
