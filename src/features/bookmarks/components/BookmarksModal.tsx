@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
 import {
   Bookmark,
@@ -27,6 +28,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
   onNavigate,
   onRemove,
 }) => {
+  const theme = useTheme();
   const [filter, setFilter] = useState<BookmarkType | 'all'>('all');
   const filtered = useMemo(
     () => filter === 'all' ? bookmarks : bookmarks.filter((item) => item.type === filter),
@@ -35,12 +37,12 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="إغلاق">
-            <MaterialCommunityIcons name="arrow-right" size={24} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>الفواصل المحفوظة</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]} >الفواصل المحفوظة</Text>
           <View style={styles.headerButton} />
         </View>
 
@@ -70,16 +72,16 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
               <Text style={styles.emptySubtitle}>اضغط مطولاً على آية واحفظ موضعاً للمتابعة أو القراءة أو الحفظ.</Text>
             </View>
           ) : filtered.map((bookmark) => (
-            <View key={bookmark.type} style={styles.card}>
+            <View key={bookmark.type} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
               <View style={[styles.typeStripe, { backgroundColor: BOOKMARK_TYPE_COLORS[bookmark.type] }]} />
               <TouchableOpacity style={styles.cardContent} onPress={() => onNavigate(bookmark)} activeOpacity={0.75}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={styles.cardTitle}>سورة {bookmark.suraName}</Text>
+                  <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>سورة {bookmark.suraName}</Text>
                   <View style={[styles.typeBadge, { backgroundColor: BOOKMARK_TYPE_COLORS[bookmark.type] + '18' }]}>
                     <Text style={[styles.typeBadgeText, { color: BOOKMARK_TYPE_COLORS[bookmark.type] }]}>{BOOKMARK_TYPE_LABELS[bookmark.type]}</Text>
                   </View>
                 </View>
-                <Text style={styles.meta}>الآية {bookmark.ayaNo} • الصفحة {bookmark.page}</Text>
+                <Text style={[styles.meta, { color: theme.colors.onSurfaceVariant }]}>الآية {bookmark.ayaNo} • الصفحة {bookmark.page}</Text>
                 {bookmark.ayahText ? <Text numberOfLines={2} style={styles.snippet}>{bookmark.ayahText}</Text> : null}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => onRemove(bookmark.type)} style={styles.removeButton} accessibilityLabel="حذف الفاصل">
