@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
@@ -32,7 +40,6 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const [durationDays, setDurationDays] = useState('30');
   const [startFrom, setStartFrom] = useState<'beginning' | 'current'>('beginning');
   const [loading, setLoading] = useState(false);
-  const [completed, setCompleted] = useState(false);
 
   const refresh = async () => {
     const current = await KhatmahService.getDailyWird(db);
@@ -43,13 +50,13 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   useEffect(() => {
     if (!visible) return;
     let active = true;
+
     setLoading(true);
     void KhatmahService.getDailyWird(db)
       .then((result) => {
         if (active) {
           setWird(result);
           onWirdChange?.(result);
-          setCompleted(false);
         }
       })
       .catch((error) => {
@@ -59,45 +66,58 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
-  }, [visible, db]);
+
+    return () => {
+      active = false;
+    };
+  }, [visible, db, onWirdChange]);
 
   const createPlan = async () => {
-    const days = Number.parseInt(durationDays, 10);
+    const days = Number(durationDays);
     if (!Number.isInteger(days) || days < 1 || days > 3660) {
-      Alert.alert('مدة غير صحيحة', 'أدخل عدد أيام بين 1 و3660.');
+      Alert.alert('مدة غير صحيحة', 'أدخل عدداً صحيحاً من الأيام بين 1 و3660.');
       return;
     }
+
     try {
       setLoading(true);
       let startGlobalAyah = 1;
+
       if (startFrom === 'current') {
         const pageAyahs = QuranRepository.getPageAyahsSync(db, currentPage);
         const firstAyah = pageAyahs[0];
-        if (firstAyah) {
-          startGlobalAyah = QuranRepository.getGlobalAyahNumberSync(
-            db,
-            firstAyah.sura_no,
-            firstAyah.aya_no
-          );
+
+        if (!firstAyah) {
+          throw new Error('تعذر تحديد أول آية في الصفحة الحالية.');
         }
+
+        startGlobalAyah = QuranRepository.getGlobalAyahNumberSync(
+          db,
+          firstAyah.sura_no,
+          firstAyah.aya_no
+        );
       }
+
       await KhatmahService.createPlan(db, {
         khatmahCount,
         durationDays: days,
         startGlobalAyah,
       });
       await refresh();
-      setCompleted(false);
     } catch (error) {
-      Alert.alert('تعذر إنشاء الخطة', error instanceof Error ? error.message : 'حدث خطأ غير متوقع.');
+      Alert.alert(
+        'تعذر إنشاء الخطة',
+        error instanceof Error ? error.message : 'حدث خطأ غير متوقع.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const completeWird = async () => {
-    Alert.alert('إنهاء الورد', 'هل أتممت قراءة الورد المحدد لهذا اليوم؟', [
+  const completeWird = () => {
+    if (!wird?.canComplete || loading) return;
+
+    Alert.alert('إنهاء الورد', 'هل أتممت قراءة الورد المحدد؟', [
       { text: 'متابعة القراءة', style: 'cancel' },
       {
         text: 'نعم، أنهيت الورد',
@@ -107,9 +127,11 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
             const next = await KhatmahService.completeDailyWird(db);
             setWird(next);
             onWirdChange?.(next);
-            setCompleted(!next);
           } catch (error) {
-            Alert.alert('تعذر تحديث التقدم', error instanceof Error ? error.message : 'حاول مرة أخرى.');
+            Alert.alert(
+              'تعذر تحديث التقدم',
+              error instanceof Error ? error.message : 'حاول مرة أخرى.'
+            );
           } finally {
             setLoading(false);
           }
@@ -119,19 +141,32 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   };
 
   const stopPlan = () => {
-    Alert.alert('إيقاف الختمة', 'سيتم إيقاف الخطة الحالية مع الاحتفاظ بسجلها. هل تريد المتابعة؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'إيقاف الخطة',
-        style: 'destructive',
-        onPress: async () => {
-          await KhatmahService.deleteActivePlan(db);
-          setWird(null);
-          onWirdChange?.(null);
-          setCompleted(false);
+    Alert.alert(
+      'إيقاف الختمة',
+      'سيتم إيقاف الخطة الحالية مع الاحتفاظ بسجلها. هل تريد المتابعة؟',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'إيقاف الخطة',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await KhatmahService.deleteActivePlan(db);
+              setWird(null);
+              onWirdChange?.(null);
+            } catch (error) {
+              Alert.alert(
+                'تعذر إيقاف الخطة',
+                error instanceof Error ? error.message : 'حاول مرة أخرى.'
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const startVerse = wird
@@ -144,86 +179,264 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const goToWird = () => {
     if (!startVerse) return;
     onClose();
-    onNavigateToPage(startVerse.page, startVerse.sura_no + ':' + startVerse.aya_no);
+    onNavigateToPage(startVerse.page, `${startVerse.sura_no}:${startVerse.aya_no}`);
   };
 
+  const isFinished = wird?.status === 'finished';
+  const isTodayCompleted = wird?.status === 'completed';
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="إغلاق">
-            <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outline,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.headerButton}
+            accessibilityLabel="إغلاق"
+          >
+            <MaterialCommunityIcons
+              name="arrow-right"
+              size={24}
+              color={theme.colors.primary}
+            />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]} >ختمتي</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+            ختمتي
+          </Text>
           <View style={styles.headerButton} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           {loading ? <Text style={styles.helper}>جاري تحديث الخطة...</Text> : null}
 
-          {completed ? (
-            <View style={[styles.successCard, { backgroundColor: theme.colors.surface }]}>
-              <MaterialCommunityIcons name="trophy-outline" size={54} color={QuranColors.gold} />
+          {isFinished ? (
+            <View style={styles.successCard}>
+              <MaterialCommunityIcons
+                name="trophy-outline"
+                size={54}
+                color={QuranColors.gold}
+              />
               <Text style={styles.successTitle}>تقبّل الله منك ختمتك</Text>
-              <Text style={styles.helper}>أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.</Text>
-              <TouchableOpacity style={styles.primaryButton} onPress={() => setCompleted(false)}>
+              <Text style={styles.helper}>
+                أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.
+              </Text>
+              <View style={styles.finishedProgress}>
+                <Text style={styles.finishedProgressText}>
+                  {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => setWird(null)}
+              >
                 <Text style={styles.primaryButtonText}>إنشاء خطة جديدة</Text>
               </TouchableOpacity>
             </View>
           ) : wird ? (
             <>
-              <View style={[styles.summaryCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+              <View
+                style={[
+                  styles.summaryCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+              >
                 <Text style={styles.eyebrow}>خطتك الحالية</Text>
-                <Text style={[styles.planTitle, { color: theme.colors.onSurface }]} >{wird.plan.khatmahCount} ختمة خلال {wird.totalDays} يوماً</Text>
+                <Text style={[styles.planTitle, { color: theme.colors.onSurface }]}>
+                  {wird.plan.khatmahCount.toLocaleString('ar')} ختمة خلال {wird.totalDays.toLocaleString('ar')} يوماً
+                </Text>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: wird.progressPercent + '%' }]} />
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${wird.progressPercent}%` },
+                    ]}
+                  />
                 </View>
                 <View style={styles.progressMeta}>
-                  <Text style={styles.progressText}>{Math.round(wird.progressPercent)}٪ مكتمل</Text>
-                  <Text style={styles.progressText}>{wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية</Text>
+                  <Text style={styles.progressText}>
+                    {Math.round(wird.progressPercent).toLocaleString('ar')}٪ مكتمل
+                  </Text>
+                  <Text style={styles.progressText}>
+                    {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
+                  </Text>
                 </View>
               </View>
 
-              <View style={[styles.wirdCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+              <View
+                style={[
+                  styles.wirdCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+              >
                 <View style={styles.wirdHeading}>
-                  <Text style={[styles.wirdTitle, { color: theme.colors.onSurface }]} >وردك الحالي</Text>
-                  <Text style={styles.dayBadge}>اليوم {wird.dayNumber} من {wird.totalDays}</Text>
+                  <Text style={[styles.wirdTitle, { color: theme.colors.onSurface }]}>
+                    وردك الحالي
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dayBadge,
+                      wird.status === 'overdue' && styles.overdueBadge,
+                      isTodayCompleted && styles.completedBadge,
+                    ]}
+                  >
+                    {wird.status === 'overdue'
+                      ? `ورد متأخر • اليوم ${wird.dayNumber}`
+                      : isTodayCompleted
+                        ? 'ورد اليوم مكتمل'
+                        : `اليوم ${wird.dayNumber} من ${wird.totalDays}`}
+                  </Text>
                 </View>
-                <Text style={styles.metric}>{wird.dailyTargetPages.toLocaleString('ar')} صفحة تقريباً</Text>
-                <Text style={styles.metricSub}>{wird.dailyTargetAyahs.toLocaleString('ar')} آية في هذا الورد</Text>
+
+                <Text style={styles.metric}>
+                  {wird.dailyTargetPages.toLocaleString('ar')} صفحة
+                </Text>
+                <Text style={styles.metricSub}>
+                  {wird.dailyTargetAyahs.toLocaleString('ar')} آية • التاريخ المحدد {wird.scheduledDate}
+                </Text>
+
                 {startVerse && endVerse ? (
                   <View style={styles.rangeBox}>
-                    <Text style={styles.rangeText}>من سورة {startVerse.sura_name_ar} • الآية {startVerse.aya_no}</Text>
-                    <MaterialCommunityIcons name="arrow-down" size={18} color={QuranColors.gold} />
-                    <Text style={styles.rangeText}>إلى سورة {endVerse.sura_name_ar} • الآية {endVerse.aya_no}</Text>
-                    {wird.wrapsAroundEnd ? <Text style={styles.helper}>يمتد الورد من نهاية المصحف إلى بدايته.</Text> : null}
+                    <Text style={styles.rangeText}>
+                      من سورة {startVerse.sura_name_ar} • الآية {startVerse.aya_no.toLocaleString('ar')}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="arrow-down"
+                      size={18}
+                      color={QuranColors.gold}
+                    />
+                    <Text style={styles.rangeText}>
+                      إلى سورة {endVerse.sura_name_ar} • الآية {endVerse.aya_no.toLocaleString('ar')}
+                    </Text>
+                    {wird.wrapsAroundEnd ? (
+                      <Text style={styles.helper}>
+                        يمتد الورد من نهاية المصحف إلى بدايته.
+                      </Text>
+                    ) : null}
+                    {wird.dailyTargetAyahs >= 6236 ? (
+                      <Text style={styles.helper}>
+                        يتضمن هذا الورد دورة كاملة من المصحف أو أكثر.
+                      </Text>
+                    ) : null}
                   </View>
                 ) : null}
-                <Text style={styles.helper}>تم تظليل آيات هذا الورد في صفحات المصحف باللون الأخضر. يمكنك الرجوع إليها في أي وقت قبل إنهائها.</Text>
-                <TouchableOpacity onPress={goToWird} style={styles.secondaryButton}>
-                  <MaterialCommunityIcons name="book-open-page-variant-outline" size={19} color={QuranColors.emerald} />
-                  <Text style={styles.secondaryButtonText}>الانتقال إلى بداية الورد</Text>
+
+                <Text style={styles.helper}>
+                  تم تظليل آيات هذا الورد في صفحات المصحف. يمكنك الرجوع إليها قبل تسجيل إتمامه.
+                </Text>
+
+                <TouchableOpacity
+                  onPress={goToWird}
+                  style={styles.secondaryButton}
+                  disabled={loading}
+                >
+                  <MaterialCommunityIcons
+                    name="book-open-page-variant-outline"
+                    size={19}
+                    color={QuranColors.emerald}
+                  />
+                  <Text style={styles.secondaryButtonText}>
+                    الانتقال إلى بداية الورد
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={completeWird} style={styles.primaryButton} disabled={loading}>
-                  <MaterialCommunityIcons name="check-circle-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.primaryButtonText}>انتهيت من الورد اليوم</Text>
-                </TouchableOpacity>
+
+                {wird.canComplete ? (
+                  <TouchableOpacity
+                    onPress={completeWird}
+                    style={styles.primaryButton}
+                    disabled={loading}
+                  >
+                    <MaterialCommunityIcons
+                      name="check-circle-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.primaryButtonText}>انتهيت من الورد</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.completedNotice}>
+                    <MaterialCommunityIcons
+                      name="check-decagram"
+                      size={21}
+                      color={QuranColors.emerald}
+                    />
+                    <Text style={styles.completedNoticeText}>
+                      تم تسجيل إتمام هذا الورد. سيظهر الورد التالي في موعده.
+                    </Text>
+                  </View>
+                )}
               </View>
-              <TouchableOpacity onPress={stopPlan} style={styles.stopButton}>
+
+              <TouchableOpacity
+                onPress={stopPlan}
+                style={styles.stopButton}
+                disabled={loading}
+              >
                 <Text style={styles.stopText}>إيقاف الخطة الحالية</Text>
               </TouchableOpacity>
             </>
           ) : (
-            <View style={[styles.formCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
-              <MaterialCommunityIcons name="book-check-outline" size={44} color={QuranColors.emerald} />
+            <View
+              style={[
+                styles.formCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="book-check-outline"
+                size={44}
+                color={QuranColors.emerald}
+              />
               <Text style={styles.formTitle}>خطّط لختمتك</Text>
-              <Text style={styles.helper}>اختر عدد الختمات والمدة، وسنحسب لك مقدار القراءة اليومي ونظلل آيات وردك داخل المصحف.</Text>
+              <Text style={styles.helper}>
+                اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
+              </Text>
 
               <Text style={styles.label}>كم ختمة تريد؟</Text>
               <View style={styles.choices}>
-                {[1, 2, 3, 5, 10].map((value) => (
-                  <TouchableOpacity key={value} onPress={() => setKhatmahCount(value)} style={[styles.choice, khatmahCount === value && styles.choiceSelected]}>
-                    <Text style={[styles.choiceText, khatmahCount === value && styles.choiceTextSelected]}>{value.toLocaleString('ar')}</Text>
+                {[1, 2, 3, 5, 10, 20].map((value) => (
+                  <TouchableOpacity
+                    key={value}
+                    onPress={() => setKhatmahCount(value)}
+                    style={[
+                      styles.choice,
+                      khatmahCount === value && styles.choiceSelected,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: khatmahCount === value }}
+                  >
+                    <Text
+                      style={[
+                        styles.choiceText,
+                        khatmahCount === value && styles.choiceTextSelected,
+                      ]}
+                    >
+                      {value.toLocaleString('ar')}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -231,32 +444,78 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               <Text style={styles.label}>خلال كم يوماً؟</Text>
               <TextInput
                 value={durationDays}
-                onChangeText={(value) => setDurationDays(value.replace(/[^0-9]/g, ''))}
+                onChangeText={(value) =>
+                  setDurationDays(value.replace(/[^0-9]/g, ''))
+                }
                 keyboardType="number-pad"
                 textAlign="right"
-                style={styles.daysInput}
+                style={[
+                  styles.daysInput,
+                  {
+                    color: theme.colors.onSurface,
+                    backgroundColor: theme.colors.surfaceVariant,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
                 maxLength={4}
+                accessibilityLabel="مدة الختمة بالأيام"
               />
 
               <Text style={styles.label}>من أين تبدأ؟</Text>
               <View style={styles.startChoices}>
-                <TouchableOpacity onPress={() => setStartFrom('beginning')} style={[styles.startChoice, startFrom === 'beginning' && styles.choiceSelected]}>
-                  <Text style={[styles.startChoiceText, startFrom === 'beginning' && styles.choiceTextSelected]}>من بداية المصحف</Text>
+                <TouchableOpacity
+                  onPress={() => setStartFrom('beginning')}
+                  style={[
+                    styles.startChoice,
+                    startFrom === 'beginning' && styles.choiceSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.startChoiceText,
+                      startFrom === 'beginning' && styles.choiceTextSelected,
+                    ]}
+                  >
+                    من بداية المصحف
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setStartFrom('current')} style={[styles.startChoice, startFrom === 'current' && styles.choiceSelected]}>
-                  <Text style={[styles.startChoiceText, startFrom === 'current' && styles.choiceTextSelected]}>من موضعي الحالي</Text>
+                <TouchableOpacity
+                  onPress={() => setStartFrom('current')}
+                  style={[
+                    styles.startChoice,
+                    startFrom === 'current' && styles.choiceSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.startChoiceText,
+                      startFrom === 'current' && styles.choiceTextSelected,
+                    ]}
+                  >
+                    من موضعي الحالي
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {Number(durationDays) > 0 && Number(durationDays) <= 3660 ? (
+              {Number(durationDays) > 0 &&
+              Number(durationDays) <= 3660 &&
+              Number.isInteger(Number(durationDays)) ? (
                 <View style={styles.preview}>
-                  <Text style={styles.previewTitle}>هدفك اليومي التقريبي</Text>
-                  <Text style={styles.previewMetric}>{Math.ceil((6236 * khatmahCount / Number(durationDays)) / 10.3).toLocaleString('ar')} صفحة</Text>
-                  <Text style={styles.helper}>{Math.ceil(6236 * khatmahCount / Number(durationDays)).toLocaleString('ar')} آية يومياً في المتوسط</Text>
+                  <Text style={styles.previewTitle}>متوسط عدد الصفحات اليومي</Text>
+                  <Text style={styles.previewMetric}>
+                    {Math.ceil((604 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} صفحة
+                  </Text>
+                  <Text style={styles.helper}>
+                    {Math.ceil((6236 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} آية يومياً في المتوسط
+                  </Text>
                 </View>
               ) : null}
 
-              <TouchableOpacity onPress={createPlan} style={styles.primaryButton} disabled={loading}>
+              <TouchableOpacity
+                onPress={createPlan}
+                style={[styles.primaryButton, loading && styles.disabledButton]}
+                disabled={loading}
+              >
                 <Text style={styles.primaryButtonText}>إنشاء خطة ختمتي</Text>
               </TouchableOpacity>
             </View>
@@ -268,47 +527,288 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: QuranColors.parchment },
-  header: { minHeight: 58, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: QuranColors.parchmentBorder },
-  headerButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', writingDirection: 'rtl', fontSize: 18, fontWeight: 'bold', color: QuranColors.emeraldDark },
+  container: { flex: 1 },
+  header: {
+    minHeight: 58,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   content: { padding: 16, gap: 12, flexGrow: 1 },
-  summaryCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: QuranColors.parchmentBorder, padding: 15, gap: 10 },
-  eyebrow: { color: QuranColors.textMuted, fontSize: 12, textAlign: 'right' },
-  planTitle: { color: QuranColors.emeraldDark, fontWeight: 'bold', fontSize: 18, textAlign: 'right' },
-  progressTrack: { height: 8, backgroundColor: 'rgba(197,155,39,0.2)', borderRadius: 8, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: QuranColors.emerald, borderRadius: 8 },
-  progressMeta: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8 },
+  summaryCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 15,
+    gap: 10,
+  },
+  eyebrow: {
+    color: QuranColors.textMuted,
+    fontSize: 12,
+    textAlign: 'right',
+  },
+  planTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    textAlign: 'right',
+  },
+  progressTrack: {
+    height: 8,
+    backgroundColor: 'rgba(197,155,39,0.2)',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: QuranColors.emerald,
+    borderRadius: 8,
+  },
+  progressMeta: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   progressText: { color: QuranColors.textMuted, fontSize: 11 },
-  wirdCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: QuranColors.parchmentBorder, padding: 15, gap: 10 },
-  wirdHeading: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
-  wirdTitle: { color: QuranColors.emeraldDark, fontSize: 17, fontWeight: 'bold' },
-  dayBadge: { color: QuranColors.emerald, backgroundColor: 'rgba(31,81,63,0.08)', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7, fontSize: 11, fontWeight: 'bold' },
-  metric: { color: QuranColors.emerald, fontSize: 24, textAlign: 'right', fontWeight: 'bold' },
-  metricSub: { color: QuranColors.textMuted, textAlign: 'right', fontSize: 12 },
-  rangeBox: { backgroundColor: QuranColors.parchment, borderRadius: 10, padding: 12, alignItems: 'center', gap: 7 },
-  rangeText: { color: QuranColors.textDark, fontWeight: '600', fontSize: 13, textAlign: 'center' },
-  helper: { color: QuranColors.textMuted, fontSize: 12, textAlign: 'center', writingDirection: 'rtl', lineHeight: 21 },
-  primaryButton: { minHeight: 48, backgroundColor: QuranColors.emerald, borderRadius: 10, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
-  secondaryButton: { minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: QuranColors.emerald, borderRadius: 10, padding: 10 },
-  secondaryButtonText: { color: QuranColors.emerald, fontWeight: 'bold', fontSize: 13 },
+  wirdCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 15,
+    gap: 10,
+  },
+  wirdHeading: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  wirdTitle: { fontSize: 17, fontWeight: 'bold' },
+  dayBadge: {
+    color: QuranColors.emerald,
+    backgroundColor: 'rgba(31,81,63,0.08)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 7,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  overdueBadge: {
+    color: '#A45A13',
+    backgroundColor: 'rgba(210,130,42,0.14)',
+  },
+  completedBadge: {
+    color: QuranColors.emerald,
+    backgroundColor: 'rgba(31,81,63,0.12)',
+  },
+  metric: {
+    color: QuranColors.emerald,
+    fontSize: 24,
+    textAlign: 'right',
+    fontWeight: 'bold',
+  },
+  metricSub: {
+    color: QuranColors.textMuted,
+    textAlign: 'right',
+    fontSize: 12,
+    lineHeight: 20,
+  },
+  rangeBox: {
+    backgroundColor: QuranColors.parchment,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    gap: 7,
+  },
+  rangeText: {
+    color: QuranColors.textDark,
+    fontWeight: '600',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  helper: {
+    color: QuranColors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    lineHeight: 21,
+  },
+  primaryButton: {
+    minHeight: 48,
+    backgroundColor: QuranColors.emerald,
+    borderRadius: 10,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  disabledButton: { opacity: 0.55 },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  secondaryButton: {
+    minHeight: 44,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderWidth: 1,
+    borderColor: QuranColors.emerald,
+    borderRadius: 10,
+    padding: 10,
+  },
+  secondaryButtonText: {
+    color: QuranColors.emerald,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  completedNotice: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(31,81,63,0.08)',
+    padding: 12,
+  },
+  completedNoticeText: {
+    flex: 1,
+    color: QuranColors.emerald,
+    fontWeight: '600',
+    fontSize: 12,
+    textAlign: 'right',
+    lineHeight: 20,
+  },
   stopButton: { alignItems: 'center', padding: 12 },
   stopText: { color: '#B23A3A', fontSize: 12, fontWeight: '600' },
-  formCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: QuranColors.parchmentBorder, padding: 17, gap: 13, alignItems: 'center' },
-  formTitle: { color: QuranColors.emeraldDark, fontWeight: 'bold', fontSize: 19 },
-  label: { alignSelf: 'stretch', color: QuranColors.emeraldDark, fontSize: 13, fontWeight: 'bold', textAlign: 'right', writingDirection: 'rtl' },
-  choices: { flexDirection: 'row-reverse', gap: 8, alignSelf: 'stretch' },
-  choice: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: QuranColors.parchmentBorder, borderRadius: 8, backgroundColor: QuranColors.parchment },
-  choiceSelected: { borderColor: QuranColors.emerald, backgroundColor: 'rgba(31,81,63,0.1)' },
+  formCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 17,
+    gap: 13,
+    alignItems: 'center',
+  },
+  formTitle: {
+    color: QuranColors.emeraldDark,
+    fontWeight: 'bold',
+    fontSize: 19,
+  },
+  label: {
+    alignSelf: 'stretch',
+    color: QuranColors.emeraldDark,
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  choices: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignSelf: 'stretch',
+  },
+  choice: {
+    flexGrow: 1,
+    minWidth: '14%',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: QuranColors.parchmentBorder,
+    borderRadius: 8,
+    backgroundColor: QuranColors.parchment,
+  },
+  choiceSelected: {
+    borderColor: QuranColors.emerald,
+    backgroundColor: 'rgba(31,81,63,0.1)',
+  },
   choiceText: { color: QuranColors.textDark, fontWeight: '600' },
-  choiceTextSelected: { color: QuranColors.emerald, fontWeight: 'bold' },
-  daysInput: { alignSelf: 'stretch', backgroundColor: QuranColors.parchment, borderWidth: 1, borderColor: QuranColors.parchmentBorder, borderRadius: 8, minHeight: 46, paddingHorizontal: 12, color: QuranColors.textDark, fontSize: 16 },
-  startChoices: { flexDirection: 'row-reverse', gap: 8, alignSelf: 'stretch' },
-  startChoice: { flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: QuranColors.parchmentBorder, borderRadius: 8, backgroundColor: QuranColors.parchment, paddingHorizontal: 5 },
-  startChoiceText: { color: QuranColors.textDark, fontSize: 12, fontWeight: '600' },
-  preview: { alignSelf: 'stretch', backgroundColor: 'rgba(197,155,39,0.1)', padding: 12, borderRadius: 10, alignItems: 'center', gap: 5 },
+  choiceTextSelected: {
+    color: QuranColors.emerald,
+    fontWeight: 'bold',
+  },
+  daysInput: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 8,
+    minHeight: 46,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  startChoices: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    alignSelf: 'stretch',
+  },
+  startChoice: {
+    flex: 1,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: QuranColors.parchmentBorder,
+    borderRadius: 8,
+    backgroundColor: QuranColors.parchment,
+    paddingHorizontal: 5,
+  },
+  startChoiceText: {
+    color: QuranColors.textDark,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  preview: {
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(197,155,39,0.1)',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    gap: 5,
+  },
   previewTitle: { color: QuranColors.textMuted, fontSize: 12 },
-  previewMetric: { color: QuranColors.emeraldDark, fontSize: 24, fontWeight: 'bold' },
-  successCard: { flex: 1, minHeight: 350, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 15 },
+  previewMetric: {
+    color: QuranColors.emeraldDark,
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  successCard: {
+    flex: 1,
+    minHeight: 350,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 20,
+    gap: 15,
+  },
+  successTitle: {
+    color: QuranColors.emeraldDark,
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  finishedProgress: {
+    backgroundColor: 'rgba(197,155,39,0.1)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  finishedProgressText: {
+    color: QuranColors.emeraldDark,
+    fontWeight: 'bold',
+  },
 });
