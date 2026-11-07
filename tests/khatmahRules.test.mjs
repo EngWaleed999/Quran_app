@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  addDaysToDateKey,
+  countPageVisits,
+  daysBetweenDateKeys,
+  getDailyAyahRange,
+  localDateKey,
+} from '../src/features/khatmah/services/khatmahRules.ts';
+
+test('localDateKey uses the local calendar fields, not UTC date', () => {
+  const date = new Date(2026, 10, 7, 23, 30);
+  assert.equal(localDateKey(date), '2026-11-07');
+});
+
+test('calendar date arithmetic crosses month and year boundaries', () => {
+  assert.equal(addDaysToDateKey('2026-01-31', 1), '2026-02-01');
+  assert.equal(addDaysToDateKey('2026-12-31', 1), '2027-01-01');
+  assert.equal(addDaysToDateKey('2024-02-28', 1), '2024-02-29');
+  assert.equal(addDaysToDateKey('2024-02-29', 1), '2024-03-01');
+});
+
+test('date differences are calendar-day based and ignore DST hour lengths', () => {
+  assert.equal(daysBetweenDateKeys('2026-03-07', '2026-03-09'), 2);
+  assert.equal(daysBetweenDateKeys('2026-11-07', '2026-11-07'), 0);
+  assert.equal(daysBetweenDateKeys('2026-11-08', '2026-11-07'), -1);
+});
+
+test('daily ayah ranges partition the whole plan without gaps or overlap', () => {
+  const ranges = Array.from({ length: 3 }, (_, day) =>
+    getDailyAyahRange(1, 6236, 3, day)
+  );
+  assert.deepEqual(ranges.map((range) => range.dailyTargetAyahs), [2079, 2079, 2078]);
+  assert.equal(ranges[0].startOffset, 0);
+  assert.equal(ranges[0].endOffset, ranges[1].startOffset);
+  assert.equal(ranges[1].endOffset, ranges[2].startOffset);
+  assert.equal(ranges[2].endOffset, 6236);
+});
+
+test('daily ayah ranges wrap from the end of the Mushaf to the beginning', () => {
+  const range = getDailyAyahRange(6200, 100, 2, 0);
+  assert.equal(range.startGlobalAyah, 6200);
+  assert.equal(range.endGlobalAyah, 6249 - 6236);
+  assert.equal(range.wrapsAroundEnd, true);
+  assert.equal(range.dailyTargetAyahs, 50);
+});
+
+test('the last day contains the exact remainder when totals do not divide evenly', () => {
+  const lastDay = getDailyAyahRange(100, 10, 3, 2);
+  assert.equal(lastDay.startOffset, 8);
+  assert.equal(lastDay.endOffset, 10);
+  assert.equal(lastDay.dailyTargetAyahs, 2);
+});
+
+test('page visit counts include an entire cycle and exact partial range', () => {
+  assert.equal(countPageVisits(6236, 1, 604, false), 604);
+  assert.equal(countPageVisits(6236 + 20, 600, 2, true), 609);
+  assert.equal(countPageVisits(0, 1, 1, false), 0);
+});
+
+test('invalid daily range inputs fail fast', () => {
+  assert.throws(() => getDailyAyahRange(0, 6236, 30, 0));
+  assert.throws(() => getDailyAyahRange(1, 6236, 30, 30));
+  assert.throws(() => countPageVisits(-1, 1, 1, false));
+});

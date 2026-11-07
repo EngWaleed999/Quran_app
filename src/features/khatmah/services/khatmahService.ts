@@ -1,9 +1,9 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { DailyWird, KhatmahPlan, DailyWirdStatus } from '../types/khatmah.types';
+import { addDaysToDateKey, countPageVisits, daysBetweenDateKeys, getDailyAyahRange, localDateKey, TOTAL_MADINAH_PAGES, TOTAL_QURAN_AYAHS } from './khatmahRules';
 
-export const TOTAL_QURAN_AYAHS = 6236;
-export const TOTAL_MADINAH_PAGES = 604;
+export { TOTAL_QURAN_AYAHS, TOTAL_MADINAH_PAGES } from './khatmahRules';
 
 interface KhatmahPlanRow {
   id: string;
@@ -55,26 +55,6 @@ function modulo(value: number, divisor: number): number {
   return ((value % divisor) + divisor) % divisor;
 }
 
-function localDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function addDaysToDateKey(dateKey: string, days: number): string {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
-
-function daysBetweenDateKeys(startDate: string, endDate: string): number {
-  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-  const startUtc = Date.UTC(startYear, startMonth - 1, startDay);
-  const endUtc = Date.UTC(endYear, endMonth - 1, endDay);
-  return Math.max(0, Math.floor((endUtc - startUtc) / 86_400_000));
-}
-
 function getDailyTargetAyahs(plan: KhatmahPlan): number {
   return Math.max(1, Math.ceil(plan.totalAyahs / plan.durationDays));
 }
@@ -84,74 +64,27 @@ function getDailyRange(
   plan: KhatmahPlan,
   dayIndex: number
 ): DailyRange {
-  const dailyTarget = getDailyTargetAyahs(plan);
-  const startOffset = dayIndex * dailyTarget;
-  const endOffset = Math.min(plan.totalAyahs, (dayIndex + 1) * dailyTarget);
-  const dailyTargetAyahs = Math.max(0, endOffset - startOffset);
-  const startGlobalAyah = modulo(
-    plan.startGlobalAyah - 1 + startOffset,
-    TOTAL_QURAN_AYAHS
-  ) + 1;
-  const endGlobalAyah = modulo(
-    plan.startGlobalAyah - 1 + endOffset - 1,
-    TOTAL_QURAN_AYAHS
-  ) + 1;
-
-  const dailyTargetPages = countPagesInRange(
-    db,
-    startGlobalAyah,
-    dailyTargetAyahs
+  const range = getDailyAyahRange(
+    plan.startGlobalAyah,
+    plan.totalAyahs,
+    plan.durationDays,
+    dayIndex
   );
-
-  return {
-    dayIndex,
-    startOffset,
-    endOffset,
-    startGlobalAyah,
-    endGlobalAyah,
-    dailyTargetAyahs,
-    dailyTargetPages,
-    wrapsAroundEnd:
-      dailyTargetAyahs < TOTAL_QURAN_AYAHS && endGlobalAyah < startGlobalAyah,
-  };
-}
-
-/**
- * Counts actual page visits, including complete Quran cycles. A partial final
- * cycle is calculated from its exact starting and ending ayahs, not an
- * average-ayahs-per-page approximation.
- */
-function countPagesInRange(
-  db: SQLiteDatabase,
-  startGlobalAyah: number,
-  ayahCount: number
-): number {
-  if (ayahCount <= 0) return 0;
-
-  const completeCycles = Math.floor(ayahCount / TOTAL_QURAN_AYAHS);
-  const remainder = ayahCount % TOTAL_QURAN_AYAHS;
-  let pages = completeCycles * TOTAL_MADINAH_PAGES;
-
-  if (remainder === 0) return pages;
-
-  const endGlobalAyah = modulo(
-    startGlobalAyah - 1 + remainder - 1,
-    TOTAL_QURAN_AYAHS
-  ) + 1;
-  const startAyah = QuranRepository.getAyahByGlobalNumberSync(db, startGlobalAyah);
-  const endAyah = QuranRepository.getAyahByGlobalNumberSync(db, endGlobalAyah);
-
+  const startAyah = QuranRepository.getAyahByGlobalNumberSync(db, range.startGlobalAyah);
+  const endAyah = QuranRepository.getAyahByGlobalNumberSync(db, range.endGlobalAyah);
   if (!startAyah || !endAyah) {
-    // The Quran database is expected to contain all canonical ayahs. Returning
-    // zero here would hide a broken data invariant, so fail visibly instead.
     throw new Error('تعذر تحديد صفحات ورد الختمة من قاعدة بيانات المصحف.');
   }
 
-  const partialPages = endGlobalAyah < startGlobalAyah
-    ? (TOTAL_MADINAH_PAGES - startAyah.page + 1) + endAyah.page
-    : endAyah.page - startAyah.page + 1;
-
-  return pages + partialPages;
+  return {
+    ...range,
+    dailyTargetPages: countPageVisits(
+      range.dailyTargetAyahs,
+      startAyah.page,
+      endAyah.page,
+      range.wrapsAroundEnd
+    ),
+  };
 }
 
 async function getWirdForPlan(
