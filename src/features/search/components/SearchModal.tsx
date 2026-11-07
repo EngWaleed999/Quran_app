@@ -1,16 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  Modal,
-  ActivityIndicator,
-  Keyboard,
-  I18nManager,
-} from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, Modal, ActivityIndicator, Keyboard, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
