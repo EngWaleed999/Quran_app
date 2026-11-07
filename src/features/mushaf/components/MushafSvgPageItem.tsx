@@ -32,6 +32,7 @@ interface MushafSvgPageItemProps {
   khatmahEndGlobalAyah?: number | null;
   khatmahWrapsAroundEnd?: boolean;
   searchHighlightVerseKey?: string | null;
+  onAyahPress?: (verseKey: string, page: number) => void;
   onAyahLongPress?: (verseKey: string, page: number) => void;
 }
 
@@ -40,6 +41,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   db,
   isNear,
   onToggleControls,
+  onAyahPress,
   selectedVerseKey,
   playingVerseKey,
   bookmarkTypesByVerse,
@@ -202,9 +204,23 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     const deltaY = Math.abs(event.nativeEvent.pageY - touchStartRef.current.pageY);
     touchStartRef.current = null;
 
-    // A stationary release is a tap even when the user holds it slightly longer.
-    // Long presses on an actual ayah are handled above and must not toggle controls.
+    // Tap a verse to select it and open its actions. Taps on the empty page
+    // still toggle the immersive controls.
     if (deltaX < 10 && deltaY < 10) {
+      if (normalizedData && layoutDimensions.width > 0 && layoutDimensions.height > 0) {
+        const svgPoint = mapTouchToSvgCoordinates(
+          touchStartRef.current?.locationX ?? event.nativeEvent.locationX,
+          touchStartRef.current?.locationY ?? event.nativeEvent.locationY,
+          layoutDimensions.width,
+          layoutDimensions.height,
+          normalizedData.viewBox
+        );
+        const hitAyah = findAyahAtSvgCoordinates(svgPoint, normalizedData.ayahs);
+        if (hitAyah) {
+          onAyahPress?.(hitAyah.verseKey, page);
+          return;
+        }
+      }
       onToggleControls?.();
     }
   };
@@ -275,7 +291,8 @@ export const MushafSvgPageItem = React.memo(
     prev.khatmahStartGlobalAyah === next.khatmahStartGlobalAyah &&
     prev.khatmahEndGlobalAyah === next.khatmahEndGlobalAyah &&
     prev.khatmahWrapsAroundEnd === next.khatmahWrapsAroundEnd &&
-    prev.searchHighlightVerseKey === next.searchHighlightVerseKey
+    prev.searchHighlightVerseKey === next.searchHighlightVerseKey &&
+    prev.onAyahPress === next.onAyahPress
 );
 
 const styles = StyleSheet.create({
