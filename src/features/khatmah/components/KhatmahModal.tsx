@@ -22,6 +22,7 @@ interface KhatmahModalProps {
   currentPage: number;
   onClose: () => void;
   onNavigateToPage: (page: number, verseKey?: string) => void;
+  onWirdChange?: (wird: DailyWird | null) => void;
 }
 
 export const KhatmahModal: React.FC<KhatmahModalProps> = ({
@@ -30,6 +31,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   currentPage,
   onClose,
   onNavigateToPage,
+  onWirdChange,
 }) => {
   const [wird, setWird] = useState<DailyWird | null>(null);
   const [khatmahCount, setKhatmahCount] = useState(1);
@@ -41,6 +43,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const refresh = async () => {
     const current = await KhatmahService.getDailyWird(db);
     setWird(current);
+    onWirdChange?.(current);
   };
 
   useEffect(() => {
@@ -51,6 +54,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
       .then((result) => {
         if (active) {
           setWird(result);
+          onWirdChange?.(result);
           setCompleted(false);
         }
       })
@@ -108,6 +112,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
             setLoading(true);
             const next = await KhatmahService.completeDailyWird(db);
             setWird(next);
+            onWirdChange?.(next);
             setCompleted(!next);
           } catch (error) {
             Alert.alert('تعذر تحديث التقدم', error instanceof Error ? error.message : 'حاول مرة أخرى.');
@@ -128,6 +133,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
         onPress: async () => {
           await KhatmahService.deleteActivePlan(db);
           setWird(null);
+          onWirdChange?.(null);
           setCompleted(false);
         },
       },
