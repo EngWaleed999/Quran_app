@@ -106,7 +106,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, { backgroundColor: theme.dark ? 'rgba(0,0,0,0.68)' : 'rgba(0,0,0,0.42)' }]}>
         <View style={[styles.modalSheet, isDark && styles.modalSheetDark]}>
           {/* Header Bar */}
           <View style={[styles.headerBar, isDark && styles.headerBarDark]}>
@@ -127,7 +127,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
               <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>
                 تفسير الآية
               </Text>
-              <Text style={styles.headerSubtitle}>
+              <Text style={[styles.headerSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 سورة {ayah.suraName} • الآية {toArabicNumerals(ayah.ayaNo)} • تفسير السعدي
               </Text>
             </View>
