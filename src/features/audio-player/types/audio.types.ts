@@ -25,6 +25,8 @@ export interface RepeatConfig {
   pauseDelaySeconds: number;
   /** Delay in seconds before moving to the next ayah (Verse Gap). */
   verseGapDelaySeconds?: number;
+  /** Total full-surah passes, including the first. null means repeat forever. */
+  surahRepeatCount: number | null;
 }
 
 export interface PlaybackVerse {
