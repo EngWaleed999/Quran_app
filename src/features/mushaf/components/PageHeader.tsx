@@ -12,6 +12,9 @@ interface PageHeaderProps {
   onOpenSearch: () => void;
   onOpenSettings: () => void;
   onOpenSurahList: () => void;
+  onOpenBookmarks: () => void;
+  onOpenNotes: () => void;
+  onOpenKhatmah: () => void;
   controlsAnim: Animated.Value;
   isControlsVisible: boolean;
 }
@@ -24,6 +27,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onOpenSearch,
   onOpenSettings,
   onOpenSurahList,
+  onOpenBookmarks,
+  onOpenNotes,
+  onOpenKhatmah,
   controlsAnim,
   isControlsVisible,
 }) => {
@@ -64,6 +70,15 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               size={22}
               color={QuranColors.emerald}
             />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenBookmarks} accessibilityLabel="الفواصل المحفوظة" hitSlop={8}>
+            <MaterialCommunityIcons name="bookmark-multiple-outline" size={21} color={QuranColors.emerald} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenNotes} accessibilityLabel="ملاحظاتي" hitSlop={8}>
+            <MaterialCommunityIcons name="note-text-outline" size={21} color={QuranColors.emerald} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenKhatmah} accessibilityLabel="ختمتي" hitSlop={8}>
+            <MaterialCommunityIcons name="book-check-outline" size={21} color={QuranColors.emerald} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -157,7 +172,7 @@ const styles = StyleSheet.create({
     left: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     zIndex: 10,
   },
   iconBtn: {
@@ -189,8 +204,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31, 81, 63, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(31, 81, 63, 0.15)',
-    maxWidth: '62%',
-    minWidth: 100,
+    maxWidth: '48%',
+    minWidth: 82,
     flexShrink: 1,
   },
   surahText: {
