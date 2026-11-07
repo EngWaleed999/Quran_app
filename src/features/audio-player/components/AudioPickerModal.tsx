@@ -1,15 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  I18nManager,
-} from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, TouchableOpacity, View, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { ProgressBar } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranRepository } from '../../../core/database/quranRepository';
