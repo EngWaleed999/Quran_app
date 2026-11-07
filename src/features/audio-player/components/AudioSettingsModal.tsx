@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { QuranColors } from '../../../core/theme/theme';
 import { AudioActionMode, RepeatConfig } from '../types/audio.types';
 import { useAudioStore } from '../stores/useAudioStore';
@@ -20,6 +21,7 @@ const REPEAT_OPTIONS = [1, 2, 3, 5, 10];
 const DELAY_OPTIONS = [0, 1, 2, 3, 5, 10];
 
 export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible, mode, onClose }) => {
+  const theme = useTheme();
   const savedConfig = useAudioStore((state) => state.repeatConfig);
   const setRepeatConfig = useAudioStore((state) => state.setRepeatConfig);
   const [draft, setDraft] = useState<RepeatConfig>(savedConfig);
@@ -53,22 +55,22 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({ visible,
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <View style={styles.titleIcon}><MaterialCommunityIcons name="tune-variant" size={21} color={QuranColors.emerald} /></View>
+            <View style={styles.titleIcon}><MaterialCommunityIcons name="tune-variant" size={21} color={theme.colors.primary} /></View>
             <View style={styles.headerText}>
-              <Text style={styles.title}>إعدادات {mode === 'repeat' ? 'الترديد' : 'التلاوة'}</Text>
-              <Text style={styles.subtitle}>تُحفظ اختياراتك وتُطبّق على التشغيل الحالي</Text>
+              <Text style={[styles.title, { color: theme.colors.onSurface }]}>إعدادات {mode === 'repeat' ? 'الترديد' : 'التلاوة'}</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>تُحفظ اختياراتك وتُطبّق على التشغيل الحالي</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close" size={22} color={QuranColors.textMuted} />
+              <MaterialCommunityIcons name="close" size={22} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>تكرار قراءة السورة بالكامل</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>تكرار قراءة السورة بالكامل</Text>
               <Text style={styles.helper}>عدد مرات تشغيل المقطع المحدد من السورة، وتشمل المرة الأولى. اختر «بلا نهاية» للاستمرار حتى توقفه بنفسك.</Text>
               <View style={styles.optionsRow}>
                 {SURAH_OPTIONS.map((option) => {
