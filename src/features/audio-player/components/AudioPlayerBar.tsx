@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ProgressBar } from 'react-native-paper';
 import { useAudioStore } from '../stores/useAudioStore';
