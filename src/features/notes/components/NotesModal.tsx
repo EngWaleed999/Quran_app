@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { QuranColors } from '../../../core/theme/theme';
 import { NotesService } from '../services/notesService';
@@ -23,6 +24,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({
   onClose,
   onNavigate,
 }) => {
+  const theme = useTheme();
   const [notes, setNotes] = useState<AyahNote[]>([]);
   const [editingAyah, setEditingAyah] = useState<SelectedAyahInfo | null>(null);
   const [editingNote, setEditingNote] = useState<AyahNote | null>(null);
@@ -129,8 +131,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
+      <KeyboardAvoidingView style={[styles.container, { backgroundColor: theme.colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
           <TouchableOpacity onPress={() => {
             if (editingAyah) {
               setEditingAyah(null);
@@ -140,17 +142,17 @@ export const NotesModal: React.FC<NotesModalProps> = ({
               onClose();
             }
           }} style={styles.headerButton} accessibilityLabel={editingAyah ? 'رجوع إلى الملاحظات' : 'إغلاق'}>
-            <MaterialCommunityIcons name={editingAyah ? 'arrow-right' : 'close'} size={23} color={QuranColors.emerald} />
+            <MaterialCommunityIcons name={editingAyah ? 'arrow-right' : 'close'} size={23} color={theme.colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{editingAyah ? 'ملاحظة الآية' : 'ملاحظاتي'}</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]} >{editingAyah ? 'ملاحظة الآية' : 'ملاحظاتي'}</Text>
           <View style={styles.headerButton} />
         </View>
 
         {editingAyah ? (
           <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
-            <View style={styles.ayahCard}>
+            <View style={[styles.ayahCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
               <Text style={styles.ayahMeta}>سورة {editingAyah.suraName} • الآية {editingAyah.ayaNo} • الصفحة {editingAyah.page}</Text>
-              {!!editingAyah.ayahText && <Text style={styles.ayahText}>{editingAyah.ayahText}</Text>}
+              {!!editingAyah.ayahText && <Text style={[styles.ayahText, { color: theme.colors.onSurface }]}>{editingAyah.ayahText}</Text>}
             </View>
             <Text style={styles.fieldLabel}>ملاحظتك</Text>
             <TextInput
@@ -161,7 +163,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({
               textAlignVertical="top"
               placeholder="اكتب تدبراً أو فائدة أو سؤالاً تريد الرجوع إليه..."
               placeholderTextColor={QuranColors.textMuted}
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
               maxLength={5000}
               autoFocus
             />
@@ -186,10 +188,10 @@ export const NotesModal: React.FC<NotesModalProps> = ({
                 <Text style={styles.emptyText}>اضغط مطولاً على أي آية، ثم اختر إضافة ملاحظة لتسجيل فوائدك وتدبراتك.</Text>
               </View>
             ) : orderedNotes.map((note) => (
-              <View key={note.verseKey} style={styles.noteCard}>
+              <View key={note.verseKey} style={[styles.noteCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 <TouchableOpacity style={styles.noteMain} onPress={() => void handleEdit(note)}>
-                  <Text style={styles.noteTitle}>سورة {note.suraName} • الآية {note.ayaNo}</Text>
-                  <Text style={styles.noteBody} numberOfLines={3}>{note.noteText}</Text>
+                  <Text style={[styles.noteTitle, { color: theme.colors.onSurface }]}>سورة {note.suraName} • الآية {note.ayaNo}</Text>
+                  <Text style={[styles.noteBody, { color: theme.colors.onSurface }]} numberOfLines={3}>{note.noteText}</Text>
                   <Text style={styles.noteDate}>{new Date(note.updatedAt).toLocaleDateString()}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => onNavigate(note)} style={styles.goButton} accessibilityLabel="الانتقال إلى الآية">
