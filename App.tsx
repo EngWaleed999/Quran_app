@@ -1,15 +1,16 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, View, I18nManager } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { StyleSheet, I18nManager } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
-import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { SQLiteProvider } from 'expo-sqlite';
-import { getPaperTheme, getQuranPalette, QuranColors } from './src/core/theme/theme';
+import { getPaperTheme, getQuranPalette } from './src/core/theme/theme';
 import { useAppPreferences } from './src/core/theme/preferencesStore';
 import { MushafPageView } from './src/features/mushaf/components/MushafPageView';
 import { initializeAppSchema } from './src/core/database/appSchema';
-import { THMANYAH_FONTS } from './src/core/theme/fonts';          
+import { THMANYAH_FONTS } from './src/core/theme/fonts';
+import { useFontLoadingStore } from './src/core/theme/fontLoadingStore';
+
 try {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
@@ -17,36 +18,48 @@ try {
   console.warn('I18nManager error:', error);
 }
 
-export default function App() {
-  const appearance = useAppPreferences((state) => state.appearance);
-  const palette = useMemo(() => getQuranPalette(appearance), [appearance]);
-  const paperTheme = useMemo(() => getPaperTheme(appearance), [appearance]);
+function FontAssetsLoader() {
   const [fontsLoaded] = useFonts({
-    HafsSmart: require('./assets/fonts/HafsSmart_08.ttf'),
     UthmanicHafs: require('./assets/fonts/UthmanicHafs1Ver18.ttf'),
     ...THMANYAH_FONTS,
   });
 
-  if (!fontsLoaded) {
-    return <View style={styles.blankBackground} />;
-  }
+  useEffect(() => {
+    if (fontsLoaded) useFontLoadingStore.setState({ loaded: true });
+  }, [fontsLoaded]);
+
+  return null;
+}
+
+export default function App() {
+  const appearance = useAppPreferences((state) => state.appearance);
+  const palette = useMemo(() => getQuranPalette(appearance), [appearance]);
+  const paperTheme = useMemo(() => getPaperTheme(appearance), [appearance]);
+  // Keep these references stable so font loading cannot make SQLiteProvider
+  // tear down and reopen its database connection.
+  const appContent = useMemo(() => <MushafPageView />, []);
+  const databaseAssetSource = useMemo(
+    () => ({
+      assetId: require('./assets/data/quran-full.db'),
+      forceOverwrite: false,
+    }),
+    []
+  );
 
   return (
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
-        <StatusBar style={appearance === 'dark' ? 'light' : 'dark'} />
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
+        <FontAssetsLoader />
+        <SafeAreaView
+          edges={['left', 'right']}
+          style={[styles.safeArea, { backgroundColor: palette.background }]}
+        >
           <SQLiteProvider
             databaseName="quran.db"
             onInit={initializeAppSchema}
-            assetSource={{
-              assetId: require('./assets/data/quran-full.db'),
-              // Keep the bundled database as a first-install seed. Re-copying it
-              // on every app reload causes avoidable disk I/O and startup delay.
-              forceOverwrite: false,
-            }}
+            assetSource={databaseAssetSource}
           >
-            <MushafPageView />
+            {appContent}
           </SQLiteProvider>
         </SafeAreaView>
       </PaperProvider>
@@ -55,13 +68,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-          
-  safeArea: {
-    flex: 1,
-    backgroundColor: QuranColors.parchment,
-  },
-  blankBackground: {
-    flex: 1,
-    backgroundColor: QuranColors.parchment,
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFF8F0' },
 });

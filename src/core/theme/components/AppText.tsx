@@ -2,6 +2,7 @@ import React from 'react';
 import { Text as RNText, TextProps, StyleSheet } from 'react-native';
 import { MD3Theme, useTheme } from 'react-native-paper';
 import { getAppFont, FontStyleWeight } from '../fonts';
+import { useFontLoadingStore } from '../fontLoadingStore';
 
 export interface AppTextProps extends TextProps {
   /** Force centering or custom alignment if needed */
@@ -44,6 +45,7 @@ export const AppText: React.FC<AppTextProps> = ({
   ...rest
 }) => {
   const theme = useTheme<MD3Theme>();
+  const customFontsLoaded = useFontLoadingStore((state) => state.loaded);
   const flattenedStyle = StyleSheet.flatten(style);
   const resolvedColor = resolveSemanticColor(flattenedStyle?.color, theme);
 
@@ -66,8 +68,9 @@ export const AppText: React.FC<AppTextProps> = ({
     <RNText
       style={[
         styles.defaultText,
-        { color: theme.colors.onSurface, fontFamily: resolvedFontFamily },
+        { color: theme.colors.onSurface, fontFamily: customFontsLoaded ? resolvedFontFamily : undefined },
         style,
+        customFontsLoaded ? null : { fontFamily: undefined },
         resolvedColor ? { color: resolvedColor } : null,
         align ? { textAlign: align } : null,
       ]}

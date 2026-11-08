@@ -9,7 +9,28 @@ export class QuranRepository {
   private static surahPageMap = new Map<number, number>();
   private static surahGlobalOffsets = new Map<number, number>();
   private static surahCatalogCache: Surah[] | null = null;
-  private static isWarmedUp = false;
+  private static readonly MAX_PAGE_CACHE_SIZE = 12;
+  private static readonly MAX_SURAH_CACHE_SIZE = 2;
+
+  private static rememberPage(page: number, rows: Ayah[]): void {
+    QuranRepository.pageCache.delete(page);
+    QuranRepository.pageCache.set(page, rows);
+    while (QuranRepository.pageCache.size > QuranRepository.MAX_PAGE_CACHE_SIZE) {
+      const oldest = QuranRepository.pageCache.keys().next().value;
+      if (oldest === undefined) break;
+      QuranRepository.pageCache.delete(oldest);
+    }
+  }
+
+  private static rememberSurah(suraNo: number, rows: Ayah[]): void {
+    QuranRepository.surahAyahCache.delete(suraNo);
+    QuranRepository.surahAyahCache.set(suraNo, rows);
+    while (QuranRepository.surahAyahCache.size > QuranRepository.MAX_SURAH_CACHE_SIZE) {
+      const oldest = QuranRepository.surahAyahCache.keys().next().value;
+      if (oldest === undefined) break;
+      QuranRepository.surahAyahCache.delete(oldest);
+    }
+  }
 
   static getSurahStartPage(db: SQLiteDatabase, suraNo: number): number {
     if (QuranRepository.surahPageMap.has(suraNo)) {
@@ -97,7 +118,10 @@ export class QuranRepository {
    */
   static getSurahAyahsSync(db: SQLiteDatabase, suraNo: number): Ayah[] {
     const cached = QuranRepository.surahAyahCache.get(suraNo);
-    if (cached) return cached;
+    if (cached) {
+      QuranRepository.rememberSurah(suraNo, cached);
+      return cached;
+    }
 
     try {
       const rows = db.getAllSync<Ayah>(
@@ -108,7 +132,7 @@ export class QuranRepository {
          ORDER BY a.aya_no ASC`,
         [suraNo]
       );
-      QuranRepository.surahAyahCache.set(suraNo, rows);
+      QuranRepository.rememberSurah(suraNo, rows);
       return rows;
     } catch (error) {
       console.warn('[QuranRepository] getSurahAyahsSync error:', error);
@@ -189,33 +213,17 @@ export class QuranRepository {
     }
   }
 
-  static warmupCache(db: SQLiteDatabase): void {
-    if (QuranRepository.isWarmedUp) return;
-    try {
-      const rows = db.getAllSync<Ayah>(
-        `SELECT a.*, s.sura_name_ar
-         FROM ayahs a
-         JOIN surahs s ON a.sura_no = s.sura_no
-         ORDER BY a.page ASC, a.id ASC`
-      );
-
-      for (const row of rows) {
-        let pageAyahs = QuranRepository.pageCache.get(row.page);
-        if (!pageAyahs) {
-          pageAyahs = [];
-          QuranRepository.pageCache.set(row.page, pageAyahs);
-        }
-        pageAyahs.push(row);
-      }
-      QuranRepository.isWarmedUp = true;
-    } catch (error) {
-      console.warn('[QuranRepository] warmupCache error:', error);
-    }
+  /** Warm only one requested page; never load all ayahs into RAM at startup. */
+  static warmupCache(db: SQLiteDatabase, page = 1): void {
+    QuranRepository.getPageAyahsSync(db, page);
   }
 
   static getPageAyahsSync(db: SQLiteDatabase, page: number): Ayah[] {
     const cached = QuranRepository.pageCache.get(page);
-    if (cached) return cached;
+    if (cached) {
+      QuranRepository.rememberPage(page, cached);
+      return cached;
+    }
 
     try {
       const rows = db.getAllSync<Ayah>(
@@ -226,7 +234,7 @@ export class QuranRepository {
          ORDER BY a.id ASC`,
         [page]
       );
-      QuranRepository.pageCache.set(page, rows);
+      QuranRepository.rememberPage(page, rows);
       return rows;
     } catch (error) {
       console.warn('[QuranRepository] getPageAyahsSync error on page ' + page + ':', error);
@@ -234,7 +242,7 @@ export class QuranRepository {
     }
   }
 
-  static preloadPages(db: SQLiteDatabase, centerPage: number, radius = 5): void {
+  static preloadPages(db: SQLiteDatabase, centerPage: number, radius = 1): void {
     const minPage = Math.max(1, centerPage - radius);
     const maxPage = Math.min(604, centerPage + radius);
 
@@ -250,7 +258,7 @@ export class QuranRepository {
            ORDER BY a.id ASC`,
           [page]
         );
-        QuranRepository.pageCache.set(page, rows);
+        QuranRepository.rememberPage(page, rows);
       } catch {
         // Background preloading is best-effort.
       }
@@ -259,7 +267,10 @@ export class QuranRepository {
 
   static async getPageAyahs(db: SQLiteDatabase, page: number): Promise<Ayah[]> {
     const cached = QuranRepository.pageCache.get(page);
-    if (cached) return cached;
+    if (cached) {
+      QuranRepository.rememberPage(page, cached);
+      return cached;
+    }
 
     const rows = await db.getAllAsync<Ayah>(
       `SELECT a.*, s.sura_name_ar
@@ -269,7 +280,7 @@ export class QuranRepository {
        ORDER BY a.id ASC`,
       [page]
     );
-    QuranRepository.pageCache.set(page, rows);
+    QuranRepository.rememberPage(page, rows);
     return rows;
   }
 
