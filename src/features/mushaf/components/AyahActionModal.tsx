@@ -481,12 +481,14 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 15,
     fontWeight: 'bold',
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   actionSubtitle: {
     fontSize: 12,
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
 });

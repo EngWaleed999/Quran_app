@@ -185,7 +185,8 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 11,
     marginTop: 2,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   stopButton: {

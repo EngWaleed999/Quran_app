@@ -3,7 +3,7 @@ export interface Reciter {
   name: string;
   subname: string;
   edition: string;
-  bitrate: 64 | 128 | 192;
+  bitrate: number;
   adapterId?: string;
 }
 

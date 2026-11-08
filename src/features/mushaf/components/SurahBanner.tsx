@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(229, 192, 88, 0.08)',
   },
   bannerInner: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 3,

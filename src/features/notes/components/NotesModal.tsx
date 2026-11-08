@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     minHeight: 58,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -291,21 +291,26 @@ const styles = StyleSheet.create({
   },
   editorContent: { padding: 16, gap: 12 },
   ayahCard: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 10 },
-  ayahMeta: { textAlign: 'right', writingDirection: 'rtl', fontWeight: 'bold', fontSize: 13 },
+  ayahMeta: { textAlign: 'auto'
+, writingDirection: 'rtl', fontWeight: 'bold', fontSize: 13 },
   ayahText: { fontFamily: 'UthmanicHafs', fontSize: 17, lineHeight: 34, textAlign: 'center', writingDirection: 'rtl' },
-  fieldLabel: { textAlign: 'right', writingDirection: 'rtl', fontSize: 14, fontWeight: 'bold' },
+  fieldLabel: { textAlign: 'auto'
+, writingDirection: 'rtl', fontSize: 14, fontWeight: 'bold' },
   input: { minHeight: 190, maxHeight: 360, borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, lineHeight: 25, writingDirection: 'rtl' },
   counter: { textAlign: 'left', fontSize: 11 },
   primaryButton: { borderRadius: 10, alignItems: 'center', paddingVertical: 14 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: 'bold' },
-  deleteButton: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
+  deleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
   deleteButtonText: { color: '#B23A3A', fontWeight: '600' },
   listContent: { padding: 14, paddingBottom: 80, gap: 10, flexGrow: 1 },
-  noteCard: { flexDirection: 'row-reverse', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12 },
+  noteCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12 },
   noteMain: { flex: 1, gap: 5 },
-  noteTitle: { fontWeight: 'bold', fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
-  noteBody: { fontSize: 13, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
-  noteDate: { fontSize: 10, textAlign: 'right' },
+  noteTitle: { fontWeight: 'bold', fontSize: 14, textAlign: 'auto'
+, writingDirection: 'rtl' },
+  noteBody: { fontSize: 13, lineHeight: 22, textAlign: 'auto'
+, writingDirection: 'rtl' },
+  noteDate: { fontSize: 10, textAlign: 'auto'
+ },
   goButton: { width: 38, height: 40, alignItems: 'center', justifyContent: 'center' },
   emptyState: { flex: 1, minHeight: 250, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 25, gap: 12 },
   emptyTitle: { fontWeight: 'bold', fontSize: 17 },

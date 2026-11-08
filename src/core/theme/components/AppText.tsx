@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text as RNText, TextProps, StyleSheet } from 'react-native';
 import { MD3Theme, useTheme } from 'react-native-paper';
+import { getAppFont, FontStyleWeight } from '../fonts';
 
 export interface AppTextProps extends TextProps {
   /** Force centering or custom alignment if needed */
@@ -46,11 +47,26 @@ export const AppText: React.FC<AppTextProps> = ({
   const flattenedStyle = StyleSheet.flatten(style);
   const resolvedColor = resolveSemanticColor(flattenedStyle?.color, theme);
 
+  // If style already defines an explicit custom font (e.g., UthmanicHafs), preserve it
+  let resolvedFontFamily = flattenedStyle?.fontFamily;
+  if (!resolvedFontFamily) {
+    const rawWeight = flattenedStyle?.fontWeight;
+    let weight: FontStyleWeight = 'regular';
+    if (rawWeight === 'bold' || rawWeight === '700' || rawWeight === '800' || rawWeight === '900') {
+      weight = 'bold';
+    } else if (rawWeight === '500' || rawWeight === '600') {
+      weight = 'medium';
+    } else if (rawWeight === '100' || rawWeight === '200' || rawWeight === '300') {
+      weight = 'light';
+    }
+    resolvedFontFamily = getAppFont(weight);
+  }
+
   return (
     <RNText
       style={[
         styles.defaultText,
-        { color: theme.colors.onSurface },
+        { color: theme.colors.onSurface, fontFamily: resolvedFontFamily },
         style,
         resolvedColor ? { color: resolvedColor } : null,
         align ? { textAlign: align } : null,

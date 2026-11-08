@@ -409,12 +409,14 @@ const styles = StyleSheet.create({
     fontSize: 16.5,
     lineHeight: 32,
     color: '#2C2B29',
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   tafsirBodyTextDark: {
     color: '#D8D5CD',
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
 });

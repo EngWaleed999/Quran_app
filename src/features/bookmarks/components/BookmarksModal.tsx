@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     minHeight: 58,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -150,9 +150,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  filters: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, padding: 14 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 14 },
   filterChip: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     borderWidth: 1,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4 },
   list: { paddingHorizontal: 14, paddingBottom: 80, gap: 10 },
   card: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'stretch',
     borderRadius: 12,
     borderWidth: 1,
@@ -176,8 +176,10 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: 'bold' },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   typeBadgeText: { fontSize: 11, fontWeight: 'bold' },
-  meta: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
-  snippet: { marginTop: 2, fontFamily: 'UthmanicHafs', fontSize: 13, lineHeight: 23, textAlign: 'right', writingDirection: 'rtl' },
+  meta: { fontSize: 12, textAlign: 'auto'
+, writingDirection: 'rtl' },
+  snippet: { marginTop: 2, fontFamily: 'UthmanicHafs', fontSize: 13, lineHeight: 23, textAlign: 'auto'
+, writingDirection: 'rtl' },
   removeButton: { width: 42, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingTop: 70, gap: 12 },
   emptyTitle: { fontSize: 17, fontWeight: 'bold' },

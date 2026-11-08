@@ -142,7 +142,7 @@ export class AudioDownloader {
               temporaryInfo.exists &&
               'size' in temporaryInfo &&
               typeof temporaryInfo.size === 'number' &&
-              temporaryInfo.size > 0;
+              temporaryInfo.size > 512;
 
             if (response.status !== 200 || !hasBytes) {
               throw new Error(
@@ -163,7 +163,12 @@ export class AudioDownloader {
                   ? error
                   : new Error('Audio download failed for ayah ' + verse.suraNo + ':' + verse.ayaNo);
             } else {
-              await new Promise((resolve) => setTimeout(resolve, 350 * attempt));
+              // Exponential backoff with full jitter to handle weak / fluctuating network
+              const baseDelay = 400;
+              const maxDelay = 3000;
+              const exponential = Math.min(maxDelay, baseDelay * Math.pow(2, attempt - 1));
+              const jitteredDelay = Math.floor(Math.random() * exponential);
+              await new Promise((resolve) => setTimeout(resolve, jitteredDelay));
             }
           }
         }

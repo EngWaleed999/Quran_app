@@ -145,7 +145,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
                 isCurrent && { color: theme.colors.primary, fontWeight: 'bold' },
               ]}
             >
-              سُورَةُ {item.sura_name_ar}
+               {item.sura_name_ar}
             </Text>
             <View
               style={[
@@ -157,7 +157,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
             </View>
             {isCurrent ? (
               <View style={[styles.currentBadge, { backgroundColor: theme.colors.primary }]}>
-                <Text style={styles.currentBadgeText}>تقرأ الآن</Text>
+                <Text style={styles.currentBadgeText} numberOfLines={1}>تقرأ الآن</Text>
               </View>
             ) : null}
           </View>
@@ -246,11 +246,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
               initialNumToRender={114}
               maxToRenderPerBatch={114}
               windowSize={11}
-              getItemLayout={(_, index) => ({
-                length: 68,
-                offset: (68 + 8) * index,
-                index,
-              })}
+              // Dynamic layout allows font diacritics and badges without clipping
               onScrollToIndexFailed={(info) => {
                 setTimeout(() => {
                   flatListRef.current?.scrollToIndex({
@@ -440,6 +436,8 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 12,
     marginTop: 2,
+    fontWeight: 'bold',
+
   },
   tabContent: {
     flex: 1,
@@ -454,14 +452,14 @@ const styles = StyleSheet.create({
     flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 5,
     borderRadius: 10,
     borderWidth: 1,
-    gap: 12,
+    gap: 6,
   },
   surahNumberBadge: {
-    width: 38,
-    height: 38,
+    width: 32,
+    height: 32,
     borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
@@ -482,11 +480,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   surahName: {
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 18,
     fontWeight: 'bold',
-    textAlign: 'right',
+    textAlign: 'auto',
     writingDirection: 'rtl',
     flexShrink: 0,
+    //paddingVertical: 2,
   },
   typeBadge: {
     paddingHorizontal: 6,
@@ -505,24 +505,29 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
   },
   currentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 4,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   currentBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
+    lineHeight: 16,
+    textAlign: 'auto',
   },
   surahMeta: {
     fontSize: 12,
-    textAlign: 'right',
+    textAlign: 'auto',
     writingDirection: 'rtl',
   },
   pageIndicatorWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 40,
+    minWidth: 30,
   },
   pageLabel: {
     fontSize: 10,
@@ -542,9 +547,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+    
   },
   navTabText: {
     fontSize: 11,
+
   },
   activeNavTabText: {
     fontWeight: 'bold',

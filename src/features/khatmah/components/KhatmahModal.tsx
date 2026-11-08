@@ -178,7 +178,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const stopPlan = () => {
     Alert.alert(
       'إيقاف الختمة',
-      'سيتم إيقاف الخطة الحالية مع الاحتفاظ بسجلها. هل تريد المتابعة؟',
+      'سيتم حذف الخطة الحالية . هل تريد المتابعة؟',
       [
         { text: 'إلغاء', style: 'cancel' },
         {
@@ -483,12 +483,12 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 size={44}
                 color={theme.colors.primary}
               />
-              <Text style={[styles.formTitle, { color: theme.colors.onSurface }]}>خطّط لختمتك</Text>
+              <Text style={[styles.formTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>خطّط لختمتك</Text>
               <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
                 اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
               </Text>
 
-              <Text style={[styles.label, { color: theme.colors.primary }]}>كم ختمة تريد؟</Text>
+              <Text style={[styles.label, { color: theme.colors.primary, textAlign:'auto' }]}>كم ختمة تريد؟</Text>
               <View style={styles.choices}>
                 {[1, 2, 3, 5, 10, 20].map((value) => (
                   <TouchableOpacity
@@ -515,7 +515,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: theme.colors.primary }]}>خلال كم يوماً؟</Text>
+              <Text style={[styles.label, { color: theme.colors.primary, textAlign:'auto' }]}>خلال كم يوماً؟</Text>
               <TextInput
                 value={durationDays}
                 onChangeText={(value) =>
@@ -535,7 +535,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 accessibilityLabel="مدة الختمة بالأيام"
               />
 
-              <Text style={[styles.label, { color: theme.colors.primary }]}>من أين تبدأ؟</Text>
+              <Text style={[styles.label, { color: theme.colors.primary , textAlign:'auto' }]}>من أين تبدأ؟</Text>
               <View style={styles.startChoices}>
                 <TouchableOpacity
                   onPress={() => setStartFrom('beginning')}
@@ -559,7 +559,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   onPress={() => setStartFrom('custom')}
                   style={[
                     styles.startChoice,
-                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, },
                     startFrom === 'custom' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
                   ]}
                 >
@@ -643,7 +643,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                 style={[styles.primaryButton, { backgroundColor: theme.colors.primary }, loading && styles.disabledButton]}
                 disabled={loading}
               >
-                <Text style={styles.primaryButtonText}>إنشاء خطة ختمتي</Text>
+                <Text style={styles.primaryButtonText}>إنشاء الخطة </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     minHeight: 58,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -750,12 +750,12 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: QuranColors.textMuted,
     fontSize: 12,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   planTitle: {
     fontWeight: 'bold',
     fontSize: 18,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   progressTrack: {
     height: 8,
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   progressMeta: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
   },
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   wirdHeading: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
@@ -807,12 +807,14 @@ const styles = StyleSheet.create({
   metric: {
     color: QuranColors.emerald,
     fontSize: 24,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     fontWeight: 'bold',
   },
   metricSub: {
     color: QuranColors.textMuted,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     fontSize: 12,
     lineHeight: 20,
   },
@@ -840,7 +842,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     backgroundColor: QuranColors.emerald,
     borderRadius: 10,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -855,7 +857,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     minHeight: 44,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
@@ -870,7 +872,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   completedNotice: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -883,7 +885,8 @@ const styles = StyleSheet.create({
     color: QuranColors.emerald,
     fontWeight: '600',
     fontSize: 12,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     lineHeight: 20,
   },
   stopButton: { alignItems: 'center', padding: 12 },
@@ -899,17 +902,21 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
     fontSize: 19,
+    lineHeight: 28,
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
   label: {
     alignSelf: 'stretch',
     color: QuranColors.emeraldDark,
     fontSize: 13,
     fontWeight: 'bold',
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   choices: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     alignSelf: 'stretch',
@@ -943,7 +950,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   startChoices: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     alignSelf: 'stretch',
@@ -963,6 +970,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textDark,
     fontSize: 12,
     fontWeight: '600',
+    textAlign:'center'
   },
   preview: {
     alignSelf: 'stretch',
@@ -1001,18 +1009,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   historyHeader: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 38,
   },
   historyTitle: {
     fontSize: 14,
+    lineHeight: 25, 
     fontWeight: 'bold',
-    textAlign: 'right',
+        textAlign: 'auto'
+,
   },
   historyRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -1027,12 +1037,14 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontSize: 11,
     fontWeight: 'bold',
-    textAlign: 'right',
+        textAlign: 'auto'
+,
   },
   historyDate: {
     color: QuranColors.textMuted,
     fontSize: 10,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
   },
   historyRangeBlock: {
     flex: 1,
@@ -1040,13 +1052,15 @@ const styles = StyleSheet.create({
   },
   historyRange: {
     color: QuranColors.textDark,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     writingDirection: 'rtl',
     fontSize: 11,
   },
   historyTime: {
     color: QuranColors.textMuted,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     fontSize: 10,
   },
   customStartCard: {
@@ -1061,7 +1075,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -1088,7 +1102,7 @@ const styles = StyleSheet.create({
   },
   pickerHeader: {
     minHeight: 44,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
@@ -1102,7 +1116,7 @@ const styles = StyleSheet.create({
   },
   surahPickerItem: {
     minHeight: 46,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 8,
@@ -1121,7 +1135,8 @@ const styles = StyleSheet.create({
   surahPickerName: {
     flex: 1,
     fontSize: 14,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
   },
   finishedProgress: {
     backgroundColor: 'rgba(197,155,39,0.1)',

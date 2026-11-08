@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 15,
-    textAlign: 'right',
+    textAlign: 'auto',
     writingDirection: 'rtl',
   },
   loadingContainer: {
@@ -496,7 +496,8 @@ const styles = StyleSheet.create({
   },
   pageCardSubtitle: {
     fontSize: 12,
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   jumpBtnBadge: {
@@ -518,7 +519,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
     marginBottom: 8,
   },
@@ -578,7 +580,8 @@ const styles = StyleSheet.create({
   },
   surahMetaText: {
     fontSize: 12,
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   ayahCard: {
@@ -606,7 +609,8 @@ const styles = StyleSheet.create({
   },
   ayahSnippetText: {
     fontSize: 15,
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
     lineHeight: 24,
     fontFamily: 'UthmanicHafs',

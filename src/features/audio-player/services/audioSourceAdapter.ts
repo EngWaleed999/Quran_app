@@ -34,11 +34,33 @@ export class IslamicNetworkAudioAdapter implements IAudioSourceAdapter {
   }
 }
 
+export class EveryAyahAudioAdapter implements IAudioSourceAdapter {
+  readonly id = 'everyayah';
+  readonly name = 'EveryAyah Audio CDN';
+  private readonly baseUrl = 'https://everyayah.com/data';
+
+  getRemoteAyahUrl(
+    reciter: Reciter,
+    _globalAyahNo: number,
+    suraNo?: number,
+    ayaNo?: number
+  ): string {
+    if (!suraNo || !ayaNo) {
+      throw new Error('EveryAyah requires surah and ayah numbers');
+    }
+    const s3 = String(suraNo).padStart(3, '0');
+    const a3 = String(ayaNo).padStart(3, '0');
+    return `${this.baseUrl}/${reciter.edition}/${s3}${a3}.mp3`;
+  }
+}
+
 export class AudioSourceAdapterRegistry {
+  private static everyAyah = new EveryAyahAudioAdapter();
   private static adapters = new Map<string, IAudioSourceAdapter>([
+    ['everyayah', AudioSourceAdapterRegistry.everyAyah],
     ['islamic-network', new IslamicNetworkAudioAdapter()],
   ]);
-  private static defaultAdapter: IAudioSourceAdapter = new IslamicNetworkAudioAdapter();
+  private static defaultAdapter: IAudioSourceAdapter = AudioSourceAdapterRegistry.everyAyah;
 
   static getAdapter(id?: string): IAudioSourceAdapter {
     if (!id) return this.defaultAdapter;

@@ -178,7 +178,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
           <View style={styles.handle} />
           <View style={[styles.header, { borderBottomColor: theme.colors.outline }]}>
             <View style={styles.headerText}>
-              <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+              <Text style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={1}>
                 {mode === 'repeat' ? 'ترديد الآيات' : 'تشغيل التلاوة'}
               </Text>
               <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
@@ -285,7 +285,7 @@ export const AudioPickerModal: React.FC<AudioPickerModalProps> = ({
               disabled={isDownloading || isPreparing || !ayah}
               activeOpacity={0.8}
             >
-              <Text style={styles.startButtonText}>
+              <Text style={styles.startButtonText} numberOfLines={1}>
                 {summary?.allDownloaded ? 'تشغيل دون إنترنت' : 'تنزيل السورة وتشغيلها'}
               </Text>
             </TouchableOpacity>
@@ -338,17 +338,24 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
-    alignItems: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'stretch',
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
+    lineHeight: 26,
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
+    textAlign: 'auto',
+    writingDirection: 'rtl',
   },
   subtitle: {
     marginTop: 3,
     color: QuranColors.textMuted,
     fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'auto',
+    writingDirection: 'rtl',
   },
   closeButton: {
     paddingHorizontal: 10,
@@ -366,12 +373,13 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 16,
     gap: 8,
+    
   },
   sectionTitle: {
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
     fontSize: 14,
-    textAlign: 'right',
+    textAlign: 'auto',
     writingDirection: 'rtl',
     marginTop: 4,
     marginBottom: 4,
@@ -381,7 +389,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: QuranColors.parchmentBorder,
-    borderRadius: 10,
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 10,
@@ -410,17 +418,25 @@ const styles = StyleSheet.create({
   },
   reciterText: {
     flex: 1,
-    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingVertical: 2,
+    alignItems: 'stretch',
   },
   reciterName: {
     fontSize: 14,
     color: QuranColors.textDark,
     fontWeight: '600',
+    lineHeight: 22,
+    textAlign: 'auto',
+    writingDirection: 'rtl',
   },
   reciterSubtitle: {
     fontSize: 11,
     marginTop: 2,
     color: QuranColors.textMuted,
+    lineHeight: 18,
+    textAlign: 'auto',
+    writingDirection: 'rtl',
   },
   selectedText: {
     color: QuranColors.emerald,
@@ -433,7 +449,8 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   optionLabel: {
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
     fontSize: 12,
     color: QuranColors.textMuted,
@@ -467,7 +484,7 @@ const styles = StyleSheet.create({
   helperText: {
     color: QuranColors.textMuted,
     fontSize: 11,
-    textAlign: 'right',
+    textAlign: 'auto',
     writingDirection: 'rtl',
     marginTop: 3,
   },
@@ -477,16 +494,18 @@ const styles = StyleSheet.create({
     borderColor: QuranColors.parchmentBorder,
     borderRadius: 10,
     marginTop: 8,
+    textAlign: 'auto',
+    writingDirection: 'rtl',
   },
   downloadSummaryText: {
     color: QuranColors.emeraldDark,
     fontSize: 13,
     fontWeight: '600',
-    textAlign: 'right',
+    textAlign: 'auto',
     writingDirection: 'rtl',
   },
   deleteButton: {
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
     marginTop: 8,
     paddingVertical: 6,
     paddingHorizontal: 8,
@@ -529,7 +548,8 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#B23A3A',
-    textAlign: 'right',
+    textAlign: 'auto'
+,
     writingDirection: 'rtl',
     fontSize: 12,
     marginTop: 6,
@@ -538,7 +558,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 10,
     paddingVertical: 13,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
     backgroundColor: QuranColors.emerald,
   },
   disabledButton: {
@@ -548,6 +571,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
   },
   cancelButton: {
     alignItems: 'center',

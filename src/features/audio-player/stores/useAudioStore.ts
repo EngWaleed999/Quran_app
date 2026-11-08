@@ -298,15 +298,21 @@ export const useAudioStore = create<AudioState>()(
       migrate: (persistedState: any) => {
         const previousReciterId = persistedState?.selectedReciter?.id;
         const legacyReciterMap: Record<string, string> = {
-          Alafasy_128kbps: 'ar.alafasy',
-          Husary_128kbps: 'ar.husary',
-          Minshawy_Murattal_128kbps: 'ar.minshawi',
-          Abdul_Basit_Murattal_192kbps: 'ar.abdulbasit',
-          Hudhaify_128kbps: 'ar.hudhaify',
+          'ar.alafasy': 'everyayah_Alafasy_64kbps',
+          'ar.husary': 'everyayah_Husary_64kbps',
+          'ar.minshawi': 'everyayah_Minshawy_Murattal_128kbps',
+          'ar.abdulbasit': 'everyayah_Abdul_Basit_Murattal_64kbps',
+          'ar.hudhaify': 'everyayah_Hudhaify_64kbps',
+          'ar.shuraim': 'everyayah_Saood_ash-Shuraym_64kbps',
+          Alafasy_128kbps: 'everyayah_Alafasy_64kbps',
+          Husary_128kbps: 'everyayah_Husary_64kbps',
+          Minshawy_Murattal_128kbps: 'everyayah_Minshawy_Murattal_128kbps',
+          Abdul_Basit_Murattal_192kbps: 'everyayah_Abdul_Basit_Murattal_64kbps',
+          Hudhaify_128kbps: 'everyayah_Hudhaify_64kbps',
         };
-        const migratedId = legacyReciterMap[previousReciterId] || previousReciterId;
+        const candidateId = legacyReciterMap[previousReciterId] || previousReciterId;
         const selectedReciter =
-          RECITERS.find((reciter) => reciter.id === migratedId) || RECITERS[0];
+          RECITERS.find((reciter) => reciter.id === candidateId) || RECITERS[0];
 
         const rawRepeat = persistedState?.repeatConfig;
         const tilawahConfig: RepeatConfig = persistedState?.tilawahConfig ?? {

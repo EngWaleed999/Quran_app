@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   topRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 42,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   centerMetadata: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 7,
@@ -179,8 +179,7 @@ const styles = StyleSheet.create({
   },
   textSide: {
     fontSize: 12,
-    fontFamily: 'System',
-    fontWeight: '600',
+    fontWeight: 'bold',
     flexShrink: 0,
   },
   surahBadge: {

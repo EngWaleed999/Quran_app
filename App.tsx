@@ -9,15 +9,7 @@ import { getPaperTheme, getQuranPalette, QuranColors } from './src/core/theme/th
 import { useAppPreferences } from './src/core/theme/preferencesStore';
 import { MushafPageView } from './src/features/mushaf/components/MushafPageView';
 import { initializeAppSchema } from './src/core/database/appSchema';
- import { Text, TextInput } from 'react-native';                                                                            
-                                                                                                                               
-    // // تطبيق الخط الافتراضي على مستوى React Native بالكامل                                                                     
-    // (Text as any).defaultProps = (Text as any).defaultProps || {};                                                             
-    // (Text as any).defaultProps.style = [{ fontFamily: require('./assets/fonts/thmanyah_typeface/thmanyahsans/woff2/thmanyahsans-Black.otf') }, (Text as any).defaultProps.style];                    
-                                                                                                                               
-    // (TextInput as any).defaultProps = (TextInput as any).defaultProps || {};                                                   
-    // (TextInput as any).defaultProps.style = [{ fontFamily: require('./assets/fonts/thmanyah_typeface/thmanyahsans/woff2/thmanyahsans-Black.otf') }, (TextInput as any).defaultProps.style];          
-
+import { THMANYAH_FONTS } from './src/core/theme/fonts';          
 try {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
@@ -32,7 +24,7 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     HafsSmart: require('./assets/fonts/HafsSmart_08.ttf'),
     UthmanicHafs: require('./assets/fonts/UthmanicHafs1Ver18.ttf'),
-    ThmanyahSansBlack: require('./assets/fonts/thmanyah_typeface/thmanyahserifdisplay/otf/thmanyahserifdisplay-Black.otf'),
+    ...THMANYAH_FONTS,
   });
 
   if (!fontsLoaded) {
@@ -63,11 +55,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  defaultText: {                                                                                                           
-  fontFamily: 'ThmanyahSans_Black',                                                                                      
-  textAlign: 'right',                                                                                                    
-  writingDirection: 'rtl',   
-   },          
+          
   safeArea: {
     flex: 1,
     backgroundColor: QuranColors.parchment,
