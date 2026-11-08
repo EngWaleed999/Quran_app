@@ -191,8 +191,7 @@ export const MushafPageView: React.FC = () => {
   useEffect(() => {
     if (Platform.OS === 'android') {
       // في الوضع الليلي نجعل خلفية شريط النظام بيضاء بأيقونات داكنة، وفي الفاتح/الأخضر خلفية سوداء بأيقونات فاتحة
-      NavigationBar.setStyle(theme.dark ? 'light' : 'dark');
-    }
+      NavigationBar.setStyle(theme.dark ? 'dark' : 'light');     }
   }, [theme.dark]);
 
   useEffect(() => {
