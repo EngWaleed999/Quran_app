@@ -37,7 +37,9 @@
     ],
     "extra": {
       "supportsRTL": true,
-      "projectId":"5abac0ca-47ec-4150-a826-ceece6914cdf"
+      "eas":{
+        "projectId":"5abac0ca-47ec-4150-a826-ceece6914cdf"
+      }
     }
   }
 }
