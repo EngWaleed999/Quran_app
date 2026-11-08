@@ -1,1 +1,3 @@
-assets/data/*.db    
+assets/data/quran-full.db
+assets/data/quran.db
+
