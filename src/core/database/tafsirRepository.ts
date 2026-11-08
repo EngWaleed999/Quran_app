@@ -20,6 +20,17 @@ export const AVAILABLE_TAFSIRS: TafsirBookInfo[] = [
 
 export class TafsirRepository {
   private static cache = new Map<string, string>();
+  private static readonly MAX_CACHE_SIZE = 100;
+
+  private static remember(cacheKey: string, text: string): void {
+    TafsirRepository.cache.delete(cacheKey);
+    TafsirRepository.cache.set(cacheKey, text);
+    while (TafsirRepository.cache.size > TafsirRepository.MAX_CACHE_SIZE) {
+      const oldest = TafsirRepository.cache.keys().next().value;
+      if (oldest === undefined) break;
+      TafsirRepository.cache.delete(oldest);
+    }
+  }
 
   /**
    * Retrieves the tafsir for an ayah synchronously.
@@ -32,7 +43,9 @@ export class TafsirRepository {
   ): string {
     const cacheKey = `${suraNo}:${ayaNo}:${tafsirType}`;
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+      const cached = this.cache.get(cacheKey)!;
+      this.remember(cacheKey, cached);
+      return cached;
     }
 
     try {
@@ -47,7 +60,7 @@ export class TafsirRepository {
         ? 'تفسير هذه الآية متصل بالآيات السابقة في هذا التفسير.'
         : 'لا يوجد تفسير متوفر لهذه الآية.';
 
-      this.cache.set(cacheKey, text);
+      this.remember(cacheKey, text);
       return text;
     } catch (error) {
       console.error('[TafsirRepository] Sync query error:', error);
@@ -66,7 +79,9 @@ export class TafsirRepository {
   ): Promise<string> {
     const cacheKey = `${suraNo}:${ayaNo}:${tafsirType}`;
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+      const cached = this.cache.get(cacheKey)!;
+      this.remember(cacheKey, cached);
+      return cached;
     }
 
     try {
@@ -81,7 +96,7 @@ export class TafsirRepository {
         ? 'تفسير هذه الآية متصل بالآيات السابقة في هذا التفسير.'
         : 'لا يوجد تفسير متوفر لهذه الآية.';
 
-      this.cache.set(cacheKey, text);
+      this.remember(cacheKey, text);
       return text;
     } catch (error) {
       console.error('[TafsirRepository] Query error:', error);

@@ -52,6 +52,7 @@ export class AudioPlayerEngine {
   private audioModePromise: Promise<void>;
   private preloadedUri: string | null = null;
   private activePreloadedUri: string | null = null;
+  private isLockScreenActive = false;
 
   constructor() {
     this.audioModePromise = setAudioModeAsync({
@@ -82,7 +83,7 @@ export class AudioPlayerEngine {
   private ensurePlayer(): AudioPlayer {
     if (this.player) return this.player;
 
-    const player = createAudioPlayer(null, { updateInterval: 100 });
+    const player = createAudioPlayer(null, { updateInterval: 250 });
     this.player = player;
     this.statusSubscription = player.addListener(
       'playbackStatusUpdate',
@@ -170,17 +171,28 @@ export class AudioPlayerEngine {
       }
 
       player.replace({ uri: localUri });
-      // تفعيل شاشة القفل متاح فقط في حزم الإنتاج المخصصة (Standalone APK) لوجود Foreground Service
-      // في Expo Go يتم تخطيه لمنع خطأ Service binding failed
+      // The active player is one ayah clip, so expose native seek controls.
+      // Next/previous-track buttons require a playlist-capable native player.
       if (__DEV__ === false) {
+        const metadata = {
+          title: 'سورة ' + this.target.suraName + ' • الآية ' + track.ayaNo,
+          artist: this.reciter.name,
+          albumTitle: 'القرآن الكريم',
+        };
         try {
-          player.setActiveForLockScreen(true, {
-            title: 'سورة ' + this.target.suraName + ' • الآية ' + track.ayaNo,
-            artist: this.reciter.name,
-            albumTitle: 'القرآن الكريم',
-          });
-        } catch {
-          // تجاهل آمن في بيئات التطوير
+          if (this.isLockScreenActive) {
+            player.updateLockScreenMetadata(metadata);
+          } else {
+            player.setActiveForLockScreen(true, metadata, {
+              showSeekBackward: true,
+              showSeekForward: true,
+              seekBackwardIntervalSeconds: 10,
+              seekForwardIntervalSeconds: 10,
+            });
+            this.isLockScreenActive = true;
+          }
+        } catch (error) {
+          console.warn('[AudioEngine] Could not update lock-screen controls:', error);
         }
       }
       player.play();
@@ -413,6 +425,7 @@ export class AudioPlayerEngine {
       try {
         finishedPlayer.pause();
         finishedPlayer.setActiveForLockScreen(false);
+        this.isLockScreenActive = false;
         finishedPlayer.remove();
       } catch {
         // The native player may already be released after the completion event.
@@ -438,6 +451,7 @@ export class AudioPlayerEngine {
       try {
         this.player.pause();
         this.player.setActiveForLockScreen(false);
+        this.isLockScreenActive = false;
         this.statusSubscription?.remove();
         this.statusSubscription = null;
         this.player.remove();

@@ -135,7 +135,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    minHeight: 58,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

@@ -24,22 +24,21 @@ function formatTime(seconds: number): string {
 export const AudioPlayerBar: React.FC = () => {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const theme = useTheme();
-  const {
-    status,
-    activeMode,
-    target,
-    selectedReciter,
-    activeAyah,
-    countdown,
-    pendingDelayKind,
-    positionSeconds,
-    durationSeconds,
-    lastError,
-    togglePlayback,
-    nextAyah,
-    previousAyah,
-    stop,
-  } = useAudioStore();
+  // Keep subscriptions granular; position ticks should not rerender unrelated controls.
+  const status = useAudioStore((state) => state.status);
+  const activeMode = useAudioStore((state) => state.activeMode);
+  const target = useAudioStore((state) => state.target);
+  const selectedReciter = useAudioStore((state) => state.selectedReciter);
+  const activeAyah = useAudioStore((state) => state.activeAyah);
+  const countdown = useAudioStore((state) => state.countdown);
+  const pendingDelayKind = useAudioStore((state) => state.pendingDelayKind);
+  const positionSeconds = useAudioStore((state) => state.positionSeconds);
+  const durationSeconds = useAudioStore((state) => state.durationSeconds);
+  const lastError = useAudioStore((state) => state.lastError);
+  const togglePlayback = useAudioStore((state) => state.togglePlayback);
+  const nextAyah = useAudioStore((state) => state.nextAyah);
+  const previousAyah = useAudioStore((state) => state.previousAyah);
+  const stop = useAudioStore((state) => state.stop);
 
   if (!target || status === 'idle') return null;
 
