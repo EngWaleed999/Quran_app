@@ -81,7 +81,6 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
         <TouchableOpacity

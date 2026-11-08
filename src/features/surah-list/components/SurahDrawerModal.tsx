@@ -165,7 +165,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
           </View>
 
           <Text style={[styles.surahMeta, { color: theme.colors.onSurfaceVariant }]}>
-            الجزء {toArabicNumerals(item.jozz_start)} • الحزب {toArabicNumerals(Math.ceil(item.jozz_start * 2))} • {toArabicNumerals(item.ayahs_count)} آية
+            الجزء {toArabicNumerals(item.jozz_start)} • - • الحزب {toArabicNumerals(Math.ceil(item.jozz_start * 2))} • {toArabicNumerals(item.ayahs_count)} آية
           </Text>
         </View>
 

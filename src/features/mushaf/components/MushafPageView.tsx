@@ -48,6 +48,7 @@ export const MushafPageView: React.FC = () => {
   const insets = useSafeAreaInsets();
   const pagerRef = useRef<PagerView>(null);
   const metadataRequestRef = useRef(0);
+  const lockedTopInsetRef = useRef<number | null>(null);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const previousPageRef = useRef<number>(currentPage);
@@ -404,9 +405,13 @@ export const MushafPageView: React.FC = () => {
     return <View style={[styles.blankContainer, { backgroundColor: theme.colors.background }]} />;
   }
 
-  // الاحتفاظ بالحد الآمن للعلوي والسفلي لمنع أي اهتزاز (Zero Layout Shift) عند إخفاء/إظهار عناصر التحكم
-  const effectiveTopInset = Math.max(insets.top, 24);
-  const effectiveBottomInset = Math.max(insets.bottom, 10);
+  // تثبيت الهوامش الآمنة لمرة واحدة فقط لمنع أي اهتزاز نهائياً (Zero Layout Shift)
+  if (lockedTopInsetRef.current === null && insets.top > 0) {
+    lockedTopInsetRef.current = insets.top;
+  }
+  const fixedTopInset = lockedTopInsetRef.current ?? (insets.top || 24);
+  const fixedTopPadding = fixedTopInset + 54;
+  const fixedBottomPadding = 48;
 
   const isWirdPending = Boolean(
     dailyWird &&
@@ -426,7 +431,7 @@ export const MushafPageView: React.FC = () => {
         hidden={!isControlsVisible}
         animated
       />
-      <Animated.View style={[styles.headerDock, { top: effectiveTopInset + 2 }]} pointerEvents="box-none">
+      <Animated.View style={[styles.headerDock, { top: fixedTopInset + 2 }]} pointerEvents="box-none">
       <PageHeader
         surahNames={pageMetadata.surahNames}
         jozzNumber={pageMetadata.jozz}
@@ -443,8 +448,8 @@ export const MushafPageView: React.FC = () => {
         style={[
           styles.pagerContainer,
           {
-            paddingTop: effectiveTopInset + 54,
-            paddingBottom: effectiveBottomInset + 36,
+            paddingTop: fixedTopPadding,
+            paddingBottom: fixedBottomPadding,
           },
         ]}
       >
