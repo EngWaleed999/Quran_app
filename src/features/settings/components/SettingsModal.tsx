@@ -214,8 +214,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 6,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
   closeBtn: {

@@ -408,8 +408,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 6,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
   closeBtn: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 6,
     paddingBottom: 24,
     gap: 8,
   },
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
     borderTopWidth: 1,
     paddingVertical: 8,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   navTab: {
     flex: 1,
