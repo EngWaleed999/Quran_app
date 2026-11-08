@@ -31,11 +31,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   const theme = useTheme();
   const names = useMemo(() => {
-    const source = surahNames && surahNames.length > 0
-      ? surahNames
-      : surahName
-        ? [surahName]
-        : [];
+    const source =
+      surahNames && surahNames.length > 0
+        ? surahNames
+        : surahName
+          ? [surahName]
+          : [];
     return source.filter((name, index) => name && source.indexOf(name) === index);
   }, [surahNames, surahName]);
 
@@ -48,8 +49,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   const surahFontSize = names.length <= 1 ? 14 : names.length === 2 ? 12.5 : 11.5;
 
   return (
-    <View style={[styles.container, !isControlsVisible && styles.compactContainer]}>
-      <View style={[styles.topRow, !isControlsVisible && styles.compactTopRow]}>
+    <View style={styles.container}>
+      <View style={styles.topRow}>
         <Animated.View
           style={[styles.rightActions, { opacity: controlsAnim }]}
           pointerEvents={isControlsVisible ? 'auto' : 'none'}
@@ -60,21 +61,25 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             accessibilityLabel="فهرس السور"
             hitSlop={8}
           >
-            <MaterialCommunityIcons name="format-list-bulleted" size={22} color={theme.colors.primary} />
+            <MaterialCommunityIcons
+              name="format-list-bulleted"
+              size={22}
+              color={theme.colors.primary}
+            />
           </TouchableOpacity>
         </Animated.View>
 
         <View style={styles.centerMetadata}>
-          <Text style={[styles.textSide, !isControlsVisible && styles.compactTextSide, { color: theme.colors.onSurfaceVariant }]}>
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]}>
             الجزء {toArabicNumerals(jozzNumber)}
           </Text>
 
-          <View style={[styles.surahBadge, !isControlsVisible && styles.compactSurahBadge]}>
+          <View style={styles.surahBadge}>
             <Text
               style={[
                 styles.surahText,
                 {
-                  fontSize: isControlsVisible ? surahFontSize : Math.min(surahFontSize, 11),
+                  fontSize: surahFontSize,
                   color: theme.colors.primary,
                 },
               ]}
@@ -86,8 +91,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </Text>
           </View>
 
-          <Text style={[styles.textSide, !isControlsVisible && styles.compactTextSide, { color: theme.colors.onSurfaceVariant }]}>
-            {pageNumber ? 'صفحة ' + toArabicNumerals(pageNumber) : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
+          <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]}>
+            {pageNumber
+              ? 'صفحة ' + toArabicNumerals(pageNumber)
+              : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
           </Text>
         </View>
 
@@ -115,13 +122,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </Animated.View>
       </View>
 
-      {isControlsVisible ? (
-        <View style={styles.separatorContainer}>
-          <View style={[styles.line, { backgroundColor: theme.colors.outline }]} />
-          <View style={styles.diamond} />
-          <View style={[styles.line, { backgroundColor: theme.colors.outline }]} />
-        </View>
-      ) : null}
+      <View style={styles.separatorContainer}>
+        <View style={[styles.line, { backgroundColor: theme.colors.outline }]} />
+        <View style={styles.diamond} />
+        <View style={[styles.line, { backgroundColor: theme.colors.outline }]} />
+      </View>
     </View>
   );
 };
@@ -133,19 +138,12 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     backgroundColor: 'transparent',
   },
-  compactContainer: {
-    paddingTop: 1,
-    paddingBottom: 0,
-  },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 42,
     position: 'relative',
-  },
-  compactTopRow: {
-    minHeight: 28,
   },
   rightActions: {
     position: 'absolute',
@@ -182,9 +180,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     flexShrink: 0,
   },
-  compactTextSide: {
-    fontSize: 10,
-  },
   surahBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -195,11 +190,6 @@ const styles = StyleSheet.create({
     maxWidth: '42%',
     minWidth: 72,
     flexShrink: 1,
-  },
-  compactSurahBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    minWidth: 64,
   },
   surahText: {
     fontWeight: 'bold',

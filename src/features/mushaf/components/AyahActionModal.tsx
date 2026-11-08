@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomSheetContainer: {
-    maxHeight: '68%',
+    maxHeight: '95%',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 8,
@@ -439,12 +439,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 6,
-    padding: 14,
-    borderRadius: 12,
+    padding: 5,
+    borderRadius: 20,
     borderWidth: 1,
   },
   snippetText: {
-    fontSize: 20, // <--- تم تكبير حجم الخط ليتناسب مع الرسم العثماني
+    fontSize: 19, // <--- تم تكبير حجم الخط ليتناسب مع الرسم العثماني
     lineHeight: 36, // <--- مسافة السطر لمنع تداخل الحركات والتنوين
     textAlign: 'center',
     fontFamily: 'UthmanicHafs',

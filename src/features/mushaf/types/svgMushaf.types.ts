@@ -45,4 +45,5 @@ export interface SvgPilotPageAsset {
   svgXml: string;
   viewBox: string;
   rawJson: RawAyahJsonEntry[];
+  normalizedData?: NormalizedPageData;
 }

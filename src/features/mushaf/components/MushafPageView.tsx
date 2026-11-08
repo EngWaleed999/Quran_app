@@ -17,6 +17,7 @@ import { AyahActionModal, SelectedAyahInfo } from './AyahActionModal';
 import { TafsirModal } from './TafsirModal';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
+import { SvgMushafRepository } from '../../../core/database/svgMushafRepository';
 import { BookmarkService } from '../../bookmarks/services/bookmarkService';
 import { Bookmark } from '../../bookmarks/types/bookmark.types';
 import { useAudioStore } from '../../audio-player/stores/useAudioStore';
@@ -48,6 +49,7 @@ export const MushafPageView: React.FC = () => {
   const metadataRequestRef = useRef(0);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const previousPageRef = useRef<number>(currentPage);
   const [isReady, setIsReady] = useState<boolean>(false);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -213,6 +215,7 @@ export const MushafPageView: React.FC = () => {
         // Do not hold the first Mushaf frame for a second metadata query.
         // The SVG page loads independently after the selected index is rendered.
         setCurrentPage(target);
+        previousPageRef.current = target;
         setIsReady(true);
         void loadPageMetadata(target);
       } catch (error) {
@@ -227,6 +230,51 @@ export const MushafPageView: React.FC = () => {
       metadataRequestRef.current += 1;
     };
   }, [db, loadPageMetadata]);
+
+  // Predictive Directional Preloading
+  useEffect(() => {
+    if (!db || !isReady) return;
+
+    const prev = previousPageRef.current;
+    previousPageRef.current = currentPage;
+
+    const movingForward = currentPage > prev;
+    const movingBackward = currentPage < prev;
+
+    const candidatePages: number[] = [];
+    if (movingForward) {
+      candidatePages.push(
+        currentPage + 1,
+        currentPage + 2,
+        currentPage + 3,
+        currentPage - 1,
+        currentPage - 2
+      );
+    } else if (movingBackward) {
+      candidatePages.push(
+        currentPage - 1,
+        currentPage - 2,
+        currentPage - 3,
+        currentPage + 1,
+        currentPage + 2
+      );
+    } else {
+      candidatePages.push(
+        currentPage - 2,
+        currentPage - 1,
+        currentPage + 1,
+        currentPage + 2
+      );
+    }
+
+    const timer = setTimeout(() => {
+      SvgMushafRepository.preloadPages(db, candidatePages);
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [db, currentPage, isReady]);
 
   const handlePageSelected = useCallback((position: number) => {
     const pageNum = position + 1;
@@ -356,7 +404,12 @@ export const MushafPageView: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar hidden={!isControlsVisible} animated />
+      {/* Transparent adaptive status bar that avoids obscuring clock/battery icons */}
+      <StatusBar
+        style={theme.dark ? 'light' : 'dark'}
+        hidden={!isControlsVisible}
+        animated
+      />
       <Animated.View style={[styles.headerDock, { top: insets.top + 2 }]} pointerEvents="box-none">
       <PageHeader
         surahNames={pageMetadata.surahNames}

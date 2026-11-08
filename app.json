@@ -6,16 +6,20 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.quran.app",
       "adaptiveIcon": {
-        "backgroundColor": "#1F513F",
+        "backgroundColor": "#043732",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "androidStatusBar": {
+        "backgroundColor": "#00000000",
+        "translucent": true
       },
       "predictiveBackGestureEnabled": false
     },
@@ -23,6 +27,19 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#043732",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#121413"
+          }
+        }
+      ],
       "expo-sqlite",
       "expo-font",
       "expo-asset",

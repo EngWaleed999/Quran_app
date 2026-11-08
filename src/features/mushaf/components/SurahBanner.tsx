@@ -39,6 +39,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   bannerOuter: {
+    marginTop:100,
     width: '96%',
     padding: 2,
     borderRadius: 6,

@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, I18nManager, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   SQLiteProvider,
   defaultDatabaseDirectory,
@@ -15,6 +16,9 @@ import { MushafPageView } from './src/features/mushaf/components/MushafPageView'
 import { initializeAppSchema } from './src/core/database/appSchema';
 import { THMANYAH_FONTS } from './src/core/theme/fonts';
 import { useFontLoadingStore } from './src/core/theme/fontLoadingStore';
+
+// Prevent native splash screen from hiding prematurely before JS runtime & SQLite bootstrap
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const QURAN_DATABASE_NAME = 'quran.db';
 const QURAN_DATABASE_ASSET = require('./assets/data/quran-full.db');
@@ -94,6 +98,13 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Dismiss splash screen smoothly as soon as bootstrap completes, without unnecessary wait
+  useEffect(() => {
+    if (databaseBootstrapReady) {
+      void SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [databaseBootstrapReady]);
 
   // Keep descendants stable. In particular, SQLiteProvider must not reopen
   // the database when fonts or appearance preferences update.

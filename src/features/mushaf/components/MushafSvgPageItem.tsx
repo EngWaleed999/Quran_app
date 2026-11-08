@@ -4,7 +4,6 @@ import {
   StyleSheet,
   GestureResponderEvent,
   LayoutChangeEvent,
-  InteractionManager,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -66,36 +65,39 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     height: number;
   }>({ width: 0, height: 0 });
 
-  // The active page is fetched immediately; neighbors wait until the UI is idle.
-  const [pageAsset, setPageAsset] = useState<SvgPilotPageAsset | null>(null);
+  // Synchronous cache hit check on initial mount prevents blank white frame
+  const [pageAsset, setPageAsset] = useState<SvgPilotPageAsset | null>(() =>
+    SvgMushafRepository.getCachedAsset(page)
+  );
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
 
     if (!db || !isNear) {
-      setPageAsset(null);
       return;
     }
 
-    setPageAsset(null);
-    const loadPage = () => {
-      void SvgMushafRepository.getPageAsset(db, page).then((asset) => {
-        if (!cancelled) setPageAsset(asset);
-      });
-    };
-
-    if (isActive) {
-      loadPage();
-    } else {
-      timer = setTimeout(loadPage, 180);
+    // Retain existing asset if already populated for this page
+    if (pageAsset && pageAsset.page === page) {
+      return;
     }
+
+    const cached = SvgMushafRepository.getCachedAsset(page);
+    if (cached) {
+      setPageAsset(cached);
+      return;
+    }
+
+    void SvgMushafRepository.getPageAsset(db, page).then((asset) => {
+      if (!cancelled && asset) {
+        setPageAsset(asset);
+      }
+    });
 
     return () => {
       cancelled = true;
-      if (timer) clearTimeout(timer);
     };
-  }, [db, page, isNear, isActive]);
+  }, [db, page, isNear, pageAsset]);
 
   // التحقق من وجود سورة تبدأ في هذه الصفحة من قاعدة البيانات
   const surahHeader = useMemo(() => {
@@ -103,21 +105,33 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     return QuranRepository.getSurahStartingOnPage(db, page);
   }, [db, page, isNear]);
 
-  // Draw the SVG before building the heavier polygon geometry. Hit-testing
-  // data is prepared after the first render/interaction frame.
-  const [normalizedData, setNormalizedData] = useState<NormalizedPageData | null>(null);
+  // Use pre-cached normalized geometry if available; otherwise compute after first paint
+  const [normalizedData, setNormalizedData] = useState<NormalizedPageData | null>(() => {
+    const cached = SvgMushafRepository.getCachedAsset(page);
+    return cached?.normalizedData ?? null;
+  });
 
   useEffect(() => {
-    setNormalizedData(null);
     if (!pageAsset || pageAsset.page !== page) return;
 
+    if (pageAsset.normalizedData) {
+      setNormalizedData(pageAsset.normalizedData);
+      return;
+    }
+
     let cancelled = false;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = requestIdleCallback(() => {
       if (cancelled) return;
       try {
-        setNormalizedData(
-          normalizePageAyahData(pageAsset.rawJson, page, pageAsset.viewBox)
+        const normalized = normalizePageAyahData(
+          pageAsset.rawJson,
+          page,
+          pageAsset.viewBox
         );
+        SvgMushafRepository.attachNormalizedData(page, normalized);
+        if (!cancelled) {
+          setNormalizedData(normalized);
+        }
       } catch (error) {
         console.warn(`[MushafSvgPageItem] Could not normalize page ${page}:`, error);
       }
@@ -125,7 +139,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
     return () => {
       cancelled = true;
-      task.cancel();
+      cancelIdleCallback(task);
     };
   }, [pageAsset, page]);
 
@@ -140,8 +154,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
       return [];
     }
 
-    // One daily wird may exceed a single full Quran cycle for aggressive plans.
-    // In that case every ayah belongs to the current wird.
     if (khatmahDailyTargetAyahs >= 6236) {
       return normalizedData.ayahs.map((ayah) => ayah.verseKey);
     }
@@ -215,7 +227,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
       if (!touchStartRef.current || !normalizedData) return;
       if (layoutDimensions.width <= 0 || layoutDimensions.height <= 0) return;
 
-      // إسقاط نقطة اللمس على إحداثيات الـ SVG نسبة لحاوية الـ SVG المعزولة
       const svgPoint = mapTouchToSvgCoordinates(
         touchStartRef.current.locationX,
         touchStartRef.current.locationY,
@@ -224,7 +235,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
         normalizedData.viewBox
       );
 
-      // كشف الآية المحددة بالضغط المطول
       const hitAyah = findAyahAtSvgCoordinates(svgPoint, normalizedData.ayahs);
       if (hitAyah) {
         hasTriggeredLongPressRef.current = true;
@@ -261,11 +271,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     const deltaY = Math.abs(event.nativeEvent.pageY - touchStart.pageY);
     touchStartRef.current = null;
 
-    // Tap a verse to select it and open its actions. Taps on the empty page
-    // still toggle the immersive controls.
     if (deltaX < 10 && deltaY < 10) {
-      // Tap anywhere on the page to toggle immersive controls.
-      // Opening Ayah actions is strictly reserved for Long Press.
       onToggleControls?.();
     }
   };

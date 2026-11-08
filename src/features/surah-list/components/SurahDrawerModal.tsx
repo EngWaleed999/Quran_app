@@ -411,6 +411,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 8,
     borderBottomWidth: 1,
+    writingDirection: 'rtl'
   },
   closeBtn: {
     width: 40,
