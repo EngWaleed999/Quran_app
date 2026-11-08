@@ -29,7 +29,19 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test:khatmah": "node --experimental-strip-types --test tests/khatmahRules.test.mjs tests/khatmahService.test.mjs tests/bookmarkRules.test.mjs tests/audioPlaybackRules.test.mjs",
+    "test:bookmarks": "node --experimental-strip-types --test tests/bookmarkRules.test.mjs",
+    "test:audio": "node --experimental-strip-types --test tests/audioPlaybackRules.test.mjs",
+    "prestart": "node scripts/prepare-quran-db.mjs",
+    "preandroid": "node scripts/prepare-quran-db.mjs",
+    "preios": "node scripts/prepare-quran-db.mjs",
+    "eas-build-post-install": "node scripts/prepare-quran-db.mjs --eas",
+    "db:prepare": "node scripts/prepare-quran-db.mjs",
+    "db:analyze": "node scripts/analyze-quran-db.mjs",
+    "db:backup": "node scripts/backup-quran-db.mjs",
+    "check:db-tools": "node --check scripts/prepare-quran-db.mjs && node --check scripts/analyze-quran-db.mjs && node --check scripts/backup-quran-db.mjs && node --check scripts/build-db.js"
   },
   "private": true
 }

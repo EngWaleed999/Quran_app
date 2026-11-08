@@ -1,58 +1,34 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import { Asset } from 'expo-asset';
 import * as SQLite from 'expo-sqlite';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
+let initializationPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 /**
- * Initializes and opens the offline SQLite database.
- * Copies the pre-built `quran.db` asset into Expo's document directory if not already present,
- * and automatically upgrades older database versions (< 50MB) to the full 604 SVG version (~101MB).
+ * Opens the persistent application database.
+ *
+ * SQLiteProvider seeds this database from the bundled full Quran asset only
+ * when it is first installed. Never replace an existing file based on size:
+ * it may already contain user notes and Khatmah progress.
  */
-export async function getQuranDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (dbInstance) {
-    return dbInstance;
-  }
+export function getQuranDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (dbInstance) return Promise.resolve(dbInstance);
+  if (initializationPromise) return initializationPromise;
 
-  const dbDir = `${FileSystem.documentDirectory}SQLite`;
-  const dbPath = `${dbDir}/quran.db`;
+  initializationPromise = SQLite.openDatabaseAsync('quran.db')
+    .then((db) => {
+      dbInstance = db;
+      return db;
+    })
+    .finally(() => {
+      initializationPromise = null;
+    });
 
-  try {
-    const dirInfo = await FileSystem.getInfoAsync(dbDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true });
-    }
+  return initializationPromise;
+}
 
-    const fileInfo = await FileSystem.getInfoAsync(dbPath);
-    let needsCopy = !fileInfo.exists;
-
-    // Detect if existing installed DB is the legacy ~4MB DB without 604 SVG pages
-    if (fileInfo.exists && 'size' in fileInfo && fileInfo.size < 50 * 1024 * 1024) {
-      console.log('[Database] Upgrading existing quran.db to latest 604-page SVG version (~101MB)...');
-      needsCopy = true;
-    }
-
-    if (needsCopy) {
-      console.log('[Database] Installing latest quran.db asset...');
-      const dbAsset = Asset.fromModule(require('../../../assets/data/quran.db'));
-      await dbAsset.downloadAsync();
-
-      const sourceUri = dbAsset.localUri || dbAsset.uri;
-      if (!sourceUri) {
-        throw new Error('Failed to resolve asset URI for quran.db');
-      }
-
-      await FileSystem.copyAsync({
-        from: sourceUri,
-        to: dbPath,
-      });
-      console.log('[Database] quran.db successfully installed/updated to:', dbPath);
-    }
-
-    dbInstance = await SQLite.openDatabaseAsync('quran.db');
-    return dbInstance;
-  } catch (error) {
-    console.error('[Database] Error initializing Quran database:', error);
-    throw error;
-  }
+export async function closeQuranDatabase(): Promise<void> {
+  const db = dbInstance;
+  dbInstance = null;
+  if (!db) return;
+  await db.closeAsync();
 }

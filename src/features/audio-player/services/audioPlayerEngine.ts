@@ -8,6 +8,7 @@ import {
   AudioStatus,
 } from 'expo-audio';
 import { AudioDownloader } from './audioDownloader';
+import { getPlaybackAdvance, getManualNextIndex, getManualPreviousIndex, shouldRepeatCurrentAyah, type PlaybackDelayKind } from './audioPlaybackRules';
 import {
   PlaybackStatus,
   PlaybackTarget,
@@ -20,6 +21,7 @@ export interface AudioEngineCallbacks {
   onActiveAyahChange: (suraNo: number, ayaNo: number) => void;
   onPositionUpdate?: (currentSeconds: number, durationSeconds: number) => void;
   onRepeatCountdown?: (secondsRemaining: number) => void;
+  onDelayKindChange?: (kind: PlaybackDelayKind) => void;
   onError: (errorMessage: string) => void;
 }
 
@@ -36,13 +38,16 @@ export class AudioPlayerEngine {
   private reciter: Reciter | null = null;
   private tracks: PlaybackTarget['verses'] = [];
   private currentIndex = 0;
+  private startIndex = 0;
+  private completedSurahPlays = 1;
   private currentAyahRepeatCount = 0;
-  private repeatConfig: RepeatConfig = { repeatCount: 1, pauseDelaySeconds: 0 };
+  private repeatConfig: RepeatConfig = { repeatCount: 1, pauseDelaySeconds: 0, surahRepeatCount: 1 };
   private callbacks: AudioEngineCallbacks | null = null;
   private delayTimer: ReturnType<typeof setTimeout> | null = null;
   private delayInterval: ReturnType<typeof setInterval> | null = null;
   private delayEndsAt = 0;
   private remainingDelayMs = 0;
+  private delayKind: PlaybackDelayKind = null;
   private handlingFinishedEvent = false;
   private audioModePromise: Promise<void>;
   private preloadedUri: string | null = null;
@@ -61,6 +66,17 @@ export class AudioPlayerEngine {
 
   setCallbacks(callbacks: AudioEngineCallbacks): void {
     this.callbacks = callbacks;
+  }
+
+  updateRepeatConfig(config: RepeatConfig): void {
+    this.repeatConfig = {
+      repeatCount: Math.max(1, Math.floor(config.repeatCount)),
+      pauseDelaySeconds: Math.max(0, config.pauseDelaySeconds),
+      verseGapDelaySeconds: Math.max(0, config.verseGapDelaySeconds ?? 0),
+      surahRepeatCount: config.surahRepeatCount === null
+        ? null
+        : Math.max(1, Math.floor(config.surahRepeatCount ?? 1)),
+    };
   }
 
   private ensurePlayer(): AudioPlayer {
@@ -96,13 +112,11 @@ export class AudioPlayerEngine {
     this.target = target;
     this.reciter = reciter;
     this.tracks = target.verses;
+    this.startIndex = startIndex;
     this.currentIndex = startIndex;
+    this.completedSurahPlays = 1;
     this.currentAyahRepeatCount = 0;
-    this.repeatConfig = {
-      repeatCount: Math.max(1, Math.floor(repeatConfig.repeatCount)),
-      pauseDelaySeconds: Math.max(0, repeatConfig.pauseDelaySeconds),
-      verseGapDelaySeconds: Math.max(0, repeatConfig.verseGapDelaySeconds ?? 0),
-    };
+    this.updateRepeatConfig(repeatConfig);
     this.isEngineRunning = true;
 
     this.playCurrentAyah();
@@ -176,7 +190,7 @@ export class AudioPlayerEngine {
     } catch (error) {
       console.error('[AudioEngine] Could not play ayah:', error);
       this.callbacks?.onError('تعذر تشغيل الملف الصوتي. أعد تنزيل السورة ثم حاول مرة أخرى.');
-      void this.stop();
+      void this.stop(false);
     }
   }
 
@@ -185,11 +199,20 @@ export class AudioPlayerEngine {
 
     // Replaying the same local clip does not need a second preload allocation.
     const willRepeatCurrent =
-      this.currentAyahRepeatCount + 1 < this.repeatConfig.repeatCount;
+      shouldRepeatCurrentAyah(
+        this.currentAyahRepeatCount + 1,
+        this.repeatConfig.repeatCount
+      );
     if (willRepeatCurrent) return;
 
     const scheduledIndex = this.currentIndex;
-    const nextTrack = this.tracks[scheduledIndex + 1];
+    const nextTrack = this.tracks[scheduledIndex + 1] ?? (
+      scheduledIndex === this.tracks.length - 1 &&
+      (this.repeatConfig.surahRepeatCount === null ||
+        this.completedSurahPlays < this.repeatConfig.surahRepeatCount)
+        ? this.tracks[0]
+        : undefined
+    );
     if (!nextTrack) return;
 
     const nextUri = AudioDownloader.getLocalAyahUri(
@@ -228,7 +251,7 @@ export class AudioPlayerEngine {
 
     if (status.error) {
       this.callbacks?.onError('حدث خطأ أثناء تشغيل التلاوة.');
-      void this.stop();
+      void this.stop(false);
       return;
     }
 
@@ -244,9 +267,9 @@ export class AudioPlayerEngine {
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount += 1;
 
-    if (this.currentAyahRepeatCount < this.repeatConfig.repeatCount) {
+    if (shouldRepeatCurrentAyah(this.currentAyahRepeatCount, this.repeatConfig.repeatCount)) {
       if (this.repeatConfig.pauseDelaySeconds > 0) {
-        this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000);
+        this.beginRepeatDelay(this.repeatConfig.pauseDelaySeconds * 1000, 'ayah-repeat');
       } else {
         this.playCurrentAyah();
       }
@@ -254,21 +277,39 @@ export class AudioPlayerEngine {
     }
 
     this.currentAyahRepeatCount = 0;
-    if (this.currentIndex < this.tracks.length - 1) {
-      this.currentIndex += 1;
-      const verseGap = this.repeatConfig.verseGapDelaySeconds ?? 0;
-      if (verseGap > 0) {
-        this.beginRepeatDelay(verseGap * 1000);
-      } else {
-        this.playCurrentAyah();
-      }
-    } else {
+    const advance = getPlaybackAdvance(
+      this.currentIndex,
+      this.startIndex,
+      this.tracks.length - 1,
+      this.completedSurahPlays,
+      this.repeatConfig.surahRepeatCount
+    );
+
+    if (advance.nextIndex === null) {
       this.completePlayback();
+      return;
+    }
+
+    if (advance.startsNewCycle) {
+      this.completedSurahPlays += 1;
+        this.startIndex = 0;
+    }
+    this.currentIndex = advance.nextIndex;
+
+    const verseGap = advance.startsNewCycle
+      ? 0
+      : this.repeatConfig.verseGapDelaySeconds ?? 0;
+    if (verseGap > 0) {
+      this.beginRepeatDelay(verseGap * 1000, 'verse-gap');
+    } else {
+      this.playCurrentAyah();
     }
   }
 
-  private beginRepeatDelay(durationMs: number): void {
-    this.clearDelayTimers();
+  private beginRepeatDelay(durationMs: number, kind: PlaybackDelayKind): void {
+    this.clearDelayTimers(false);
+    this.delayKind = kind;
+    this.callbacks?.onDelayKindChange?.(kind);
     this.remainingDelayMs = durationMs;
     this.delayEndsAt = Date.now() + durationMs;
     this.callbacks?.onStatusChange('waiting_user_repeat');
@@ -282,17 +323,22 @@ export class AudioPlayerEngine {
     this.delayTimer = setTimeout(() => {
       this.clearDelayTimers();
       this.remainingDelayMs = 0;
+      this.delayKind = null;
       if (this.isEngineRunning) {
         void this.playCurrentAyah();
       }
     }, durationMs);
   }
 
-  private clearDelayTimers(): void {
+  private clearDelayTimers(resetDelayKind = true): void {
     if (this.delayTimer) clearTimeout(this.delayTimer);
     if (this.delayInterval) clearInterval(this.delayInterval);
     this.delayTimer = null;
     this.delayInterval = null;
+    if (resetDelayKind && this.delayKind !== null) {
+      this.delayKind = null;
+      this.callbacks?.onDelayKindChange?.(null);
+    }
   }
 
   async pause(): Promise<void> {
@@ -300,7 +346,7 @@ export class AudioPlayerEngine {
 
     if (this.delayTimer) {
       this.remainingDelayMs = Math.max(0, this.delayEndsAt - Date.now());
-      this.clearDelayTimers();
+      this.clearDelayTimers(false);
     } else {
       this.player?.pause();
     }
@@ -312,7 +358,7 @@ export class AudioPlayerEngine {
     if (!this.isEngineRunning) return;
 
     if (this.remainingDelayMs > 0) {
-      this.beginRepeatDelay(this.remainingDelayMs);
+      this.beginRepeatDelay(this.remainingDelayMs, this.delayKind ?? 'ayah-repeat');
     } else {
       this.player?.play();
       this.callbacks?.onStatusChange('playing');
@@ -320,47 +366,59 @@ export class AudioPlayerEngine {
   }
 
   async nextAyah(): Promise<void> {
-    if (!this.isEngineRunning || this.currentIndex >= this.tracks.length - 1) return;
+    if (!this.isEngineRunning) return;
+
+    const nextIndex = getManualNextIndex(
+      this.currentIndex,
+      this.tracks.length - 1,
+      this.delayKind
+    );
+    if (nextIndex === null) return;
+
     this.clearDelayTimers();
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
-    this.currentIndex += 1;
+    this.currentIndex = nextIndex;
     this.playCurrentAyah();
   }
 
   async previousAyah(): Promise<void> {
-    if (!this.isEngineRunning || this.currentIndex <= 0) {
-      if (this.isEngineRunning && this.currentIndex === 0) {
-        this.playCurrentAyah();
-      }
-      return;
-    }
+    if (!this.isEngineRunning) return;
 
-    const currentTime = this.player?.currentTime ?? 0;
-    if (currentTime > 3) {
-      this.releaseFinishedPreload();
-      this.playCurrentAyah();
-      return;
-    }
+    const previousIndex = getManualPreviousIndex(
+      this.currentIndex,
+      this.startIndex,
+      this.player?.currentTime ?? 0,
+      this.delayKind
+    );
 
     this.clearDelayTimers();
     this.releaseFinishedPreload();
     this.currentAyahRepeatCount = 0;
-    this.currentIndex -= 1;
+    this.currentIndex = previousIndex;
     this.playCurrentAyah();
   }
 
   private completePlayback(): void {
     this.isEngineRunning = false;
     this.clearDelayTimers();
-    this.player?.pause();
-    if (__DEV__ === false) {
+    this.remainingDelayMs = 0;
+
+    const finishedPlayer = this.player;
+    this.player = null;
+    this.statusSubscription?.remove();
+    this.statusSubscription = null;
+
+    if (finishedPlayer) {
       try {
-        this.player?.setActiveForLockScreen(false);
+        finishedPlayer.pause();
+        finishedPlayer.setActiveForLockScreen(false);
+        finishedPlayer.remove();
       } catch {
-        // ignore
+        // The native player may already be released after the completion event.
       }
     }
+
     this.callbacks?.onRepeatCountdown?.(0);
     this.callbacks?.onStatusChange('completed');
     this.preloadedUri = null;
@@ -372,6 +430,7 @@ export class AudioPlayerEngine {
     this.isEngineRunning = false;
     this.clearDelayTimers();
     this.remainingDelayMs = 0;
+    this.delayKind = null;
     this.preloadedUri = null;
     this.activePreloadedUri = null;
 

@@ -1,0 +1,1150 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
+import { SQLiteDatabase } from 'expo-sqlite';
+import { QuranColors } from '../../../core/theme/theme';
+import { QuranRepository } from '../../../core/database/quranRepository';
+import { KhatmahService } from '../services/khatmahService';
+import { DailyWird, KhatmahCompletion } from '../types/khatmah.types';
+import { Surah } from '../../surah-list/types/surah.types';
+
+interface KhatmahModalProps {
+  visible: boolean;
+  db: SQLiteDatabase;
+  currentPage: number;
+  onClose: () => void;
+  onNavigateToPage: (page: number, verseKey?: string) => void;
+  onWirdChange?: (wird: DailyWird | null) => void;
+  embedded?: boolean;
+}
+
+export const KhatmahModal: React.FC<KhatmahModalProps> = ({
+  visible,
+  db,
+  currentPage,
+  onClose,
+  onNavigateToPage,
+  onWirdChange,
+  embedded = false,
+}) => {
+  const theme = useTheme();
+  const [wird, setWird] = useState<DailyWird | null>(null);
+  const [khatmahCount, setKhatmahCount] = useState(1);
+  const [durationDays, setDurationDays] = useState('30');
+  const [startFrom, setStartFrom] = useState<'beginning' | 'current' | 'custom'>('beginning');
+  const [startSurahNo, setStartSurahNo] = useState(1);
+  const [startAyahInput, setStartAyahInput] = useState('1');
+  const [surahOptions, setSurahOptions] = useState<Surah[]>([]);
+  const [isSurahPickerOpen, setIsSurahPickerOpen] = useState(false);
+  const [history, setHistory] = useState<KhatmahCompletion[]>([]);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const selectedStartSurah = surahOptions.find((surah) => surah.sura_no === startSurahNo) ?? null;
+
+  useEffect(() => {
+    setSurahOptions(QuranRepository.getAllSurahsSync(db));
+  }, [db]);
+
+  const refresh = async () => {
+    const current = await KhatmahService.getDailyWird(db);
+    setWird(current);
+    onWirdChange?.(current);
+    setHistory(
+      current
+        ? await KhatmahService.getCompletionHistory(db, current.plan.id)
+        : []
+    );
+  };
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+
+    setLoading(true);
+    void KhatmahService.getDailyWird(db)
+      .then(async (result) => {
+        if (active) {
+          setWird(result);
+          onWirdChange?.(result);
+          const rows = result
+            ? await KhatmahService.getCompletionHistory(db, result.plan.id)
+            : [];
+          if (active) setHistory(rows);
+        }
+      })
+      .catch((error) => {
+        console.warn('[KhatmahModal] Could not load plan:', error);
+        Alert.alert('تعذر تحميل ختمتي', 'حدث خطأ أثناء قراءة خطة الختمة.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [visible, db, onWirdChange]);
+
+  const createPlan = async () => {
+    const days = Number(durationDays);
+    if (!Number.isInteger(days) || days < 1 || days > 3660) {
+      Alert.alert('مدة غير صحيحة', 'أدخل عدداً صحيحاً من الأيام بين 1 و3660.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let startGlobalAyah = 1;
+
+      if (startFrom === 'current') {
+        const pageAyahs = QuranRepository.getPageAyahsSync(db, currentPage);
+        const firstAyah = pageAyahs[0];
+
+        if (!firstAyah) {
+          throw new Error('تعذر تحديد أول آية في الصفحة الحالية.');
+        }
+
+        startGlobalAyah = QuranRepository.getGlobalAyahNumberSync(
+          db,
+          firstAyah.sura_no,
+          firstAyah.aya_no
+        );
+      } else if (startFrom === 'custom') {
+        const selectedAyahNo = Number(startAyahInput);
+        if (
+          !selectedStartSurah ||
+          !Number.isInteger(selectedAyahNo) ||
+          selectedAyahNo < 1 ||
+          selectedAyahNo > selectedStartSurah.ayahs_count
+        ) {
+          throw new Error('اختر سورة ورقم آية صالحاً ضمن عدد آيات السورة.');
+        }
+
+        startGlobalAyah = QuranRepository.getGlobalAyahNumberSync(
+          db,
+          selectedStartSurah.sura_no,
+          selectedAyahNo
+        );
+      }
+
+      await KhatmahService.createPlan(db, {
+        khatmahCount,
+        durationDays: days,
+        startGlobalAyah,
+      });
+      await refresh();
+    } catch (error) {
+      Alert.alert(
+        'تعذر إنشاء الخطة',
+        error instanceof Error ? error.message : 'حدث خطأ غير متوقع.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeWird = async () => {                                                                                           
+        if (!wird?.canComplete || loading) return;                                                                                 
+                                                                                                                                   
+        try {                                                                                                                      
+          setLoading(true);                                                                                                        
+          const next = await KhatmahService.completeDailyWird(db);                                                                 
+          setWird(next);                                                                                                           
+          onWirdChange?.(next);                                                                                                    
+          setHistory(                                                                                                              
+            await KhatmahService.getCompletionHistory(db, wird.plan.id)                                                            
+          );                                                                                                                       
+        } catch (error) {                                                                                                          
+          Alert.alert(                                                                                                             
+            'تعذر تحديث التقدم',                                                                                                   
+            error instanceof Error ? error.message : 'حاول مرة أخرى.'                                                              
+          );                                                                                                                       
+        } finally {                                                                                                                
+          setLoading(false);                                                                                                       
+        }                                                                                                                          
+      };                                                   
+
+  const stopPlan = () => {
+    Alert.alert(
+      'إيقاف الختمة',
+      'سيتم حذف الخطة الحالية . هل تريد المتابعة؟',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'إيقاف الخطة',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await KhatmahService.deleteActivePlan(db);
+              setWird(null);
+              onWirdChange?.(null);
+            } catch (error) {
+              Alert.alert(
+                'تعذر إيقاف الخطة',
+                error instanceof Error ? error.message : 'حاول مرة أخرى.'
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const startVerse = wird
+    ? QuranRepository.getAyahByGlobalNumberSync(db, wird.startGlobalAyah)
+    : null;
+  const endVerse = wird
+    ? QuranRepository.getAyahByGlobalNumberSync(db, wird.endGlobalAyah)
+    : null;
+
+  const goToWird = () => {
+    if (!startVerse) return;
+    onClose();
+    onNavigateToPage(startVerse.page, `${startVerse.sura_no}:${startVerse.aya_no}`);
+  };
+
+  const isFinished = wird?.status === 'finished';
+  const isTodayCompleted = wird?.status === 'completed';
+
+  const innerContent = (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {!embedded && (
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outline,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.headerButton}
+            accessibilityLabel="إغلاق"
+          >
+            <MaterialCommunityIcons
+              name="arrow-right"
+              size={24}
+              color={theme.colors.primary}
+            />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+            ختمتي
+          </Text>
+          <View style={styles.headerButton} />
+        </View>
+      )}
+
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* {loading ? <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>جاري تحديث الخطة...</Text> : null} */}
+
+          {isFinished ? (
+            <View style={[styles.successCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline, borderWidth: 1 }]}>
+              <MaterialCommunityIcons
+                name="trophy-outline"
+                size={54}
+                color={QuranColors.gold}
+              />
+              <Text style={[styles.successTitle, { color: theme.colors.primary }]}>تقبّل الله منك ختمتك</Text>
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.
+              </Text>
+              <View style={[styles.finishedProgress, { backgroundColor: theme.dark ? "rgba(197,155,39,0.15)" : "rgba(197,155,39,0.1)" }]}>
+                <Text style={[styles.finishedProgressText, { color: theme.colors.primary }]}>
+                  {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setWird(null)}
+              >
+                <Text style={styles.primaryButtonText}>إنشاء خطة جديدة</Text>
+              </TouchableOpacity>
+            </View>
+          ) : wird ? (
+            <>
+              <View
+                style={[
+                  styles.summaryCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+              >
+                <Text style={[styles.eyebrow, { color: theme.colors.onSurfaceVariant }]}>خطتك الحالية</Text>
+                <Text style={[styles.planTitle, { color: theme.colors.onSurface }]}>
+                  {wird.plan.khatmahCount.toLocaleString('ar')} ختمة خلال {wird.totalDays.toLocaleString('ar')} يوماً
+                </Text>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill, { backgroundColor: theme.colors.primary },
+                      { width: `${wird.progressPercent}%` },
+                    ]}
+                  />
+                </View>
+                <View style={styles.progressMeta}>
+                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+                    {Math.round(wird.progressPercent).toLocaleString('ar')}٪ مكتمل
+                  </Text>
+                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+                    {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.wirdCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+              >
+                <View style={styles.wirdHeading}>
+                  <Text style={[styles.wirdTitle, { color: theme.colors.onSurface }]}>
+                    وردك الحالي
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dayBadge,
+                      wird.status === 'overdue' && styles.overdueBadge,
+                      isTodayCompleted && styles.completedBadge,
+                    ]}
+                  >
+                    {wird.status === 'overdue'
+                      ? `ورد متأخر • اليوم ${wird.dayNumber}`
+                      : isTodayCompleted
+                        ? 'ورد اليوم مكتمل'
+                        : `اليوم ${wird.dayNumber} من ${wird.totalDays}`}
+                  </Text>
+                </View>
+
+                <Text style={[styles.metric, { color: theme.colors.primary }]}>
+                  {wird.dailyTargetPages.toLocaleString('ar')} صفحة
+                </Text>
+                <Text style={[styles.metricSub, { color: theme.colors.onSurfaceVariant }]}>
+                  {wird.dailyTargetAyahs.toLocaleString('ar')} آية • التاريخ المحدد {wird.scheduledDate}
+                </Text>
+
+                {startVerse && endVerse ? (
+                  <View style={[styles.rangeBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, borderWidth: 1 }]}>
+                    <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
+                      من سورة {startVerse.sura_name_ar} • الآية {startVerse.aya_no.toLocaleString('ar')}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="arrow-down"
+                      size={18}
+                      color={QuranColors.gold}
+                    />
+                    <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
+                      إلى سورة {endVerse.sura_name_ar} • الآية {endVerse.aya_no.toLocaleString('ar')}
+                    </Text>
+                    {wird.wrapsAroundEnd ? (
+                      <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                        يمتد الورد من نهاية المصحف إلى بدايته.
+                      </Text>
+                    ) : null}
+                    {wird.dailyTargetAyahs >= 6236 ? (
+                      <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                        يتضمن هذا الورد دورة كاملة من المصحف أو أكثر.
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                  تم تظليل آيات هذا الورد في صفحات المصحف. يمكنك الرجوع إليها قبل تسجيل إتمامه.
+                </Text>
+
+                <TouchableOpacity
+                  onPress={goToWird}
+                  style={[styles.secondaryButton, { borderColor: theme.colors.primary }]}
+                  disabled={loading}
+                >
+                  <MaterialCommunityIcons
+                    name="book-open-page-variant-outline"
+                    size={19}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>
+                    الانتقال إلى بداية الورد
+                  </Text>
+                </TouchableOpacity>
+
+                {wird.canComplete ? (
+                  <TouchableOpacity
+                    onPress={completeWird}
+                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+                    disabled={loading}
+                  >
+                    <MaterialCommunityIcons
+                      name="check-circle-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.primaryButtonText}>انتهيت من الورد</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={[styles.completedNotice, { backgroundColor: theme.dark ? "rgba(47,120,94,0.2)" : "rgba(31,81,63,0.08)" }]}>
+                    <MaterialCommunityIcons
+                      name="check-decagram"
+                      size={21}
+                      color={theme.colors.primary}
+                    />
+                    <Text style={[styles.completedNoticeText, { color: theme.colors.primary }]}>
+                      تم تسجيل إتمام هذا الورد. سيظهر الورد التالي في موعده.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={[styles.historyCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+                <TouchableOpacity
+                  style={styles.historyHeader}
+                  onPress={() => setIsHistoryExpanded((value) => !value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isHistoryExpanded }}
+                >
+                  <Text style={[styles.historyTitle, { color: theme.colors.onSurface }]}>
+                    سجل الإنجاز ({history.length.toLocaleString('ar')})
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={isHistoryExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={22}
+                    color={theme.colors.primary}
+                  />
+                </TouchableOpacity>
+                {isHistoryExpanded ? (
+                  history.length ? history.map((item) => (
+                    <View key={item.dayNumber} style={[styles.historyRow, { borderTopColor: theme.colors.outline }]}>
+                      <View style={styles.historyDateBlock}>
+                        <Text style={[styles.historyDay, { color: theme.colors.primary }]}>اليوم {item.dayNumber.toLocaleString('ar')}</Text>
+                        <Text style={[styles.historyDate, { color: theme.colors.onSurfaceVariant }]}>{item.scheduledDate}</Text>
+                      </View>
+                      <View style={styles.historyRangeBlock}>
+                        <Text style={[styles.historyRange, { color: theme.colors.onSurface }]}>
+                          {item.startSuraName} ({item.startAyahNo.toLocaleString('ar')}) — {item.endSuraName} ({item.endAyahNo.toLocaleString('ar')})
+                        </Text>
+                        <Text style={[styles.historyTime, { color: theme.colors.onSurfaceVariant }]}>
+                          {item.source === 'legacy_migration'
+                            ? 'تقدم محفوظ من إصدار سابق'
+                            : new Date(item.completedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                      <MaterialCommunityIcons name="check-circle" size={18} color={QuranColors.emerald} />
+                    </View>
+                  )) : (
+                    <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>لم تسجل أي ورد مكتمل بعد.</Text>
+                  )
+                ) : null}
+              </View>
+
+              <TouchableOpacity
+                onPress={stopPlan}
+                style={styles.stopButton}
+                disabled={loading}
+              >
+                <Text style={styles.stopText}>إيقاف الخطة الحالية</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View
+              style={[
+                styles.formCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="book-check-outline"
+                size={44}
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.formTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>خطّط لختمتك</Text>
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
+              </Text>
+
+              <Text style={[styles.label, { color: theme.colors.primary, textAlign:'auto' }]}>كم ختمة تريد؟</Text>
+              <View style={styles.choices}>
+                {[1, 2, 3, 5, 10, 20].map((value) => (
+                  <TouchableOpacity
+                    key={value}
+                    onPress={() => setKhatmahCount(value)}
+                    style={[
+                      styles.choice,
+                      { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                      khatmahCount === value && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: khatmahCount === value }}
+                  >
+                    <Text
+                      style={[
+                        styles.choiceText,
+                        { color: theme.colors.onSurface },
+                        khatmahCount === value && { color: theme.colors.primary, fontWeight: "bold" },
+                      ]}
+                    >
+                      {value.toLocaleString('ar')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: theme.colors.primary, textAlign:'auto' }]}>خلال كم يوماً؟</Text>
+              <TextInput
+                value={durationDays}
+                onChangeText={(value) =>
+                  setDurationDays(value.replace(/[^0-9]/g, ''))
+                }
+                keyboardType="number-pad"
+                textAlign="right"
+                style={[
+                  styles.daysInput,
+                  {
+                    color: theme.colors.onSurface,
+                    backgroundColor: theme.colors.surfaceVariant,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+                maxLength={4}
+                accessibilityLabel="مدة الختمة بالأيام"
+              />
+
+              <Text style={[styles.label, { color: theme.colors.primary , textAlign:'auto' }]}>من أين تبدأ؟</Text>
+              <View style={styles.startChoices}>
+                <TouchableOpacity
+                  onPress={() => setStartFrom('beginning')}
+                  style={[
+                    styles.startChoice,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    startFrom === 'beginning' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.startChoiceText,
+                      { color: theme.colors.onSurface },
+                      startFrom === 'beginning' && { color: theme.colors.primary, fontWeight: "bold" },
+                    ]}
+                  >
+                    من بداية المصحف
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setStartFrom('custom')}
+                  style={[
+                    styles.startChoice,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, },
+                    startFrom === 'custom' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.startChoiceText,
+                      { color: theme.colors.onSurface },
+                      startFrom === 'custom' && { color: theme.colors.primary, fontWeight: "bold" },
+                    ]}
+                  >
+                    سورة وآية
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setStartFrom('current')}
+                  style={[
+                    styles.startChoice,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    startFrom === 'current' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.startChoiceText,
+                      { color: theme.colors.onSurface },
+                      startFrom === 'current' && { color: theme.colors.primary, fontWeight: "bold" },
+                    ]}
+                  >
+                    من موضعي الحالي
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {startFrom === 'custom' ? (
+                <View style={[styles.customStartCard, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+                  <Text style={[styles.label, { color: theme.colors.primary }]}>السورة التي تبدأ منها</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsSurahPickerOpen(true)}
+                    style={[styles.surahSelect, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.surahSelectText, { color: theme.colors.onSurface }]}>
+                      {selectedStartSurah?.sura_name_ar ?? 'اختر السورة'}
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={[styles.label, { color: theme.colors.primary }]}>رقم الآية</Text>
+                  <TextInput
+                    value={startAyahInput}
+                    onChangeText={(value) => setStartAyahInput(value.replace(/[^0-9]/g, '').slice(0, 3))}
+                    keyboardType="number-pad"
+                    textAlign="right"
+                    style={[styles.daysInput, { color: theme.colors.onSurface, backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+                    maxLength={3}
+                    accessibilityLabel="رقم آية بداية الختمة"
+                  />
+                  {selectedStartSurah ? (
+                    <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                      عدد آيات سورة {selectedStartSurah.sura_name_ar}: {selectedStartSurah.ayahs_count.toLocaleString('ar')}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {Number(durationDays) > 0 &&
+              Number(durationDays) <= 3660 &&
+              Number.isInteger(Number(durationDays)) ? (
+                <View style={[styles.preview, { backgroundColor: theme.dark ? "rgba(197,155,39,0.12)" : "rgba(197,155,39,0.08)", borderColor: theme.colors.outline, borderWidth: 1 }]}>
+                  <Text style={[styles.previewTitle, { color: theme.colors.onSurfaceVariant }]}>متوسط عدد الصفحات اليومي</Text>
+                  <Text style={[styles.previewMetric, { color: theme.colors.primary }]}>
+                    {Math.ceil((604 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} صفحة
+                  </Text>
+                  <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                    {Math.ceil((6236 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} آية يومياً في المتوسط
+                  </Text>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                onPress={createPlan}
+                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }, loading && styles.disabledButton]}
+                disabled={loading}
+              >
+                <Text style={styles.primaryButtonText}>إنشاء الخطة </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      <Modal
+        visible={isSurahPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsSurahPickerOpen(false)}
+      >
+        <View style={styles.pickerOverlay}>
+          <TouchableOpacity
+            style={styles.pickerBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsSurahPickerOpen(false)}
+          />
+          <View style={[styles.surahPickerCard, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.pickerHeader}>
+              <Text style={[styles.pickerTitle, { color: theme.colors.onSurface }]}>اختر سورة البداية</Text>
+              <TouchableOpacity onPress={() => setIsSurahPickerOpen(false)} accessibilityLabel="إغلاق اختيار السورة">
+                <MaterialCommunityIcons name="close" size={23} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.surahPickerList} keyboardShouldPersistTaps="handled">
+              {surahOptions.map((surah) => (
+                <TouchableOpacity
+                  key={surah.sura_no}
+                  onPress={() => {
+                    setStartSurahNo(surah.sura_no);
+                    setStartAyahInput('1');
+                    setIsSurahPickerOpen(false);
+                  }}
+                  style={[
+                    styles.surahPickerItem,
+                    { borderBottomColor: theme.colors.outline },
+                    startSurahNo === surah.sura_no && { backgroundColor: theme.dark ? "rgba(47,120,94,0.2)" : "rgba(31,81,63,0.08)" },
+                  ]}
+                >
+                  <Text style={[styles.surahPickerNumber, { color: theme.colors.onSurfaceVariant }]}>
+                    {surah.sura_no.toLocaleString('ar')}
+                  </Text>
+                  <Text style={[styles.surahPickerName, { color: theme.colors.onSurface }]}>
+                    {surah.sura_name_ar}
+                  </Text>
+                  {startSurahNo === surah.sura_no ? (
+                    <MaterialCommunityIcons name="check" size={18} color={theme.colors.primary} />
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      </View>
+  );
+
+  if (embedded) {
+    return innerContent;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
+      {innerContent}
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  content: { padding: 16, gap: 12, flexGrow: 1 },
+  summaryCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 15,
+    gap: 10,
+  },
+  eyebrow: {
+    color: QuranColors.textMuted,
+    fontSize: 12,
+    textAlign: 'auto',
+  },
+  planTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    textAlign: 'auto',
+  },
+  progressTrack: {
+    height: 8,
+    backgroundColor: 'rgba(197,155,39,0.2)',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: QuranColors.emerald,
+    borderRadius: 8,
+  },
+  progressMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  progressText: { color: QuranColors.textMuted, fontSize: 11 },
+  wirdCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 15,
+    gap: 10,
+  },
+  wirdHeading: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  wirdTitle: { fontSize: 17, fontWeight: 'bold' },
+  dayBadge: {
+    color: QuranColors.emerald,
+    backgroundColor: 'rgba(31,81,63,0.08)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 7,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  overdueBadge: {
+    color: '#A45A13',
+    backgroundColor: 'rgba(210,130,42,0.14)',
+  },
+  completedBadge: {
+    color: QuranColors.emerald,
+    backgroundColor: 'rgba(31,81,63,0.12)',
+  },
+  metric: {
+    color: QuranColors.emerald,
+    fontSize: 24,
+        textAlign: 'auto'
+,
+    fontWeight: 'bold',
+  },
+  metricSub: {
+    color: QuranColors.textMuted,
+        textAlign: 'auto'
+,
+    fontSize: 12,
+    lineHeight: 20,
+  },
+  rangeBox: {
+    backgroundColor: QuranColors.parchment,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    gap: 7,
+  },
+  rangeText: {
+    color: QuranColors.textDark,
+    fontWeight: '600',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  helper: {
+    color: QuranColors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    lineHeight: 21,
+  },
+  primaryButton: {
+    minHeight: 48,
+    backgroundColor: QuranColors.emerald,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  disabledButton: { opacity: 0.55 },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  secondaryButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderWidth: 1,
+    borderColor: QuranColors.emerald,
+    borderRadius: 10,
+    padding: 10,
+  },
+  secondaryButtonText: {
+    color: QuranColors.emerald,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  completedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(31,81,63,0.08)',
+    padding: 12,
+  },
+  completedNoticeText: {
+    flex: 1,
+    color: QuranColors.emerald,
+    fontWeight: '600',
+    fontSize: 12,
+        textAlign: 'auto'
+,
+    lineHeight: 20,
+  },
+  stopButton: { alignItems: 'center', padding: 12 },
+  stopText: { color: '#B23A3A', fontSize: 12, fontWeight: '600' },
+  formCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 17,
+    gap: 13,
+    alignItems: 'center',
+  },
+  formTitle: {
+    color: QuranColors.emeraldDark,
+    fontWeight: 'bold',
+    fontSize: 19,
+    lineHeight: 28,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+  },
+  label: {
+    alignSelf: 'stretch',
+    color: QuranColors.emeraldDark,
+    fontSize: 13,
+    fontWeight: 'bold',
+        textAlign: 'auto'
+,
+    writingDirection: 'rtl',
+  },
+  choices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignSelf: 'stretch',
+  },
+  choice: {
+    flexGrow: 1,
+    minWidth: '14%',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: QuranColors.parchmentBorder,
+    borderRadius: 8,
+    backgroundColor: QuranColors.parchment,
+  },
+  choiceSelected: {
+    borderColor: QuranColors.emerald,
+    backgroundColor: 'rgba(31,81,63,0.1)',
+  },
+  choiceText: { color: QuranColors.textDark, fontWeight: '600' },
+  choiceTextSelected: {
+    color: QuranColors.emerald,
+    fontWeight: 'bold',
+  },
+  daysInput: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 8,
+    minHeight: 46,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  startChoices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignSelf: 'stretch',
+  },
+  startChoice: {
+    flex: 1,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: QuranColors.parchmentBorder,
+    borderRadius: 8,
+    backgroundColor: QuranColors.parchment,
+    paddingHorizontal: 5,
+  },
+  startChoiceText: {
+    color: QuranColors.textDark,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign:'center'
+  },
+  preview: {
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(197,155,39,0.1)',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    gap: 5,
+  },
+  previewTitle: { color: QuranColors.textMuted, fontSize: 12 },
+  previewMetric: {
+    color: QuranColors.emeraldDark,
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  successCard: {
+    flex: 1,
+    minHeight: 350,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 20,
+    gap: 15,
+  },
+  successTitle: {
+    color: QuranColors.emeraldDark,
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  historyCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 38,
+  },
+  historyTitle: {
+    fontSize: 14,
+    lineHeight: 25, 
+    fontWeight: 'bold',
+        textAlign: 'auto'
+,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: QuranColors.parchmentBorder,
+    paddingTop: 9,
+  },
+  historyDateBlock: {
+    minWidth: 76,
+    gap: 3,
+  },
+  historyDay: {
+    color: QuranColors.emeraldDark,
+    fontSize: 11,
+    fontWeight: 'bold',
+        textAlign: 'auto'
+,
+  },
+  historyDate: {
+    color: QuranColors.textMuted,
+    fontSize: 10,
+        textAlign: 'auto'
+,
+  },
+  historyRangeBlock: {
+    flex: 1,
+    gap: 3,
+  },
+  historyRange: {
+    color: QuranColors.textDark,
+        textAlign: 'auto'
+,
+    writingDirection: 'rtl',
+    fontSize: 11,
+  },
+  historyTime: {
+    color: QuranColors.textMuted,
+        textAlign: 'auto'
+,
+    fontSize: 10,
+  },
+  customStartCard: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    gap: 9,
+  },
+  surahSelect: {
+    minHeight: 45,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  surahSelectText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  surahPickerCard: {
+    width: '100%',
+    maxHeight: '80%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 14,
+  },
+  pickerHeader: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  surahPickerList: {
+    flexGrow: 0,
+  },
+  surahPickerItem: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: QuranColors.parchmentBorder,
+  },
+  surahPickerItemSelected: {
+    backgroundColor: 'rgba(31,81,63,0.08)',
+    borderRadius: 7,
+  },
+  surahPickerNumber: {
+    width: 28,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  surahPickerName: {
+    flex: 1,
+    fontSize: 14,
+        textAlign: 'auto'
+,
+  },
+  finishedProgress: {
+    backgroundColor: 'rgba(197,155,39,0.1)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  finishedProgressText: {
+    color: QuranColors.emeraldDark,
+    fontWeight: 'bold',
+  },
+});

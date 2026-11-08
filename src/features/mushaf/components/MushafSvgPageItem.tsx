@@ -18,6 +18,7 @@ import { SvgAyahHighlightOverlay } from './SvgAyahHighlightOverlay';
 import { SurahBanner } from './SurahBanner';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { QuranColors } from '../../../core/theme/theme';
+import { BookmarkType } from '../../bookmarks/types/bookmark.types';
 
 interface MushafSvgPageItemProps {
   page: number;
@@ -26,8 +27,13 @@ interface MushafSvgPageItemProps {
   onToggleControls?: () => void;
   selectedVerseKey?: string | null;
   playingVerseKey?: string | null;
-  bookmarkedVerseKey?: string | null;
+  bookmarkTypesByVerse?: Record<string, BookmarkType[]>;
+  khatmahStartGlobalAyah?: number | null;
+  khatmahEndGlobalAyah?: number | null;
+  khatmahWrapsAroundEnd?: boolean;
+  khatmahDailyTargetAyahs?: number;
   searchHighlightVerseKey?: string | null;
+  onAyahPress?: (verseKey: string, page: number) => void;
   onAyahLongPress?: (verseKey: string, page: number) => void;
 }
 
@@ -36,9 +42,14 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   db,
   isNear,
   onToggleControls,
+  onAyahPress,
   selectedVerseKey,
   playingVerseKey,
-  bookmarkedVerseKey,
+  bookmarkTypesByVerse,
+  khatmahStartGlobalAyah,
+  khatmahEndGlobalAyah,
+  khatmahWrapsAroundEnd,
+  khatmahDailyTargetAyahs = 0,
   searchHighlightVerseKey,
   onAyahLongPress,
 }) => {
@@ -53,15 +64,17 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
   // استخراج أصل صفحة الـ SVG من قاعدة البيانات فائقة السرعة
   const pageAsset = useMemo(() => {
-    if (!db) return null;
+    // PagerView keeps React children for every Mushaf page. Only load and parse
+    // SVG payloads for the small window around the visible page.
+    if (!db || !isNear) return null;
     return SvgMushafRepository.getPageAssetSync(db, page);
-  }, [db, page]);
+  }, [db, page, isNear]);
 
   // التحقق من وجود سورة تبدأ في هذه الصفحة من قاعدة البيانات
   const surahHeader = useMemo(() => {
-    if (!db) return null;
+    if (!db || !isNear) return null;
     return QuranRepository.getSurahStartingOnPage(db, page);
-  }, [db, page]);
+  }, [db, page, isNear]);
 
   // تحويل وتطبيع بيانات الإحداثيات والمضلعات
   const normalizedData = useMemo(() => {
@@ -70,6 +83,43 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   }, [pageAsset, page]);
 
   // تكييف ألوان الـ SVG مع الوضع الليلي (Dark Mode) بسلاسة تامة
+  const khatmahVerseKeys = useMemo(() => {
+    if (
+      !db ||
+      !normalizedData ||
+      !khatmahStartGlobalAyah ||
+      !khatmahEndGlobalAyah
+    ) {
+      return [];
+    }
+
+    // One daily wird may exceed a single full Quran cycle for aggressive plans.
+    // In that case every ayah belongs to the current wird.
+    if (khatmahDailyTargetAyahs >= 6236) {
+      return normalizedData.ayahs.map((ayah) => ayah.verseKey);
+    }
+
+    return normalizedData.ayahs
+      .filter((ayah) => {
+        const globalNumber = QuranRepository.getGlobalAyahNumberSync(
+          db,
+          ayah.surah,
+          ayah.ayah
+        );
+        return khatmahWrapsAroundEnd
+          ? globalNumber >= khatmahStartGlobalAyah || globalNumber <= khatmahEndGlobalAyah
+          : globalNumber >= khatmahStartGlobalAyah && globalNumber <= khatmahEndGlobalAyah;
+      })
+      .map((ayah) => ayah.verseKey);
+  }, [
+    db,
+    normalizedData,
+    khatmahStartGlobalAyah,
+    khatmahEndGlobalAyah,
+    khatmahWrapsAroundEnd,
+    khatmahDailyTargetAyahs,
+  ]);
+
   const processedSvgXml = useMemo(() => {
     if (!pageAsset) return '';
     if (!isDark) return pageAsset.svgXml;
@@ -89,7 +139,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     pageY: number;
     locationX: number;
     locationY: number;
-    time: number;
   } | null>(null);
 
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,7 +158,6 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
       pageY,
       locationX,
       locationY,
-      time: Date.now(),
     };
     hasTriggeredLongPressRef.current = false;
 
@@ -161,13 +209,16 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
 
     if (!touchStartRef.current) return;
 
-    const deltaX = Math.abs(event.nativeEvent.pageX - touchStartRef.current.pageX);
-    const deltaY = Math.abs(event.nativeEvent.pageY - touchStartRef.current.pageY);
-    const elapsed = Date.now() - touchStartRef.current.time;
+    const touchStart = touchStartRef.current;
+    const deltaX = Math.abs(event.nativeEvent.pageX - touchStart.pageX);
+    const deltaY = Math.abs(event.nativeEvent.pageY - touchStart.pageY);
     touchStartRef.current = null;
 
-    // نقر خفيف مستقر دون حركة للتبديل بين وضع ملء الشاشة والأدوات
-    if (deltaX < 10 && deltaY < 10 && elapsed < 300) {
+    // Tap a verse to select it and open its actions. Taps on the empty page
+    // still toggle the immersive controls.
+    if (deltaX < 10 && deltaY < 10) {
+      // Tap anywhere on the page to toggle immersive controls.
+      // Opening Ayah actions is strictly reserved for Long Press.
       onToggleControls?.();
     }
   };
@@ -217,7 +268,8 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
           ayahs={normalizedData.ayahs}
           selectedVerseKey={selectedVerseKey}
           playingVerseKey={playingVerseKey}
-          bookmarkedVerseKey={bookmarkedVerseKey}
+          bookmarkTypesByVerse={bookmarkTypesByVerse}
+          khatmahVerseKeys={khatmahVerseKeys}
           searchHighlightVerseKey={searchHighlightVerseKey}
         />
       </View>
@@ -233,8 +285,13 @@ export const MushafSvgPageItem = React.memo(
     prev.isNear === next.isNear &&
     prev.selectedVerseKey === next.selectedVerseKey &&
     prev.playingVerseKey === next.playingVerseKey &&
-    prev.bookmarkedVerseKey === next.bookmarkedVerseKey &&
-    prev.searchHighlightVerseKey === next.searchHighlightVerseKey
+    prev.bookmarkTypesByVerse === next.bookmarkTypesByVerse &&
+    prev.khatmahStartGlobalAyah === next.khatmahStartGlobalAyah &&
+    prev.khatmahEndGlobalAyah === next.khatmahEndGlobalAyah &&
+    prev.khatmahWrapsAroundEnd === next.khatmahWrapsAroundEnd &&
+    prev.khatmahDailyTargetAyahs === next.khatmahDailyTargetAyahs &&
+    prev.searchHighlightVerseKey === next.searchHighlightVerseKey &&
+    prev.onAyahPress === next.onAyahPress
 );
 
 const styles = StyleSheet.create({

@@ -1,10 +1,13 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
+import React, { useState } from 'react';
+import { View, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
+import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ProgressBar } from 'react-native-paper';
 import { useAudioStore } from '../stores/useAudioStore';
 import { QuranColors } from '../../../core/theme/theme';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
+import { AudioSettingsModal } from './AudioSettingsModal';
+import { useTheme } from 'react-native-paper';
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
@@ -19,12 +22,16 @@ function formatTime(seconds: number): string {
 }
 
 export const AudioPlayerBar: React.FC = () => {
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const theme = useTheme();
   const {
     status,
+    activeMode,
     target,
     selectedReciter,
     activeAyah,
     countdown,
+    pendingDelayKind,
     positionSeconds,
     durationSeconds,
     lastError,
@@ -46,19 +53,23 @@ export const AudioPlayerBar: React.FC = () => {
   if (status === 'downloading') statusText = 'جاري تنزيل السورة...';
   if (status === 'paused') statusText = 'متوقف مؤقتاً';
   if (status === 'waiting_user_repeat') {
-    statusText = 'إعادة الآية بعد ' + toArabicNumerals(countdown) + ' ث';
+    const waitLabel = pendingDelayKind === 'verse-gap'
+      ? 'الآية التالية بعد '
+      : 'إعادة الآية بعد ';
+    statusText = waitLabel + toArabicNumerals(countdown) + ' ث';
   }
   if (status === 'completed') statusText = 'اكتملت التلاوة';
   if (status === 'error') statusText = lastError || 'تعذر تشغيل الصوت';
 
   return (
-    <View style={styles.container}>
+    <>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outline }]}>
       <View style={styles.header}>
         <View style={styles.trackInfo}>
-          <Text style={styles.surahName} numberOfLines={1}>
+          <Text style={[styles.surahName, { color: theme.colors.primary }]} numberOfLines={1}>
             {target.suraName} • {selectedReciter.name}
           </Text>
-          <Text style={styles.trackStatus} numberOfLines={1}>
+          <Text style={[styles.trackStatus, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
             {activeAyah
               ? 'الآية ' + toArabicNumerals(activeAyah.ayaNo) + ' • ' + statusText
               : statusText}
@@ -67,21 +78,29 @@ export const AudioPlayerBar: React.FC = () => {
 
         <TouchableOpacity
           style={styles.stopButton}
+          onPress={() => setIsSettingsVisible(true)}
+          accessibilityLabel="إعدادات التلاوة والترديد"
+        >
+          <MaterialCommunityIcons name="cog-outline" size={20} color={theme.colors.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.stopButton}
           onPress={() => void stop()}
           accessibilityLabel="إيقاف التلاوة"
         >
-          <MaterialCommunityIcons name="close" size={20} color={QuranColors.textMuted} />
+          <MaterialCommunityIcons name="close" size={20} color={theme.colors.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
 
       <ProgressBar
         progress={progress}
-        color={QuranColors.gold}
+        color={theme.colors.secondary}
         style={styles.progress}
       />
 
       <View style={styles.controls}>
-        <Text style={styles.timeText}>{formatTime(positionSeconds)}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.onSurfaceVariant }]}>{formatTime(positionSeconds)}</Text>
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -93,12 +112,12 @@ export const AudioPlayerBar: React.FC = () => {
             <MaterialCommunityIcons
               name="skip-previous"
               size={25}
-              color={QuranColors.emerald}
+              color={theme.colors.primary}
             />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.playButton}
+            style={[styles.playButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => void togglePlayback()}
             disabled={status === 'downloading' || status === 'checking_files' || status === 'completed'}
             accessibilityLabel={status === 'paused' ? 'استئناف التلاوة' : 'إيقاف مؤقت'}
@@ -106,7 +125,7 @@ export const AudioPlayerBar: React.FC = () => {
             <MaterialCommunityIcons
               name={status === 'paused' ? 'play' : 'pause'}
               size={23}
-              color="#FFFFFF"
+              color={theme.colors.onPrimary}
             />
           </TouchableOpacity>
 
@@ -124,9 +143,15 @@ export const AudioPlayerBar: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.timeText}>{formatTime(durationSeconds)}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.onSurfaceVariant }]}>{formatTime(durationSeconds)}</Text>
       </View>
     </View>
+    <AudioSettingsModal
+      visible={isSettingsVisible}
+      mode={activeMode}
+      onClose={() => setIsSettingsVisible(false)}
+    />
+    </>
   );
 };
 
@@ -160,7 +185,8 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 11,
     marginTop: 2,
-    textAlign: 'right',
+        textAlign: 'auto'
+,
     writingDirection: 'rtl',
   },
   stopButton: {

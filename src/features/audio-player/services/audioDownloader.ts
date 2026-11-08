@@ -5,8 +5,8 @@ import {
   Reciter,
   SurahDownloadSummary,
 } from '../types/audio.types';
+import { AudioSourceAdapterRegistry } from './audioSourceAdapter';
 
-const AUDIO_CDN_BASE = 'https://cdn.islamic.network/quran/audio';
 const DOWNLOAD_CONCURRENCY = 3;
 const MAX_ATTEMPTS = 3;
 
@@ -32,21 +32,18 @@ export class AudioDownloader {
     );
   }
 
-  static getRemoteAyahUrl(reciter: Reciter, globalAyahNo: number): string {
-    if (!Number.isInteger(globalAyahNo) || globalAyahNo < 1 || globalAyahNo > 6236) {
-      throw new Error('Invalid global ayah number: ' + globalAyahNo);
-    }
-
-    return (
-      AUDIO_CDN_BASE +
-      '/' +
-      reciter.bitrate +
-      '/' +
-      reciter.edition +
-      '/' +
-      globalAyahNo +
-      '.mp3'
-    );
+  /**
+   * Delegates to the registered adapter for this reciter (Adapter Pattern).
+   * Supports multiple reciters, multiple CDNs and audio APIs transparently.
+   */
+  static getRemoteAyahUrl(
+    reciter: Reciter,
+    globalAyahNo: number,
+    suraNo?: number,
+    ayaNo?: number
+  ): string {
+    const adapter = AudioSourceAdapterRegistry.getAdapter(reciter.adapterId);
+    return adapter.getRemoteAyahUrl(reciter, globalAyahNo, suraNo, ayaNo);
   }
 
   static async getSurahDownloadSummary(
@@ -136,7 +133,7 @@ export class AudioDownloader {
             await FileSystem.deleteAsync(temporaryUri, { idempotent: true }).catch(() => undefined);
 
             const response = await FileSystem.downloadAsync(
-              this.getRemoteAyahUrl(reciter, verse.globalAyahNo),
+              this.getRemoteAyahUrl(reciter, verse.globalAyahNo, verse.suraNo, verse.ayaNo),
               temporaryUri
             );
 
@@ -145,7 +142,7 @@ export class AudioDownloader {
               temporaryInfo.exists &&
               'size' in temporaryInfo &&
               typeof temporaryInfo.size === 'number' &&
-              temporaryInfo.size > 0;
+              temporaryInfo.size > 512;
 
             if (response.status !== 200 || !hasBytes) {
               throw new Error(
@@ -166,7 +163,12 @@ export class AudioDownloader {
                   ? error
                   : new Error('Audio download failed for ayah ' + verse.suraNo + ':' + verse.ayaNo);
             } else {
-              await new Promise((resolve) => setTimeout(resolve, 350 * attempt));
+              // Exponential backoff with full jitter to handle weak / fluctuating network
+              const baseDelay = 400;
+              const maxDelay = 3000;
+              const exponential = Math.min(maxDelay, baseDelay * Math.pow(2, attempt - 1));
+              const jitteredDelay = Math.floor(Math.random() * exponential);
+              await new Promise((resolve) => setTimeout(resolve, jitteredDelay));
             }
           }
         }

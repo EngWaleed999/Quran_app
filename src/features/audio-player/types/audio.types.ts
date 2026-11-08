@@ -3,7 +3,8 @@ export interface Reciter {
   name: string;
   subname: string;
   edition: string;
-  bitrate: 64 | 128 | 192;
+  bitrate: number;
+  adapterId?: string;
 }
 
 export type PlaybackStatus =
@@ -25,6 +26,8 @@ export interface RepeatConfig {
   pauseDelaySeconds: number;
   /** Delay in seconds before moving to the next ayah (Verse Gap). */
   verseGapDelaySeconds?: number;
+  /** Total passes from the selected starting ayah through the end of its surah. null means repeat forever. */
+  surahRepeatCount: number | null;
 }
 
 export interface PlaybackVerse {
@@ -39,7 +42,7 @@ export interface PlaybackTarget {
   suraName: string;
   startAyah: number;
   endAyah: number;
-  /** Complete surah track list. Playback starts at startAyah. */
+  /** Complete surah track list. Playback starts at startAyah; repeat cycles restart there, not at ayah 1. */
   verses: PlaybackVerse[];
 }
 

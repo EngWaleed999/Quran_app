@@ -2,73 +2,83 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { NormalizedAyahGeometry } from '../types/svgMushaf.types';
+import { BookmarkType, BOOKMARK_TYPE_COLORS } from '../../bookmarks/types/bookmark.types';
 
 interface SvgAyahHighlightOverlayProps {
   viewBox: string;
   ayahs: NormalizedAyahGeometry[];
   selectedVerseKey?: string | null;
   playingVerseKey?: string | null;
-  bookmarkedVerseKey?: string | null;
   searchHighlightVerseKey?: string | null;
+  bookmarkTypesByVerse?: Record<string, BookmarkType[]>;
+  khatmahVerseKeys?: string[];
 }
 
-/**
- * طبقة تظليل الآيات المتجهية (Declarative SVG Ayah Highlight Overlay)
- * ترسم مضلعات التظليل فوق نصوص المصحف بتطابق هندسي 100% مع مسارات الآيات
- */
+interface HighlightPath {
+  key: string;
+  d: string;
+  fillColor: string;
+}
+
 export const SvgAyahHighlightOverlay: React.FC<SvgAyahHighlightOverlayProps> = ({
   viewBox,
   ayahs,
   selectedVerseKey,
   playingVerseKey,
-  bookmarkedVerseKey,
   searchHighlightVerseKey,
+  bookmarkTypesByVerse = {},
+  khatmahVerseKeys = [],
 }) => {
   const activeHighlights = useMemo(() => {
-    return ayahs
-      .map((ayah) => {
-        let fillColor: string | null = null;
+    const paths: HighlightPath[] = [];
+    const khatmahSet = new Set(khatmahVerseKeys);
 
-        if (selectedVerseKey === ayah.verseKey) {
-          fillColor = 'rgba(197, 155, 39, 0.28)'; // تظليل ذهبي للآية المحددة بالضغط المطول
-        } else if (playingVerseKey === ayah.verseKey) {
-          fillColor = 'rgba(31, 81, 63, 0.22)'; // تظليل زمردي مميز للتلاوة الصوتية الحالية
-        } else if (bookmarkedVerseKey === ayah.verseKey) {
-          fillColor = 'rgba(31, 81, 63, 0.16)'; // تظليل زمردي هادئ للإشارة المرجعية
-        } else if (searchHighlightVerseKey === ayah.verseKey) {
-          fillColor = 'rgba(197, 155, 39, 0.24)'; // تظليل ذهبي عابر للبحث
-        }
+    for (const ayah of ayahs) {
+      const key = ayah.verseKey;
 
-        if (!fillColor) return null;
+      // Selection and active playback take visual precedence over saved markers.
+      if (selectedVerseKey === key) {
+        paths.push({ key: key + ':selected', d: ayah.pathD, fillColor: 'rgba(197, 155, 39, 0.28)' });
+        continue;
+      }
+      if (playingVerseKey === key) {
+        paths.push({ key: key + ':playing', d: ayah.pathD, fillColor: 'rgba(31, 81, 63, 0.24)' });
+        continue;
+      }
+      if (searchHighlightVerseKey === key) {
+        paths.push({ key: key + ':search', d: ayah.pathD, fillColor: 'rgba(197, 155, 39, 0.24)' });
+      }
+      if (khatmahSet.has(key)) {
+        paths.push({ key: key + ':khatmah', d: ayah.pathD, fillColor: 'rgba(37, 139, 104, 0.18)' });
+      }
 
-        return {
-          key: ayah.verseKey,
+      const bookmarkTypes = bookmarkTypesByVerse[key] ?? [];
+      for (const type of bookmarkTypes) {
+        paths.push({
+          key: key + ':bookmark:' + type,
           d: ayah.pathD,
-          fillColor,
-        };
-      })
-      .filter((item): item is { key: string; d: string; fillColor: string } => item !== null);
-  }, [ayahs, selectedVerseKey, playingVerseKey, bookmarkedVerseKey, searchHighlightVerseKey]);
+          fillColor: BOOKMARK_TYPE_COLORS[type] + '33',
+        });
+      }
+    }
 
-  if (activeHighlights.length === 0) {
-    return null;
-  }
+    return paths;
+  }, [
+    ayahs,
+    selectedVerseKey,
+    playingVerseKey,
+    searchHighlightVerseKey,
+    bookmarkTypesByVerse,
+    khatmahVerseKeys,
+  ]);
+
+  if (activeHighlights.length === 0) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox={viewBox}
-        preserveAspectRatio="xMidYMid meet"
-      >
+      <Svg width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
         {activeHighlights.map((item) => (
-          <Path
-            key={item.key}
-            d={item.d}
-            fill={item.fillColor}
-            fillRule="evenodd"
-          />
+          <Path key={item.key} d={item.d} fill={item.fillColor} fillRule="evenodd" />
         ))}
       </Svg>
     </View>
