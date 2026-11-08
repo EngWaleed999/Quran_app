@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "بيان",   
-    "slug": "Quran_App",
+    "slug": "byan-alqraan-alkrym",
+    "owner":"engwaleed999s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,6 +13,7 @@
     "android": {
       "package": "com.quran.app",     
       "adaptiveIcon": {
+
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
@@ -34,7 +36,8 @@
       ]
     ],
     "extra": {
-      "supportsRTL": true
+      "supportsRTL": true,
+      "projectId":"5abac0ca-47ec-4150-a826-ceece6914cdf"
     }
   }
 }
