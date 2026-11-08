@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, FlatList, Modal, I18nManager } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -45,6 +46,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
   onWirdChange,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<NavRouteTab>('surahs');
   const flatListRef = useRef<FlatList<Surah>>(null);
 
@@ -204,7 +206,11 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
         <View
           style={[
             styles.header,
-            { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline },
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outline,
+              paddingTop: Math.max(insets.top + 6, 16),
+            },
           ]}
         >
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="إغلاق الفهرس">
@@ -307,7 +313,11 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
         <View
           style={[
             styles.bottomNavContainer,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outline },
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.outline,
+              paddingBottom: Math.max(insets.bottom, 14),
+            },
           ]}
         >
           <TouchableOpacity
@@ -484,10 +494,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 18,
     fontWeight: 'bold',
-    textAlign: 'auto',
+    textAlign: 'right',
     writingDirection: 'rtl',
     flexShrink: 0,
-    //paddingVertical: 2,
   },
   typeBadge: {
     paddingHorizontal: 6,
@@ -522,7 +531,7 @@ const styles = StyleSheet.create({
   },
   surahMeta: {
     fontSize: 12,
-    textAlign: 'auto',
+    textAlign: 'right',
     writingDirection: 'rtl',
   },
   pageIndicatorWrapper: {

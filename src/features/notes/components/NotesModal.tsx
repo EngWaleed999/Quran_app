@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
@@ -37,6 +38,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({
   embedded = false,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [notes, setNotes] = useState<AyahNote[]>([]);
   const [editingAyah, setEditingAyah] = useState<SelectedAyahInfo | null>(null);
   const [editingNote, setEditingNote] = useState<AyahNote | null>(null);
@@ -149,7 +151,16 @@ export const NotesModal: React.FC<NotesModalProps> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {(!embedded || editingAyah) && (
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outline,
+              paddingTop: !embedded ? Math.max(insets.top + 6, 16) : 8,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => {
               if (editingAyah) {

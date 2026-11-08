@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
@@ -38,6 +39,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   embedded = false,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [wird, setWird] = useState<DailyWird | null>(null);
   const [khatmahCount, setKhatmahCount] = useState(1);
   const [durationDays, setDurationDays] = useState('30');
@@ -229,6 +231,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
             {
               backgroundColor: theme.colors.surface,
               borderBottomColor: theme.colors.outline,
+              paddingTop: Math.max(insets.top + 6, 16),
             },
           ]}
         >

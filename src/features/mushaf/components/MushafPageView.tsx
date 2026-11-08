@@ -31,6 +31,7 @@ import { KhatmahModal } from '../../khatmah/components/KhatmahModal';
 import { KhatmahService } from '../../khatmah/services/khatmahService';
 import { DailyWird } from '../../khatmah/types/khatmah.types';
 import { AyahNote } from '../../notes/types/note.types';
+import { OtaUpdateBanner } from '../../../core/components/OtaUpdateBanner';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -184,6 +185,14 @@ export const MushafPageView: React.FC = () => {
   const toggleControls = useCallback(() => {
     setIsControlsVisible((previous) => !previous);
   }, []);
+
+  // ضبط ألوان وأيقونات شريط تنقل نظام أندرويد حسب الثيم النشط
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      // في الوضع الليلي نجعل خلفية شريط النظام بيضاء بأيقونات داكنة، وفي الفاتح/الأخضر خلفية سوداء بأيقونات فاتحة
+      NavigationBar.setStyle(theme.dark ? 'light' : 'dark');
+    }
+  }, [theme.dark]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -395,6 +404,10 @@ export const MushafPageView: React.FC = () => {
     return <View style={[styles.blankContainer, { backgroundColor: theme.colors.background }]} />;
   }
 
+  // الاحتفاظ بالحد الآمن للعلوي والسفلي لمنع أي اهتزاز (Zero Layout Shift) عند إخفاء/إظهار عناصر التحكم
+  const effectiveTopInset = Math.max(insets.top, 24);
+  const effectiveBottomInset = Math.max(insets.bottom, 10);
+
   const isWirdPending = Boolean(
     dailyWird &&
     dailyWird.status !== 'completed' &&
@@ -404,13 +417,16 @@ export const MushafPageView: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* شريط الإشعار بالتحديث الهوائي الداخلي مع شريط التقدم */}
+      <OtaUpdateBanner />
+
       {/* Transparent adaptive status bar that avoids obscuring clock/battery icons */}
       <StatusBar
         style={theme.dark ? 'light' : 'dark'}
         hidden={!isControlsVisible}
         animated
       />
-      <Animated.View style={[styles.headerDock, { top: insets.top + 2 }]} pointerEvents="box-none">
+      <Animated.View style={[styles.headerDock, { top: effectiveTopInset + 2 }]} pointerEvents="box-none">
       <PageHeader
         surahNames={pageMetadata.surahNames}
         jozzNumber={pageMetadata.jozz}
@@ -423,7 +439,15 @@ export const MushafPageView: React.FC = () => {
       />
       </Animated.View>
 
-      <View style={styles.pagerContainer}>
+      <View
+        style={[
+          styles.pagerContainer,
+          {
+            paddingTop: effectiveTopInset + 54,
+            paddingBottom: effectiveBottomInset + 36,
+          },
+        ]}
+      >
         <PagerView
           ref={pagerRef}
           style={styles.pager}

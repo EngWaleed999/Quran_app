@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AppText as Text } from "../../../core/theme/components/AppText";
 import { AppearanceMode, getQuranPalette } from "../../../core/theme/theme";
@@ -52,6 +53,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
   const appearance = useAppPreferences((state) => state.appearance);
   const setAppearance = useAppPreferences((state) => state.setAppearance);
   const palette = getQuranPalette(appearance);
@@ -70,6 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {
               backgroundColor: palette.surface,
               borderBottomColor: palette.border,
+              paddingTop: Math.max(insets.top + 6, 16),
             },
           ]}
         >

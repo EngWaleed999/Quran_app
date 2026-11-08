@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
@@ -31,6 +32,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
   embedded = false,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<BookmarkType | 'all'>('all');
   const filtered = useMemo(
     () => filter === 'all' ? bookmarks : bookmarks.filter((item) => item.type === filter),
@@ -40,7 +42,16 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
   const innerContent = (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {!embedded && (
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outline,
+              paddingTop: Math.max(insets.top + 6, 16),
+            },
+          ]}
+        >
           <TouchableOpacity onPress={onClose} style={styles.headerButton} accessibilityLabel="إغلاق">
             <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>

@@ -10,6 +10,7 @@ import {
   Keyboard,
   I18nManager,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -33,6 +34,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   db,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pageResult, setPageResult] = useState<PageSearchResult | null>(null);
@@ -168,7 +170,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         <View
           style={[
             styles.headerBar,
-            { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outline },
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.outline,
+              paddingTop: Math.max(insets.top + 6, 16),
+            },
           ]}
         >
           <TouchableOpacity
