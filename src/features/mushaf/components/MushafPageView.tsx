@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Platform } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useTheme } from 'react-native-paper';
+import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageHeader } from './PageHeader';
 import { PageBottomBar } from './PageBottomBar';
@@ -14,7 +17,6 @@ import { AyahActionModal, SelectedAyahInfo } from './AyahActionModal';
 import { TafsirModal } from './TafsirModal';
 import { QuranColors } from '../../../core/theme/theme';
 import { QuranRepository } from '../../../core/database/quranRepository';
-import { SvgMushafRepository } from '../../../core/database/svgMushafRepository';
 import { BookmarkService } from '../../bookmarks/services/bookmarkService';
 import { Bookmark } from '../../bookmarks/types/bookmark.types';
 import { useAudioStore } from '../../audio-player/stores/useAudioStore';
@@ -41,7 +43,9 @@ interface AudioPickerState {
 export const MushafPageView: React.FC = () => {
   const db = useSQLiteContext();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const pagerRef = useRef<PagerView>(null);
+  const metadataRequestRef = useRef(0);
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isReady, setIsReady] = useState<boolean>(false);
@@ -86,6 +90,31 @@ export const MushafPageView: React.FC = () => {
     surahNames: ['الفَاتِحة'],
     jozz: 1,
   });
+
+  const loadPageMetadata = useCallback(async (pageNumber: number) => {
+    const requestId = ++metadataRequestRef.current;
+    try {
+      const ayahs = await QuranRepository.getPageAyahs(db, pageNumber);
+      if (requestId !== metadataRequestRef.current || ayahs.length === 0) return;
+
+      const names: string[] = [];
+      const seen = new Set<string>();
+      for (const ayah of ayahs) {
+        const name = ayah.sura_name_ar?.trim();
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          names.push(name);
+        }
+      }
+
+      setPageMetadata({
+        surahNames: names.length > 0 ? names : [ayahs[0].sura_name_ar || ''],
+        jozz: ayahs[0].jozz,
+      });
+    } catch (error) {
+      console.warn('[MushafPageView] Could not load page metadata:', error);
+    }
+  }, [db]);
 
   useEffect(() => {
     let isMounted = true;
@@ -155,6 +184,18 @@ export const MushafPageView: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setHidden(!isControlsVisible);
+    }
+  }, [isControlsVisible]);
+
+  useEffect(() => () => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setHidden(false);
+    }
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function restorePosition() {
@@ -167,52 +208,32 @@ export const MushafPageView: React.FC = () => {
           if (parsed >= 1 && parsed <= TOTAL_PAGES) target = parsed;
         }
 
-        QuranRepository.preloadPages(db, target, 5);
-        SvgMushafRepository.prewarmSurroundingPages(db, target, 2);
+        if (!isMounted) return;
 
-        const ayahs = QuranRepository.getPageAyahsSync(db, target);
-        const names = QuranRepository.getPageSurahNamesSync(db, target);
-
-        if (isMounted) {
-          if (ayahs.length > 0) {
-            setPageMetadata({
-              surahNames: names.length > 0 ? names : [ayahs[0].sura_name_ar || ''],
-              jozz: ayahs[0].jozz,
-            });
-          }
-          setCurrentPage(target);
-          setIsReady(true);
-        }
+        // Do not hold the first Mushaf frame for a second metadata query.
+        // The SVG page loads independently after the selected index is rendered.
+        setCurrentPage(target);
+        setIsReady(true);
+        void loadPageMetadata(target);
       } catch (error) {
         console.warn('[MushafPageView] Could not restore last page:', error);
         if (isMounted) setIsReady(true);
       }
     }
 
-    restorePosition();
+    void restorePosition();
     return () => {
       isMounted = false;
+      metadataRequestRef.current += 1;
     };
-  }, [db]);
+  }, [db, loadPageMetadata]);
 
   const handlePageSelected = useCallback((position: number) => {
     const pageNum = position + 1;
     setCurrentPage(pageNum);
     AsyncStorage.setItem(LAST_PAGE_KEY, pageNum.toString()).catch(() => undefined);
-
-    QuranRepository.preloadPages(db, pageNum, 5);
-    SvgMushafRepository.prewarmSurroundingPages(db, pageNum, 2);
-
-    const ayahs = QuranRepository.getPageAyahsSync(db, pageNum);
-    const names = QuranRepository.getPageSurahNamesSync(db, pageNum);
-
-    if (ayahs.length > 0) {
-      setPageMetadata({
-        surahNames: names.length > 0 ? names : [ayahs[0].sura_name_ar || ''],
-        jozz: ayahs[0].jozz,
-      });
-    }
-  }, [db]);
+    void loadPageMetadata(pageNum);
+  }, [loadPageMetadata]);
 
   const handleNavigateToPage = useCallback((targetPage: number, targetVerseKey?: string) => {
     if (targetPage < 1 || targetPage > TOTAL_PAGES) return;
@@ -220,19 +241,7 @@ export const MushafPageView: React.FC = () => {
     pagerRef.current?.setPage(targetPage - 1);
     setCurrentPage(targetPage);
     AsyncStorage.setItem(LAST_PAGE_KEY, targetPage.toString()).catch(() => undefined);
-
-    QuranRepository.preloadPages(db, targetPage, 5);
-    SvgMushafRepository.prewarmSurroundingPages(db, targetPage, 2);
-
-    const ayahs = QuranRepository.getPageAyahsSync(db, targetPage);
-    const names = QuranRepository.getPageSurahNamesSync(db, targetPage);
-
-    if (ayahs.length > 0) {
-      setPageMetadata({
-        surahNames: names.length > 0 ? names : [ayahs[0].sura_name_ar || ''],
-        jozz: ayahs[0].jozz,
-      });
-    }
+    void loadPageMetadata(targetPage);
 
     if (targetVerseKey) {
       setSearchHighlightVerseKey(targetVerseKey);
@@ -241,7 +250,7 @@ export const MushafPageView: React.FC = () => {
         setSearchHighlightVerseKey(null);
       }, 3500);
     }
-  }, [db]);
+  }, [loadPageMetadata]);
 
   // تقليب صفحات المصحف تلقائياً عند انتقال الشيخ إلى صفحة تالية أثناء التلاوة
   useEffect(() => {
@@ -256,7 +265,7 @@ export const MushafPageView: React.FC = () => {
   }, [activeAyah, audioStatus, currentPage, db, handleNavigateToPage]);
 
   const handleAyahLongPress = useCallback(
-    (verseKey: string, pageNum: number) => {
+    async (verseKey: string, pageNum: number) => {
       const parts = verseKey.split(':');
       if (parts.length !== 2) return;
 
@@ -264,7 +273,7 @@ export const MushafPageView: React.FC = () => {
       const ayaNo = Number.parseInt(parts[1], 10);
       if (!Number.isInteger(suraNo) || !Number.isInteger(ayaNo)) return;
 
-      const pageAyahs = QuranRepository.getPageAyahsSync(db, pageNum);
+      const pageAyahs = await QuranRepository.getPageAyahs(db, pageNum);
       const matchingAyah = pageAyahs.find(
         (item) => item.sura_no === suraNo && item.aya_no === ayaNo
       );
@@ -279,7 +288,7 @@ export const MushafPageView: React.FC = () => {
         page: pageNum,
         suraName,
         jozz,
-          ayahText: matchingAyah?.aya_text_emlaey || '',       
+        ayahText: matchingAyah?.aya_text_emlaey || '',
       });
     },
     [db, pageMetadata]
@@ -347,16 +356,19 @@ export const MushafPageView: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar hidden={!isControlsVisible} animated />
+      <Animated.View style={[styles.headerDock, { top: insets.top + 2 }]} pointerEvents="box-none">
       <PageHeader
         surahNames={pageMetadata.surahNames}
         jozzNumber={pageMetadata.jozz}
         pageNumber={currentPage}
-        onOpenSearch={() => setIsSearchOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenSurahList={() => setIsSurahListOpen(true)}
+        onOpenSearch={() => { setIsControlsVisible(true); setIsSearchOpen(true); }}
+        onOpenSettings={() => { setIsControlsVisible(true); setIsSettingsOpen(true); }}
+        onOpenSurahList={() => { setIsControlsVisible(true); setIsSurahListOpen(true); }}
         controlsAnim={controlsAnim}
         isControlsVisible={isControlsVisible}
       />
+      </Animated.View>
 
       <View style={styles.pagerContainer}>
         <PagerView
@@ -366,10 +378,11 @@ export const MushafPageView: React.FC = () => {
           onPageSelected={(event) => handlePageSelected(event.nativeEvent.position)}
           orientation="horizontal"
           layoutDirection="rtl"
-          offscreenPageLimit={3}
+          offscreenPageLimit={1}
         >
           {ALL_PAGES.map((pageNum) => {
-            const isNear = Math.abs(pageNum - currentPage) <= 3;
+            const isNear = Math.abs(pageNum - currentPage) <= 1;
+            const isActive = pageNum === currentPage;
 
             return (
               <View key={'page-wrapper-' + pageNum} style={styles.pageWrapper}>
@@ -377,6 +390,7 @@ export const MushafPageView: React.FC = () => {
                   page={pageNum}
                   db={db}
                   isNear={isNear}
+                  isActive={isActive}
                   onToggleControls={toggleControls}
                   selectedVerseKey={selectedAyah?.verseKey}
                   bookmarkTypesByVerse={bookmarkTypesByVerse}
@@ -394,7 +408,7 @@ export const MushafPageView: React.FC = () => {
         </PagerView>
       </View>
 
-      <View style={styles.bottomDock} pointerEvents="box-none">
+      <View style={[styles.bottomDock, { bottom: isControlsVisible ? insets.bottom : 0 }]} pointerEvents="box-none">
         <Animated.View
           style={[
             styles.bottomBarWrapper,
@@ -433,6 +447,7 @@ export const MushafPageView: React.FC = () => {
         visible={isSurahListOpen}
         onClose={() => setIsSurahListOpen(false)}
         onOpenSearch={() => {
+          setIsControlsVisible(true);
           setIsSurahListOpen(false);
           setIsSearchOpen(true);
         }}
@@ -522,6 +537,14 @@ const styles = StyleSheet.create({
   },
   pageWrapper: {
     flex: 1,
+  },
+  headerDock: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 30,
+    elevation: 30,
   },
   bottomDock: {
     position: 'absolute',

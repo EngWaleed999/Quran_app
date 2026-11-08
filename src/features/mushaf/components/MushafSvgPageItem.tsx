@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   GestureResponderEvent,
   LayoutChangeEvent,
+  InteractionManager,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -19,11 +20,13 @@ import { SurahBanner } from './SurahBanner';
 import { QuranRepository } from '../../../core/database/quranRepository';
 import { QuranColors } from '../../../core/theme/theme';
 import { BookmarkType } from '../../bookmarks/types/bookmark.types';
+import type { SvgPilotPageAsset, NormalizedPageData } from '../types/svgMushaf.types';
 
 interface MushafSvgPageItemProps {
   page: number;
   db?: SQLiteDatabase | null;
   isNear: boolean;
+  isActive: boolean;
   onToggleControls?: () => void;
   selectedVerseKey?: string | null;
   playingVerseKey?: string | null;
@@ -41,6 +44,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   page,
   db,
   isNear,
+  isActive,
   onToggleControls,
   onAyahPress,
   selectedVerseKey,
@@ -62,13 +66,36 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     height: number;
   }>({ width: 0, height: 0 });
 
-  // استخراج أصل صفحة الـ SVG من قاعدة البيانات فائقة السرعة
-  const pageAsset = useMemo(() => {
-    // PagerView keeps React children for every Mushaf page. Only load and parse
-    // SVG payloads for the small window around the visible page.
-    if (!db || !isNear) return null;
-    return SvgMushafRepository.getPageAssetSync(db, page);
-  }, [db, page, isNear]);
+  // The active page is fetched immediately; neighbors wait until the UI is idle.
+  const [pageAsset, setPageAsset] = useState<SvgPilotPageAsset | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    if (!db || !isNear) {
+      setPageAsset(null);
+      return;
+    }
+
+    setPageAsset(null);
+    const loadPage = () => {
+      void SvgMushafRepository.getPageAsset(db, page).then((asset) => {
+        if (!cancelled) setPageAsset(asset);
+      });
+    };
+
+    if (isActive) {
+      loadPage();
+    } else {
+      timer = setTimeout(loadPage, 180);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [db, page, isNear, isActive]);
 
   // التحقق من وجود سورة تبدأ في هذه الصفحة من قاعدة البيانات
   const surahHeader = useMemo(() => {
@@ -76,10 +103,30 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     return QuranRepository.getSurahStartingOnPage(db, page);
   }, [db, page, isNear]);
 
-  // تحويل وتطبيع بيانات الإحداثيات والمضلعات
-  const normalizedData = useMemo(() => {
-    if (!pageAsset) return null;
-    return normalizePageAyahData(pageAsset.rawJson, page, pageAsset.viewBox);
+  // Draw the SVG before building the heavier polygon geometry. Hit-testing
+  // data is prepared after the first render/interaction frame.
+  const [normalizedData, setNormalizedData] = useState<NormalizedPageData | null>(null);
+
+  useEffect(() => {
+    setNormalizedData(null);
+    if (!pageAsset || pageAsset.page !== page) return;
+
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (cancelled) return;
+      try {
+        setNormalizedData(
+          normalizePageAyahData(pageAsset.rawJson, page, pageAsset.viewBox)
+        );
+      } catch (error) {
+        console.warn(`[MushafSvgPageItem] Could not normalize page ${page}:`, error);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      task.cancel();
+    };
   }, [pageAsset, page]);
 
   // تكييف ألوان الـ SVG مع الوضع الليلي (Dark Mode) بسلاسة تامة
@@ -229,7 +276,7 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     touchStartRef.current = null;
   };
 
-  if (!isNear || !pageAsset || !normalizedData) {
+  if (!isNear || !pageAsset || pageAsset.page !== page) {
     return <View style={styles.placeholder} />;
   }
 
@@ -262,16 +309,18 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
           preserveAspectRatio="xMidYMid meet"
         />
 
-        {/* طبقة تظليل الآيات المتجهية العائمة */}
-        <SvgAyahHighlightOverlay
-          viewBox={pageAsset.viewBox}
-          ayahs={normalizedData.ayahs}
-          selectedVerseKey={selectedVerseKey}
-          playingVerseKey={playingVerseKey}
-          bookmarkTypesByVerse={bookmarkTypesByVerse}
-          khatmahVerseKeys={khatmahVerseKeys}
-          searchHighlightVerseKey={searchHighlightVerseKey}
-        />
+        {/* Polygon geometry is intentionally deferred until after first paint. */}
+        {normalizedData?.page === page ? (
+          <SvgAyahHighlightOverlay
+            viewBox={pageAsset.viewBox}
+            ayahs={normalizedData.ayahs}
+            selectedVerseKey={selectedVerseKey}
+            playingVerseKey={playingVerseKey}
+            bookmarkTypesByVerse={bookmarkTypesByVerse}
+            khatmahVerseKeys={khatmahVerseKeys}
+            searchHighlightVerseKey={searchHighlightVerseKey}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -283,6 +332,7 @@ export const MushafSvgPageItem = React.memo(
     prev.page === next.page &&
     prev.db === next.db &&
     prev.isNear === next.isNear &&
+    prev.isActive === next.isActive &&
     prev.selectedVerseKey === next.selectedVerseKey &&
     prev.playingVerseKey === next.playingVerseKey &&
     prev.bookmarkTypesByVerse === next.bookmarkTypesByVerse &&
@@ -291,7 +341,9 @@ export const MushafSvgPageItem = React.memo(
     prev.khatmahWrapsAroundEnd === next.khatmahWrapsAroundEnd &&
     prev.khatmahDailyTargetAyahs === next.khatmahDailyTargetAyahs &&
     prev.searchHighlightVerseKey === next.searchHighlightVerseKey &&
-    prev.onAyahPress === next.onAyahPress
+    prev.onAyahPress === next.onAyahPress &&
+    prev.onAyahLongPress === next.onAyahLongPress &&
+    prev.onToggleControls === next.onToggleControls
 );
 
 const styles = StyleSheet.create({
