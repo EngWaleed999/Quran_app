@@ -1,7 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { QuranRepository } from '../../../core/database/quranRepository.ts';
 import type { DailyWird, KhatmahPlan, DailyWirdStatus, KhatmahCompletion } from '../types/khatmah.types';
-import { addDaysToDateKey, countPageVisits, daysBetweenDateKeys, getDailyAyahRange, localDateKey, TOTAL_MADINAH_PAGES, TOTAL_QURAN_AYAHS } from './khatmahRules.ts';
+import {
+  addDaysToDateKey, countPageVisits, daysBetweenDateKeys, getDailyAyahRange, localDateKey, TOTAL_MADINAH_PAGES, TOTAL_QURAN_AYAHS, getDailyPageRange,
+  getPageScheduleSummary,
+} from './khatmahRules.ts';
 
 export { TOTAL_QURAN_AYAHS, TOTAL_MADINAH_PAGES } from './khatmahRules.ts';
 
@@ -17,6 +20,7 @@ interface KhatmahPlanRow {
   created_at: number;
   updated_at: number;
   completed_at: number | null;
+  schedule_mode: 'ayah' | 'page';
 }
 
 interface CompletionRow {
@@ -48,6 +52,8 @@ function mapPlan(row: KhatmahPlanRow): KhatmahPlan {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
+    scheduleMode: row.schedule_mode === 'page' ? 'page' : 'ayah',
+
   };
 }
 
@@ -55,9 +61,11 @@ function modulo(value: number, divisor: number): number {
   return ((value % divisor) + divisor) % divisor;
 }
 
-function getDailyTargetAyahs(plan: KhatmahPlan): number {
-  return Math.max(1, Math.ceil(plan.totalAyahs / plan.durationDays));
-}
+// function getDailyTargetAyahs(plan: KhatmahPlan): number {
+//   return Math.max(1, Math.ceil(plan.totalAyahs / plan.durationDays));
+// }
+
+
 
 function getDailyRange(
   db: SQLiteDatabase,
@@ -65,6 +73,18 @@ function getDailyRange(
   dayIndex: number,
   startOffsetOverride?: number
 ): DailyRange {
+  if (plan.scheduleMode === 'page') {
+    return getDailyPageRange(
+      plan.startGlobalAyah,
+      plan.totalAyahs,
+      plan.durationDays,
+      dayIndex,
+      QuranRepository.getPageStartGlobalAyahsSync(db),
+      startOffsetOverride
+    );
+  }
+
+  // Preserve the original behavior for existing plans.
   const range = getDailyAyahRange(
     plan.startGlobalAyah,
     plan.totalAyahs,
@@ -72,10 +92,23 @@ function getDailyRange(
     dayIndex,
     startOffsetOverride
   );
-  const startAyah = QuranRepository.getAyahByGlobalNumberSync(db, range.startGlobalAyah);
-  const endAyah = QuranRepository.getAyahByGlobalNumberSync(db, range.endGlobalAyah);
+
+  const startAyah =
+    QuranRepository.getAyahByGlobalNumberSync(
+      db,
+      range.startGlobalAyah
+    );
+
+  const endAyah =
+    QuranRepository.getAyahByGlobalNumberSync(
+      db,
+      range.endGlobalAyah
+    );
+
   if (!startAyah || !endAyah) {
-    throw new Error('تعذر تحديد صفحات ورد الختمة من قاعدة بيانات المصحف.');
+    throw new Error(
+      'تعذر تحديد صفحات ورد الختمة من قاعدة بيانات المصحف.'
+    );
   }
 
   return {
@@ -88,6 +121,7 @@ function getDailyRange(
     ),
   };
 }
+
 
 async function getWirdForPlan(
   db: SQLiteDatabase,
@@ -137,18 +171,29 @@ async function getWirdForPlan(
     }
   }
 
-  const scheduledStartOffset = dayIndex * getDailyTargetAyahs(plan);
-  const scheduledEndOffset = Math.min(
-    plan.totalAyahs,
-    (dayIndex + 1) * getDailyTargetAyahs(plan)
+  const scheduledRange = getDailyRange(
+    db,
+    plan,
+    dayIndex
   );
-  const legacyPartialOffset =
+
+  const partialProgressOffset =
     (status === 'pending' || status === 'overdue') &&
-    plan.completedAyahs > scheduledStartOffset &&
-    plan.completedAyahs < scheduledEndOffset
+      plan.completedAyahs > scheduledRange.startOffset &&
+      plan.completedAyahs < scheduledRange.endOffset
       ? plan.completedAyahs
       : undefined;
-  const range = getDailyRange(db, plan, dayIndex, legacyPartialOffset);
+
+  const range =
+    partialProgressOffset === undefined
+      ? scheduledRange
+      : getDailyRange(
+        db,
+        plan,
+        dayIndex,
+        partialProgressOffset
+      );
+
   return {
     plan,
     dayNumber: dayIndex + 1,
@@ -213,17 +258,23 @@ export class KhatmahService {
     const id = `khatmah-${now.toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     const totalAyahs = TOTAL_QURAN_AYAHS * khatmahCount;
 
+    const pageStartGlobalAyahs =
+      QuranRepository.getPageStartGlobalAyahsSync(db);
+
+    getPageScheduleSummary(
+      startGlobalAyah,
+      totalAyahs,
+      durationDays,
+      pageStartGlobalAyahs
+    );
+
     await db.withExclusiveTransactionAsync(async (txn) => {
       await txn.runAsync(
         'UPDATE khatmah_plans SET is_active = 0, updated_at = ? WHERE is_active = 1',
         [now]
       );
       await txn.runAsync(
-        `INSERT INTO khatmah_plans (
-          id, khatmah_count, duration_days, start_global_ayah,
-          total_ayahs, completed_ayahs, is_active, created_at,
-          updated_at, completed_at, start_date_local
-        ) VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, NULL, ?)`,
+        `INSERT INTO khatmah_plans ( id, khatmah_count, duration_days, start_global_ayah, total_ayahs, completed_ayahs, is_active, created_at, updated_at, completed_at, start_date_local, schedule_mode ) VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, NULL, ?, 'page')`,
         [
           id,
           khatmahCount,

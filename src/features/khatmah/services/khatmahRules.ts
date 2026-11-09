@@ -78,6 +78,18 @@ export function getDailyAyahRange(
   };
 }
 
+//=============================================
+export interface DailyPageRange extends DailyAyahRange {
+  dailyTargetPages: number;
+}
+
+export interface PageScheduleSummary {
+  totalPageVisits: number;
+  minPagesPerDay: number;
+  maxPagesPerDay: number;
+  daysWithExtraPage: number;
+}
+
 /**
  * Exact page visits for a consecutive global-ayah range.
  * Page boundaries are provided by the canonical Quran SQLite data.
@@ -117,3 +129,209 @@ export function countPageVisits(
   }
   return completeCyclePages + partialPages;
 }
+//=============================================================
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
+}
+
+export function getPageVisitStartOffsets(
+  startGlobalAyah: number,
+  totalAyahs: number,
+  pageStartGlobalAyahs: readonly number[]
+): number[] {
+  if (
+    !Number.isInteger(startGlobalAyah) ||
+    startGlobalAyah < 1 ||
+    startGlobalAyah > TOTAL_QURAN_AYAHS
+  ) {
+    throw new Error('Invalid startGlobalAyah');
+  }
+
+  if (
+    !Number.isInteger(totalAyahs) ||
+    totalAyahs < 1 ||
+    totalAyahs % TOTAL_QURAN_AYAHS !== 0
+  ) {
+    throw new Error('totalAyahs must contain complete Quran cycles');
+  }
+
+  const invalidPageStarts =
+    pageStartGlobalAyahs.length !== TOTAL_MADINAH_PAGES ||
+    pageStartGlobalAyahs[0] !== 1 ||
+    pageStartGlobalAyahs.some((value, index) =>
+      !Number.isInteger(value) ||
+      value < 1 ||
+      value > TOTAL_QURAN_AYAHS ||
+      (
+        index > 0 &&
+        value <= pageStartGlobalAyahs[index - 1]
+      )
+    );
+
+  if (invalidPageStarts) {
+    throw new Error('Invalid Quran page boundaries');
+  }
+
+  const cycles = totalAyahs / TOTAL_QURAN_AYAHS;
+  const offsets = [0];
+
+  for (let cycle = 0; cycle < cycles; cycle += 1) {
+    for (const pageStart of pageStartGlobalAyahs) {
+      const relativeOffset = positiveModulo(
+        pageStart - startGlobalAyah,
+        TOTAL_QURAN_AYAHS
+      );
+
+      const offset =
+        cycle * TOTAL_QURAN_AYAHS + relativeOffset;
+
+      if (offset > 0 && offset < totalAyahs) {
+        offsets.push(offset);
+      }
+    }
+  }
+
+  offsets.sort((a, b) => a - b);
+
+  if (new Set(offsets).size !== offsets.length) {
+    throw new Error('Duplicate page boundaries detected');
+  }
+
+  return offsets;
+}
+
+
+export function getPageScheduleSummary(
+  startGlobalAyah: number,
+  totalAyahs: number,
+  durationDays: number,
+  pageStartGlobalAyahs: readonly number[]
+): PageScheduleSummary {
+  if (!Number.isInteger(durationDays) || durationDays < 1) {
+    throw new Error('durationDays must be positive');
+  }
+
+  const pageOffsets = getPageVisitStartOffsets(
+    startGlobalAyah,
+    totalAyahs,
+    pageStartGlobalAyahs
+  );
+
+  const totalPageVisits = pageOffsets.length;
+
+  if (durationDays > totalPageVisits) {
+    throw new Error(
+      'مدة الخطة أكبر من عدد مقاطع الصفحات المتاحة.'
+    );
+  }
+
+  const basePages = Math.floor(
+    totalPageVisits / durationDays
+  );
+
+  const remainder = totalPageVisits % durationDays;
+
+  return {
+    totalPageVisits,
+    minPagesPerDay: basePages,
+    maxPagesPerDay: basePages + (remainder > 0 ? 1 : 0),
+    daysWithExtraPage: remainder,
+  };
+}
+
+
+export function getDailyPageRange(
+  startGlobalAyah: number,
+  totalAyahs: number,
+  durationDays: number,
+  dayIndex: number,
+  pageStartGlobalAyahs: readonly number[],
+  startOffsetOverride?: number
+): DailyPageRange {
+  if (
+    !Number.isInteger(dayIndex) ||
+    dayIndex < 0 ||
+    dayIndex >= durationDays
+  ) {
+    throw new Error('dayIndex is outside the plan duration');
+  }
+
+  const pageOffsets = getPageVisitStartOffsets(
+    startGlobalAyah,
+    totalAyahs,
+    pageStartGlobalAyahs
+  );
+
+  const totalPageVisits = pageOffsets.length;
+
+  if (
+    !Number.isInteger(durationDays) ||
+    durationDays < 1 ||
+    durationDays > totalPageVisits
+  ) {
+    throw new Error('Invalid durationDays for page schedule');
+  }
+
+  const basePages = Math.floor(
+    totalPageVisits / durationDays
+  );
+
+  const remainder = totalPageVisits % durationDays;
+
+  const startPageIndex =
+    dayIndex * basePages + Math.min(dayIndex, remainder);
+
+  const dailyTargetPages =
+    basePages + (dayIndex < remainder ? 1 : 0);
+
+  const endPageIndex =
+    startPageIndex + dailyTargetPages;
+
+  const scheduledStartOffset =
+    pageOffsets[startPageIndex];
+
+  const scheduledEndOffset =
+    pageOffsets[endPageIndex] ?? totalAyahs;
+
+  const startOffset =
+    startOffsetOverride ?? scheduledStartOffset;
+
+  if (
+    !Number.isInteger(startOffset) ||
+    startOffset < scheduledStartOffset ||
+    startOffset >= scheduledEndOffset
+  ) {
+    throw new Error('Invalid partial page schedule offset');
+  }
+
+  const endOffset = scheduledEndOffset;
+  const dailyTargetAyahs = endOffset - startOffset;
+
+  const startAbsolute =
+    startGlobalAyah - 1 + startOffset;
+
+  const endAbsolute =
+    startGlobalAyah - 1 + endOffset - 1;
+
+  const startGlobal =
+    positiveModulo(startAbsolute, TOTAL_QURAN_AYAHS) + 1;
+
+  const endGlobal =
+    positiveModulo(endAbsolute, TOTAL_QURAN_AYAHS) + 1;
+
+  return {
+    dayIndex,
+    startOffset,
+    endOffset,
+    startGlobalAyah: startGlobal,
+    endGlobalAyah: endGlobal,
+    dailyTargetAyahs,
+    dailyTargetPages,
+    wrapsAroundEnd:
+      Math.floor(endAbsolute / TOTAL_QURAN_AYAHS) >
+      Math.floor(startAbsolute / TOTAL_QURAN_AYAHS),
+  };
+}
+
+

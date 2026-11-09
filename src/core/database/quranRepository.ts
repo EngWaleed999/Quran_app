@@ -12,6 +12,10 @@ export class QuranRepository {
   private static readonly MAX_PAGE_CACHE_SIZE = 12;
   private static readonly MAX_SURAH_CACHE_SIZE = 2;
 
+  //=================================================
+  private static pageStartGlobalAyahCache =
+    new WeakMap<SQLiteDatabase, number[]>();
+
   private static rememberPage(page: number, rows: Ayah[]): void {
     QuranRepository.pageCache.delete(page);
     QuranRepository.pageCache.set(page, rows);
@@ -212,6 +216,54 @@ export class QuranRepository {
       return null;
     }
   }
+
+  //==========================================
+
+  static getPageStartGlobalAyahsSync(
+    db: SQLiteDatabase
+  ): number[] {
+    const cached =
+      QuranRepository.pageStartGlobalAyahCache.get(db);
+    if (cached) return cached;
+
+    const rows = db.getAllSync<{
+      page: number;
+      global_ayah: number;
+    }>(`SELECT a.page AS page, MIN( ( SELECT COALESCE(SUM(previous.ayahs_count), 0) FROM surahs previous WHERE previous.sura_no < a.sura_no ) + a.aya_no ) AS global_ayah FROM ayahs a GROUP BY a.page ORDER BY global_ayah ASC`);
+
+    const valid =
+      rows.length === 604 &&
+      rows.every((row, index) =>
+        Number.isInteger(row.page) &&
+        row.page === index + 1 &&
+        Number.isInteger(row.global_ayah) &&
+        row.global_ayah >= 1 &&
+        row.global_ayah <= 6236 &&
+        (
+          index === 0 ||
+          row.global_ayah > rows[index - 1].global_ayah
+        )
+      );
+
+    if (!valid) {
+      throw new Error(
+        'تعذر التحقق من حدود صفحات المصحف. يجب التأكد من وجود الصفحات الـ604 وترتيبها الصحيح.'
+      );
+    }
+
+    const pageStarts = rows.map(row => row.global_ayah);
+    QuranRepository.pageStartGlobalAyahCache.set(
+      db,
+      pageStarts
+    );
+
+    return pageStarts;
+  }
+
+
+
+
+
 
   /** Warm only one requested page; never load all ayahs into RAM at startup. */
   static warmupCache(db: SQLiteDatabase, page = 1): void {

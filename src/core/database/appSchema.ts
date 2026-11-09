@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-export const APP_SCHEMA_VERSION = 3;
+export const APP_SCHEMA_VERSION = 4;
 
 interface Migration {
   version: number;
@@ -201,6 +201,21 @@ const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_khatmah_plans_active
           ON khatmah_plans(is_active, created_at DESC);
       `);
+    },
+  },
+  {
+    version: 4,
+    name: 'add-page-based-khatmah-scheduling',
+    up: async (transaction) => {
+      if (
+        !(await hasColumn(
+          transaction,
+          'khatmah_plans',
+          'schedule_mode'
+        ))
+      ) {
+        await transaction.execAsync("ALTER TABLE khatmah_plans ADD COLUMN schedule_mode TEXT NOT NULL DEFAULT 'ayah' CHECK(schedule_mode IN('ayah', 'page'));");
+      }
     },
   },
 ];

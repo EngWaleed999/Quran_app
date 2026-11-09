@@ -61,7 +61,6 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   const runAudioAction = (
     action: ((selectedAyah: SelectedAyahInfo) => void) | undefined
   ) => {
-    onClose();
     action?.(ayah);
   };
 

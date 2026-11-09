@@ -10,6 +10,7 @@ export interface KhatmahPlan {
   createdAt: number;
   updatedAt: number;
   completedAt: number | null;
+  scheduleMode: KhatmahScheduleMode;
 }
 
 export type DailyWirdStatus = 'pending' | 'overdue' | 'completed' | 'finished';
@@ -45,3 +46,6 @@ export interface KhatmahCompletion {
   completedAt: number;
   source: 'manual' | 'legacy_migration';
 }
+
+//==================================
+export type KhatmahScheduleMode = 'ayah' | 'page';

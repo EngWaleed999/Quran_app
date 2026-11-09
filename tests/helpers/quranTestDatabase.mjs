@@ -33,7 +33,8 @@ export function createQuranTestDatabase() {
   for (let globalAyah = 1; globalAyah <= 6236; globalAyah += 1) {
     const suraNo = globalAyah <= 3118 ? 1 : 2;
     const ayaNo = suraNo === 1 ? globalAyah : globalAyah - 3118;
-    const page = Math.min(604, Math.ceil(globalAyah / 11));
+    const page =
+      Math.floor(((globalAyah - 1) * 604) / 6236) + 1;
     insertAyah.run(globalAyah, suraNo, ayaNo, page, `آية ${globalAyah}`);
   }
 
@@ -63,6 +64,10 @@ export function createQuranTestDatabase() {
         raw.exec('ROLLBACK');
         throw error;
       }
+    },
+
+    getAllSync(sql, params = []) {
+      return raw.prepare(sql).all(...params);
     },
     close() {
       raw.close();

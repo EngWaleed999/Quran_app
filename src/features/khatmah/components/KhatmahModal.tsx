@@ -1,4 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+
+import {
+  getPageScheduleSummary,
+  TOTAL_QURAN_AYAHS,
+} from '../services/khatmahRules.ts';
+
 import {
   Alert,
   Modal,
@@ -53,6 +59,77 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   const selectedStartSurah = surahOptions.find((surah) => surah.sura_no === startSurahNo) ?? null;
+
+  const pageSchedulePreview = useMemo(() => {
+    const days = Number(durationDays);
+
+    if (
+      !Number.isInteger(days) ||
+      days < 1 ||
+      days > 3660
+    ) {
+      return null;
+    }
+
+    try {
+      let startGlobalAyah = 1;
+
+      if (startFrom === 'current') {
+        const pageAyahs =
+          QuranRepository.getPageAyahsSync(db, currentPage);
+
+        const firstAyah = pageAyahs[0];
+
+        if (!firstAyah) return null;
+
+        startGlobalAyah =
+          QuranRepository.getGlobalAyahNumberSync(
+            db,
+            firstAyah.sura_no,
+            firstAyah.aya_no
+          );
+      } else if (startFrom === 'custom') {
+        const selectedAyahNo = Number(startAyahInput);
+
+        if (
+          !selectedStartSurah ||
+          !Number.isInteger(selectedAyahNo) ||
+          selectedAyahNo < 1 ||
+          selectedAyahNo > selectedStartSurah.ayahs_count
+        ) {
+          return null;
+        }
+
+        startGlobalAyah =
+          QuranRepository.getGlobalAyahNumberSync(
+            db,
+            selectedStartSurah.sura_no,
+            selectedAyahNo
+          );
+      }
+
+      const pageStarts =
+        QuranRepository.getPageStartGlobalAyahsSync(db);
+
+      return getPageScheduleSummary(
+        startGlobalAyah,
+        TOTAL_QURAN_AYAHS * khatmahCount,
+        days,
+        pageStarts
+      );
+    } catch {
+      return null;
+    }
+  }, [
+    db,
+    currentPage,
+    durationDays,
+    khatmahCount,
+    startFrom,
+    startAyahInput,
+    selectedStartSurah,
+  ]);
+
 
   useEffect(() => {
     setSurahOptions(QuranRepository.getAllSurahsSync(db));
@@ -156,26 +233,26 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
     }
   };
 
-  const completeWird = async () => {                                                                                           
-        if (!wird?.canComplete || loading) return;                                                                                 
-                                                                                                                                   
-        try {                                                                                                                      
-          setLoading(true);                                                                                                        
-          const next = await KhatmahService.completeDailyWird(db);                                                                 
-          setWird(next);                                                                                                           
-          onWirdChange?.(next);                                                                                                    
-          setHistory(                                                                                                              
-            await KhatmahService.getCompletionHistory(db, wird.plan.id)                                                            
-          );                                                                                                                       
-        } catch (error) {                                                                                                          
-          Alert.alert(                                                                                                             
-            'تعذر تحديث التقدم',                                                                                                   
-            error instanceof Error ? error.message : 'حاول مرة أخرى.'                                                              
-          );                                                                                                                       
-        } finally {                                                                                                                
-          setLoading(false);                                                                                                       
-        }                                                                                                                          
-      };                                                   
+  const completeWird = async () => {
+    if (!wird?.canComplete || loading) return;
+
+    try {
+      setLoading(true);
+      const next = await KhatmahService.completeDailyWird(db);
+      setWird(next);
+      onWirdChange?.(next);
+      setHistory(
+        await KhatmahService.getCompletionHistory(db, wird.plan.id)
+      );
+    } catch (error) {
+      Alert.alert(
+        'تعذر تحديث التقدم',
+        error instanceof Error ? error.message : 'حاول مرة أخرى.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stopPlan = () => {
     Alert.alert(
@@ -253,404 +330,441 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
         </View>
       )}
 
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* {loading ? <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>جاري تحديث الخطة...</Text> : null} */}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* {loading ? <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>جاري تحديث الخطة...</Text> : null} */}
 
-          {isFinished ? (
-            <View style={[styles.successCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline, borderWidth: 1 }]}>
-              <MaterialCommunityIcons
-                name="trophy-outline"
-                size={54}
-                color={QuranColors.gold}
-              />
-              <Text style={[styles.successTitle, { color: theme.colors.primary }]}>تقبّل الله منك ختمتك</Text>
-              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.
+        {isFinished ? (
+          <View style={[styles.successCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline, borderWidth: 1 }]}>
+            <MaterialCommunityIcons
+              name="trophy-outline"
+              size={54}
+              color={QuranColors.gold}
+            />
+            <Text style={[styles.successTitle, { color: theme.colors.primary }]}>تقبّل الله منك ختمتك</Text>
+            <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+              أكملت جميع الأجزاء المحددة في خطتك. يمكنك إنشاء خطة جديدة متى شئت.
+            </Text>
+            <View style={[styles.finishedProgress, { backgroundColor: theme.dark ? "rgba(197,155,39,0.15)" : "rgba(197,155,39,0.1)" }]}>
+              <Text style={[styles.finishedProgressText, { color: theme.colors.primary }]}>
+                {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
               </Text>
-              <View style={[styles.finishedProgress, { backgroundColor: theme.dark ? "rgba(197,155,39,0.15)" : "rgba(197,155,39,0.1)" }]}>
-                <Text style={[styles.finishedProgressText, { color: theme.colors.primary }]}>
-                  {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
-                onPress={() => setWird(null)}
-              >
-                <Text style={styles.primaryButtonText}>إنشاء خطة جديدة</Text>
-              </TouchableOpacity>
             </View>
-          ) : wird ? (
-            <>
-              <View
-                style={[
-                  styles.summaryCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.outline,
-                  },
-                ]}
-              >
-                <Text style={[styles.eyebrow, { color: theme.colors.onSurfaceVariant }]}>خطتك الحالية</Text>
-                <Text style={[styles.planTitle, { color: theme.colors.onSurface }]}>
-                  {wird.plan.khatmahCount.toLocaleString('ar')} ختمة خلال {wird.totalDays.toLocaleString('ar')} يوماً
-                </Text>
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill, { backgroundColor: theme.colors.primary },
-                      { width: `${wird.progressPercent}%` },
-                    ]}
-                  />
-                </View>
-                <View style={styles.progressMeta}>
-                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
-                    {Math.round(wird.progressPercent).toLocaleString('ar')}٪ مكتمل
-                  </Text>
-                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
-                    {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.wirdCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.outline,
-                  },
-                ]}
-              >
-                <View style={styles.wirdHeading}>
-                  <Text style={[styles.wirdTitle, { color: theme.colors.onSurface }]}>
-                    وردك الحالي
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dayBadge,
-                      wird.status === 'overdue' && styles.overdueBadge,
-                      isTodayCompleted && styles.completedBadge,
-                    ]}
-                  >
-                    {wird.status === 'overdue'
-                      ? `ورد متأخر • اليوم ${wird.dayNumber}`
-                      : isTodayCompleted
-                        ? 'ورد اليوم مكتمل'
-                        : `اليوم ${wird.dayNumber} من ${wird.totalDays}`}
-                  </Text>
-                </View>
-
-                <Text style={[styles.metric, { color: theme.colors.primary }]}>
-                  {wird.dailyTargetPages.toLocaleString('ar')} صفحة
-                </Text>
-                <Text style={[styles.metricSub, { color: theme.colors.onSurfaceVariant }]}>
-                  {wird.dailyTargetAyahs.toLocaleString('ar')} آية • التاريخ المحدد {wird.scheduledDate}
-                </Text>
-
-                {startVerse && endVerse ? (
-                  <View style={[styles.rangeBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, borderWidth: 1 }]}>
-                    <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
-                      من سورة {startVerse.sura_name_ar} • الآية {startVerse.aya_no.toLocaleString('ar')}
-                    </Text>
-                    <MaterialCommunityIcons
-                      name="arrow-down"
-                      size={18}
-                      color={QuranColors.gold}
-                    />
-                    <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
-                      إلى سورة {endVerse.sura_name_ar} • الآية {endVerse.aya_no.toLocaleString('ar')}
-                    </Text>
-                    {wird.wrapsAroundEnd ? (
-                      <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                        يمتد الورد من نهاية المصحف إلى بدايته.
-                      </Text>
-                    ) : null}
-                    {wird.dailyTargetAyahs >= 6236 ? (
-                      <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                        يتضمن هذا الورد دورة كاملة من المصحف أو أكثر.
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                  تم تظليل آيات هذا الورد في صفحات المصحف. يمكنك الرجوع إليها قبل تسجيل إتمامه.
-                </Text>
-
-                <TouchableOpacity
-                  onPress={goToWird}
-                  style={[styles.secondaryButton, { borderColor: theme.colors.primary }]}
-                  disabled={loading}
-                >
-                  <MaterialCommunityIcons
-                    name="book-open-page-variant-outline"
-                    size={19}
-                    color={theme.colors.primary}
-                  />
-                  <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>
-                    الانتقال إلى بداية الورد
-                  </Text>
-                </TouchableOpacity>
-
-                {wird.canComplete ? (
-                  <TouchableOpacity
-                    onPress={completeWird}
-                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
-                    disabled={loading}
-                  >
-                    <MaterialCommunityIcons
-                      name="check-circle-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.primaryButtonText}>انتهيت من الورد</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={[styles.completedNotice, { backgroundColor: theme.dark ? "rgba(47,120,94,0.2)" : "rgba(31,81,63,0.08)" }]}>
-                    <MaterialCommunityIcons
-                      name="check-decagram"
-                      size={21}
-                      color={theme.colors.primary}
-                    />
-                    <Text style={[styles.completedNoticeText, { color: theme.colors.primary }]}>
-                      تم تسجيل إتمام هذا الورد. سيظهر الورد التالي في موعده.
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={[styles.historyCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
-                <TouchableOpacity
-                  style={styles.historyHeader}
-                  onPress={() => setIsHistoryExpanded((value) => !value)}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: isHistoryExpanded }}
-                >
-                  <Text style={[styles.historyTitle, { color: theme.colors.onSurface }]}>
-                    سجل الإنجاز ({history.length.toLocaleString('ar')})
-                  </Text>
-                  <MaterialCommunityIcons
-                    name={isHistoryExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={22}
-                    color={theme.colors.primary}
-                  />
-                </TouchableOpacity>
-                {isHistoryExpanded ? (
-                  history.length ? history.map((item) => (
-                    <View key={item.dayNumber} style={[styles.historyRow, { borderTopColor: theme.colors.outline }]}>
-                      <View style={styles.historyDateBlock}>
-                        <Text style={[styles.historyDay, { color: theme.colors.primary }]}>اليوم {item.dayNumber.toLocaleString('ar')}</Text>
-                        <Text style={[styles.historyDate, { color: theme.colors.onSurfaceVariant }]}>{item.scheduledDate}</Text>
-                      </View>
-                      <View style={styles.historyRangeBlock}>
-                        <Text style={[styles.historyRange, { color: theme.colors.onSurface }]}>
-                          {item.startSuraName} ({item.startAyahNo.toLocaleString('ar')}) — {item.endSuraName} ({item.endAyahNo.toLocaleString('ar')})
-                        </Text>
-                        <Text style={[styles.historyTime, { color: theme.colors.onSurfaceVariant }]}>
-                          {item.source === 'legacy_migration'
-                            ? 'تقدم محفوظ من إصدار سابق'
-                            : new Date(item.completedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                      </View>
-                      <MaterialCommunityIcons name="check-circle" size={18} color={QuranColors.emerald} />
-                    </View>
-                  )) : (
-                    <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>لم تسجل أي ورد مكتمل بعد.</Text>
-                  )
-                ) : null}
-              </View>
-
-              <TouchableOpacity
-                onPress={stopPlan}
-                style={styles.stopButton}
-                disabled={loading}
-              >
-                <Text style={styles.stopText}>إيقاف الخطة الحالية</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => setWird(null)}
+            >
+              <Text style={styles.primaryButtonText}>إنشاء خطة جديدة</Text>
+            </TouchableOpacity>
+          </View>
+        ) : wird ? (
+          <>
             <View
               style={[
-                styles.formCard,
+                styles.summaryCard,
                 {
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.outline,
                 },
               ]}
             >
-              <MaterialCommunityIcons
-                name="book-check-outline"
-                size={44}
-                color={theme.colors.primary}
-              />
-              <Text style={[styles.formTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>خطّط لختمتك</Text>
-              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
+              <Text style={[styles.eyebrow, { color: theme.colors.onSurfaceVariant }]}>خطتك الحالية</Text>
+              <Text style={[styles.planTitle, { color: theme.colors.onSurface }]}>
+                {wird.plan.khatmahCount.toLocaleString('ar')} ختمة خلال {wird.totalDays.toLocaleString('ar')} يوماً
+              </Text>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill, { backgroundColor: theme.colors.primary },
+                    { width: `${wird.progressPercent}%` },
+                  ]}
+                />
+              </View>
+              <View style={styles.progressMeta}>
+                <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+                  {Math.round(wird.progressPercent).toLocaleString('ar')}٪ مكتمل
+                </Text>
+                <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+                  {wird.completedInPlan.toLocaleString('ar')} / {wird.plan.totalAyahs.toLocaleString('ar')} آية
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.wirdCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                },
+              ]}
+            >
+              <View style={styles.wirdHeading}>
+                <Text style={[styles.wirdTitle, { color: theme.colors.onSurface }]}>
+                  وردك الحالي
+                </Text>
+                <Text
+                  style={[
+                    styles.dayBadge,
+                    wird.status === 'overdue' && styles.overdueBadge,
+                    isTodayCompleted && styles.completedBadge,
+                  ]}
+                >
+                  {wird.status === 'overdue'
+                    ? `ورد متأخر • اليوم ${wird.dayNumber}`
+                    : isTodayCompleted
+                      ? 'ورد اليوم مكتمل'
+                      : `اليوم ${wird.dayNumber} من ${wird.totalDays}`}
+                </Text>
+              </View>
+
+              <Text style={[styles.metric, { color: theme.colors.primary }]}>
+                {wird.dailyTargetPages.toLocaleString('ar')} صفحة
+              </Text>
+              <Text style={[styles.metricSub, { color: theme.colors.onSurfaceVariant }]}>
+                {wird.dailyTargetAyahs.toLocaleString('ar')} آية • التاريخ المحدد {wird.scheduledDate}
               </Text>
 
-              <Text style={[styles.label, { color: theme.colors.primary, textAlign:'auto' }]}>كم ختمة تريد؟</Text>
-              <View style={styles.choices}>
-                {[1, 2, 3, 5, 10, 20].map((value) => (
-                  <TouchableOpacity
-                    key={value}
-                    onPress={() => setKhatmahCount(value)}
-                    style={[
-                      styles.choice,
-                      { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
-                      khatmahCount === value && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: khatmahCount === value }}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceText,
-                        { color: theme.colors.onSurface },
-                        khatmahCount === value && { color: theme.colors.primary, fontWeight: "bold" },
-                      ]}
-                    >
-                      {value.toLocaleString('ar')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.label, { color: theme.colors.primary, textAlign:'auto' }]}>خلال كم يوماً؟</Text>
-              <TextInput
-                value={durationDays}
-                onChangeText={(value) =>
-                  setDurationDays(value.replace(/[^0-9]/g, ''))
-                }
-                keyboardType="number-pad"
-                textAlign="right"
-                style={[
-                  styles.daysInput,
-                  {
-                    color: theme.colors.onSurface,
-                    backgroundColor: theme.colors.surfaceVariant,
-                    borderColor: theme.colors.outline,
-                  },
-                ]}
-                maxLength={4}
-                accessibilityLabel="مدة الختمة بالأيام"
-              />
-
-              <Text style={[styles.label, { color: theme.colors.primary , textAlign:'auto' }]}>من أين تبدأ؟</Text>
-              <View style={styles.startChoices}>
-                <TouchableOpacity
-                  onPress={() => setStartFrom('beginning')}
-                  style={[
-                    styles.startChoice,
-                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
-                    startFrom === 'beginning' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.startChoiceText,
-                      { color: theme.colors.onSurface },
-                      startFrom === 'beginning' && { color: theme.colors.primary, fontWeight: "bold" },
-                    ]}
-                  >
-                    من بداية المصحف
+              {startVerse && endVerse ? (
+                <View style={[styles.rangeBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, borderWidth: 1 }]}>
+                  <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
+                    من سورة {startVerse.sura_name_ar} • الآية {startVerse.aya_no.toLocaleString('ar')}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setStartFrom('custom')}
-                  style={[
-                    styles.startChoice,
-                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, },
-                    startFrom === 'custom' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.startChoiceText,
-                      { color: theme.colors.onSurface },
-                      startFrom === 'custom' && { color: theme.colors.primary, fontWeight: "bold" },
-                    ]}
-                  >
-                    سورة وآية
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setStartFrom('current')}
-                  style={[
-                    styles.startChoice,
-                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
-                    startFrom === 'current' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.startChoiceText,
-                      { color: theme.colors.onSurface },
-                      startFrom === 'current' && { color: theme.colors.primary, fontWeight: "bold" },
-                    ]}
-                  >
-                    من موضعي الحالي
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {startFrom === 'custom' ? (
-                <View style={[styles.customStartCard, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
-                  <Text style={[styles.label, { color: theme.colors.primary }]}>السورة التي تبدأ منها</Text>
-                  <TouchableOpacity
-                    onPress={() => setIsSurahPickerOpen(true)}
-                    style={[styles.surahSelect, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.surahSelectText, { color: theme.colors.onSurface }]}>
-                      {selectedStartSurah?.sura_name_ar ?? 'اختر السورة'}
-                    </Text>
-                    <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={[styles.label, { color: theme.colors.primary }]}>رقم الآية</Text>
-                  <TextInput
-                    value={startAyahInput}
-                    onChangeText={(value) => setStartAyahInput(value.replace(/[^0-9]/g, '').slice(0, 3))}
-                    keyboardType="number-pad"
-                    textAlign="right"
-                    style={[styles.daysInput, { color: theme.colors.onSurface, backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
-                    maxLength={3}
-                    accessibilityLabel="رقم آية بداية الختمة"
+                  <MaterialCommunityIcons
+                    name="arrow-down"
+                    size={18}
+                    color={QuranColors.gold}
                   />
-                  {selectedStartSurah ? (
+                  <Text style={[styles.rangeText, { color: theme.colors.onSurface }]}>
+                    إلى سورة {endVerse.sura_name_ar} • الآية {endVerse.aya_no.toLocaleString('ar')}
+                  </Text>
+                  {wird.wrapsAroundEnd ? (
                     <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                      عدد آيات سورة {selectedStartSurah.sura_name_ar}: {selectedStartSurah.ayahs_count.toLocaleString('ar')}
+                      يمتد الورد من نهاية المصحف إلى بدايته.
+                    </Text>
+                  ) : null}
+                  {wird.dailyTargetAyahs >= 6236 ? (
+                    <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                      يتضمن هذا الورد دورة كاملة من المصحف أو أكثر.
                     </Text>
                   ) : null}
                 </View>
               ) : null}
 
-              {Number(durationDays) > 0 &&
-              Number(durationDays) <= 3660 &&
-              Number.isInteger(Number(durationDays)) ? (
-                <View style={[styles.preview, { backgroundColor: theme.dark ? "rgba(197,155,39,0.12)" : "rgba(197,155,39,0.08)", borderColor: theme.colors.outline, borderWidth: 1 }]}>
-                  <Text style={[styles.previewTitle, { color: theme.colors.onSurfaceVariant }]}>متوسط عدد الصفحات اليومي</Text>
-                  <Text style={[styles.previewMetric, { color: theme.colors.primary }]}>
-                    {Math.ceil((604 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} صفحة
-                  </Text>
-                  <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
-                    {Math.ceil((6236 * khatmahCount) / Number(durationDays)).toLocaleString('ar')} آية يومياً في المتوسط
-                  </Text>
-                </View>
-              ) : null}
+              <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                تم تظليل آيات هذا الورد في صفحات المصحف. يمكنك الرجوع إليها قبل تسجيل إتمامه.
+              </Text>
 
               <TouchableOpacity
-                onPress={createPlan}
-                style={[styles.primaryButton, { backgroundColor: theme.colors.primary }, loading && styles.disabledButton]}
+                onPress={goToWird}
+                style={[styles.secondaryButton, { borderColor: theme.colors.primary }]}
                 disabled={loading}
               >
-                <Text style={styles.primaryButtonText}>إنشاء الخطة </Text>
+                <MaterialCommunityIcons
+                  name="book-open-page-variant-outline"
+                  size={19}
+                  color={theme.colors.primary}
+                />
+                <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>
+                  الانتقال إلى بداية الورد
+                </Text>
+              </TouchableOpacity>
+
+              {wird.canComplete ? (
+                <TouchableOpacity
+                  onPress={completeWird}
+                  style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+                  disabled={loading}
+                >
+                  <MaterialCommunityIcons
+                    name="check-circle-outline"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.primaryButtonText}>انتهيت من الورد</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.completedNotice, { backgroundColor: theme.dark ? "rgba(47,120,94,0.2)" : "rgba(31,81,63,0.08)" }]}>
+                  <MaterialCommunityIcons
+                    name="check-decagram"
+                    size={21}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={[styles.completedNoticeText, { color: theme.colors.primary }]}>
+                    تم تسجيل إتمام هذا الورد. سيظهر الورد التالي في موعده.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.historyCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+              <TouchableOpacity
+                style={styles.historyHeader}
+                onPress={() => setIsHistoryExpanded((value) => !value)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isHistoryExpanded }}
+              >
+                <Text style={[styles.historyTitle, { color: theme.colors.onSurface }]}>
+                  سجل الإنجاز ({history.length.toLocaleString('ar')})
+                </Text>
+                <MaterialCommunityIcons
+                  name={isHistoryExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={22}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
+              {isHistoryExpanded ? (
+                history.length ? history.map((item) => (
+                  <View key={item.dayNumber} style={[styles.historyRow, { borderTopColor: theme.colors.outline }]}>
+                    <View style={styles.historyDateBlock}>
+                      <Text style={[styles.historyDay, { color: theme.colors.primary }]}>اليوم {item.dayNumber.toLocaleString('ar')}</Text>
+                      <Text style={[styles.historyDate, { color: theme.colors.onSurfaceVariant }]}>{item.scheduledDate}</Text>
+                    </View>
+                    <View style={styles.historyRangeBlock}>
+                      <Text style={[styles.historyRange, { color: theme.colors.onSurface }]}>
+                        {item.startSuraName} ({item.startAyahNo.toLocaleString('ar')}) — {item.endSuraName} ({item.endAyahNo.toLocaleString('ar')})
+                      </Text>
+                      <Text style={[styles.historyTime, { color: theme.colors.onSurfaceVariant }]}>
+                        {item.source === 'legacy_migration'
+                          ? 'تقدم محفوظ من إصدار سابق'
+                          : new Date(item.completedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons name="check-circle" size={18} color={QuranColors.emerald} />
+                  </View>
+                )) : (
+                  <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>لم تسجل أي ورد مكتمل بعد.</Text>
+                )
+              ) : null}
+            </View>
+
+            <TouchableOpacity
+              onPress={stopPlan}
+              style={styles.stopButton}
+              disabled={loading}
+            >
+              <Text style={styles.stopText}>إيقاف الخطة الحالية</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View
+            style={[
+              styles.formCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="book-check-outline"
+              size={44}
+              color={theme.colors.primary}
+            />
+            <Text style={[styles.formTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>خطّط لختمتك</Text>
+            <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+              اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
+            </Text>
+
+            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'auto' }]}>كم ختمة تريد؟</Text>
+            <View style={styles.choices}>
+              {[1, 2, 3, 5, 10, 20].map((value) => (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => setKhatmahCount(value)}
+                  style={[
+                    styles.choice,
+                    { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                    khatmahCount === value && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: khatmahCount === value }}
+                >
+                  <Text
+                    style={[
+                      styles.choiceText,
+                      { color: theme.colors.onSurface },
+                      khatmahCount === value && { color: theme.colors.primary, fontWeight: "bold" },
+                    ]}
+                  >
+                    {value.toLocaleString('ar')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'auto' }]}>خلال كم يوماً؟</Text>
+            <TextInput
+              value={durationDays}
+              onChangeText={(value) =>
+                setDurationDays(value.replace(/[^0-9]/g, ''))
+              }
+              keyboardType="number-pad"
+              textAlign="right"
+              style={[
+                styles.daysInput,
+                {
+                  color: theme.colors.onSurface,
+                  backgroundColor: theme.colors.surfaceVariant,
+                  borderColor: theme.colors.outline,
+                },
+              ]}
+              maxLength={4}
+              accessibilityLabel="مدة الختمة بالأيام"
+            />
+
+            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'auto' }]}>من أين تبدأ؟</Text>
+            <View style={styles.startChoices}>
+              <TouchableOpacity
+                onPress={() => setStartFrom('beginning')}
+                style={[
+                  styles.startChoice,
+                  { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                  startFrom === 'beginning' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.startChoiceText,
+                    { color: theme.colors.onSurface },
+                    startFrom === 'beginning' && { color: theme.colors.primary, fontWeight: "bold" },
+                  ]}
+                >
+                  من بداية المصحف
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStartFrom('custom')}
+                style={[
+                  styles.startChoice,
+                  { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, },
+                  startFrom === 'custom' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.startChoiceText,
+                    { color: theme.colors.onSurface },
+                    startFrom === 'custom' && { color: theme.colors.primary, fontWeight: "bold" },
+                  ]}
+                >
+                  سورة وآية
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStartFrom('current')}
+                style={[
+                  styles.startChoice,
+                  { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                  startFrom === 'current' && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? "rgba(47,120,94,0.25)" : "rgba(31,81,63,0.12)" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.startChoiceText,
+                    { color: theme.colors.onSurface },
+                    startFrom === 'current' && { color: theme.colors.primary, fontWeight: "bold" },
+                  ]}
+                >
+                  من موضعي الحالي
+                </Text>
               </TouchableOpacity>
             </View>
-          )}
-        </ScrollView>
+
+            {startFrom === 'custom' ? (
+              <View style={[styles.customStartCard, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+                <Text style={[styles.label, { color: theme.colors.primary }]}>السورة التي تبدأ منها</Text>
+                <TouchableOpacity
+                  onPress={() => setIsSurahPickerOpen(true)}
+                  style={[styles.surahSelect, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.surahSelectText, { color: theme.colors.onSurface }]}>
+                    {selectedStartSurah?.sura_name_ar ?? 'اختر السورة'}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-down" size={20} color={theme.colors.primary} />
+                </TouchableOpacity>
+                <Text style={[styles.label, { color: theme.colors.primary }]}>رقم الآية</Text>
+                <TextInput
+                  value={startAyahInput}
+                  onChangeText={(value) => setStartAyahInput(value.replace(/[^0-9]/g, '').slice(0, 3))}
+                  keyboardType="number-pad"
+                  textAlign="right"
+                  style={[styles.daysInput, { color: theme.colors.onSurface, backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
+                  maxLength={3}
+                  accessibilityLabel="رقم آية بداية الختمة"
+                />
+                {selectedStartSurah ? (
+                  <Text style={[styles.helper, { color: theme.colors.onSurfaceVariant }]}>
+                    عدد آيات سورة {selectedStartSurah.sura_name_ar}: {selectedStartSurah.ayahs_count.toLocaleString('ar')}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {pageSchedulePreview ? (
+              <View
+                style={[
+                  styles.preview,
+                  {
+                    backgroundColor: theme.dark
+                      ? 'rgba(197,155,39,0.12)'
+                      : 'rgba(197,155,39,0.08)',
+                    borderColor: theme.colors.outline,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.previewTitle,
+                    { color: theme.colors.onSurfaceVariant },
+                  ]}
+                >
+                  توزيع الصفحات اليومي
+                </Text>
+
+                <Text
+                  style={[
+                    styles.previewMetric,
+                    { color: theme.colors.primary },
+                  ]}
+                >
+                  {pageSchedulePreview.minPagesPerDay ===
+                    pageSchedulePreview.maxPagesPerDay
+                    ? `${pageSchedulePreview.minPagesPerDay.toLocaleString('ar')} صفحة يوميًا`
+                    : `${pageSchedulePreview.minPagesPerDay.toLocaleString('ar')}–${pageSchedulePreview.maxPagesPerDay.toLocaleString('ar')} صفحة يوميًا`}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.helper,
+                    { color: theme.colors.onSurfaceVariant },
+                  ]}
+                >
+                  {pageSchedulePreview.daysWithExtraPage > 0
+                    ? `أول ${pageSchedulePreview.daysWithExtraPage.toLocaleString('ar')} أيام: ${pageSchedulePreview.maxPagesPerDay.toLocaleString('ar')} صفحة، ثم ${(
+                      Number(durationDays) -
+                      pageSchedulePreview.daysWithExtraPage
+                    ).toLocaleString('ar')} يومًا: ${pageSchedulePreview.minPagesPerDay.toLocaleString('ar')} صفحة.`
+                    : `جميع الأيام: ${pageSchedulePreview.minPagesPerDay.toLocaleString('ar')} صفحة.`}
+                </Text>
+              </View>
+            ) : null}
+
+
+            <TouchableOpacity
+              onPress={createPlan}
+              style={[styles.primaryButton, { backgroundColor: theme.colors.primary }, loading && styles.disabledButton]}
+              disabled={loading}
+            >
+              <Text style={styles.primaryButtonText}>إنشاء الخطة </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
       <Modal
         visible={isSurahPickerOpen}
         transparent
@@ -701,7 +815,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
         </View>
       </Modal>
 
-      </View>
+    </View>
   );
 
   if (embedded) {
@@ -810,14 +924,14 @@ const styles = StyleSheet.create({
   metric: {
     color: QuranColors.emerald,
     fontSize: 24,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
     fontWeight: 'bold',
   },
   metricSub: {
     color: QuranColors.textMuted,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
     fontSize: 12,
     lineHeight: 20,
   },
@@ -888,8 +1002,8 @@ const styles = StyleSheet.create({
     color: QuranColors.emerald,
     fontWeight: '600',
     fontSize: 12,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
     lineHeight: 20,
   },
   stopButton: { alignItems: 'center', padding: 12 },
@@ -914,8 +1028,8 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontSize: 13,
     fontWeight: 'bold',
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
     writingDirection: 'rtl',
   },
   choices: {
@@ -973,7 +1087,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textDark,
     fontSize: 12,
     fontWeight: '600',
-    textAlign:'center'
+    textAlign: 'center'
   },
   preview: {
     alignSelf: 'stretch',
@@ -1019,10 +1133,10 @@ const styles = StyleSheet.create({
   },
   historyTitle: {
     fontSize: 14,
-    lineHeight: 25, 
+    lineHeight: 25,
     fontWeight: 'bold',
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
   },
   historyRow: {
     flexDirection: 'row',
@@ -1040,14 +1154,14 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontSize: 11,
     fontWeight: 'bold',
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
   },
   historyDate: {
     color: QuranColors.textMuted,
     fontSize: 10,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
   },
   historyRangeBlock: {
     flex: 1,
@@ -1055,15 +1169,15 @@ const styles = StyleSheet.create({
   },
   historyRange: {
     color: QuranColors.textDark,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
     writingDirection: 'rtl',
     fontSize: 11,
   },
   historyTime: {
     color: QuranColors.textMuted,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
     fontSize: 10,
   },
   customStartCard: {
@@ -1138,8 +1252,8 @@ const styles = StyleSheet.create({
   surahPickerName: {
     flex: 1,
     fontSize: 14,
-        textAlign: 'auto'
-,
+    textAlign: 'auto'
+    ,
   },
   finishedProgress: {
     backgroundColor: 'rgba(197,155,39,0.1)',

@@ -6,6 +6,9 @@ import {
   daysBetweenDateKeys,
   getDailyAyahRange,
   localDateKey,
+  getDailyPageRange,
+  getPageScheduleSummary,
+  getPageVisitStartOffsets,
 } from '../src/features/khatmah/services/khatmahRules.ts';
 
 test('localDateKey uses the local calendar fields, not UTC date', () => {
@@ -70,4 +73,95 @@ test('invalid daily range inputs fail fast', () => {
   assert.throws(() => getDailyAyahRange(0, 6236, 30, 0));
   assert.throws(() => getDailyAyahRange(1, 6236, 30, 30));
   assert.throws(() => countPageVisits(-1, 1, 1, false));
+});
+
+const TEST_PAGE_STARTS = Array.from(
+  { length: 604 },
+  (_, index) => Math.ceil((index * 6236) / 604) + 1
+);
+
+test('30-day page schedule distributes 604 pages as 21 and 20', () => {
+  const summary = getPageScheduleSummary(
+    1,
+    6236,
+    30,
+    TEST_PAGE_STARTS
+  );
+
+  assert.equal(summary.totalPageVisits, 604);
+  assert.equal(summary.minPagesPerDay, 20);
+  assert.equal(summary.maxPagesPerDay, 21);
+  assert.equal(summary.daysWithExtraPage, 4);
+
+  const ranges = Array.from({ length: 30 }, (_, dayIndex) =>
+    getDailyPageRange(
+      1,
+      6236,
+      30,
+      dayIndex,
+      TEST_PAGE_STARTS
+    )
+  );
+
+  assert.deepEqual(
+    ranges.map(range => range.dailyTargetPages),
+    Array.from(
+      { length: 30 },
+      (_, index) => index < 4 ? 21 : 20
+    )
+  );
+
+  assert.equal(ranges[0].startOffset, 0);
+  assert.equal(ranges[29].endOffset, 6236);
+
+  for (let index = 0; index < ranges.length - 1; index += 1) {
+    assert.equal(
+      ranges[index].endOffset,
+      ranges[index + 1].startOffset
+    );
+  }
+
+  assert.equal(
+    ranges.reduce(
+      (sum, range) => sum + range.dailyTargetAyahs,
+      0
+    ),
+    6236
+  );
+});
+
+test('starting at an actual page boundary keeps 604 page visits', () => {
+  const startGlobalAyah = TEST_PAGE_STARTS[100];
+
+  const offsets = getPageVisitStartOffsets(
+    startGlobalAyah,
+    6236,
+    TEST_PAGE_STARTS
+  );
+
+  assert.equal(offsets.length, 604);
+});
+
+test('starting inside a page counts the split starting page correctly', () => {
+  const startGlobalAyah = TEST_PAGE_STARTS[100] + 1;
+
+  const summary = getPageScheduleSummary(
+    startGlobalAyah,
+    6236,
+    30,
+    TEST_PAGE_STARTS
+  );
+
+  assert.equal(summary.totalPageVisits, 605);
+  assert.equal(summary.daysWithExtraPage, 5);
+
+  const firstWird = getDailyPageRange(
+    startGlobalAyah,
+    6236,
+    30,
+    0,
+    TEST_PAGE_STARTS
+  );
+
+  assert.equal(firstWird.startGlobalAyah, startGlobalAyah);
 });

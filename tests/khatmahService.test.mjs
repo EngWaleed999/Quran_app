@@ -50,12 +50,12 @@ test('daily plan is stored, completed once, and history is persisted', async (t)
   assert.equal(firstWird.status, 'pending');
   assert.equal(firstWird.dayIndex, 0);
   assert.equal(firstWird.startOffset, 0);
-  assert.equal(firstWird.dailyTargetAyahs, 2079);
+  assert.equal(firstWird.dailyTargetPages, 202);
 
   const afterCompletion = await KhatmahService.completeDailyWird(db);
   assert.ok(afterCompletion);
   assert.equal(afterCompletion.status, 'completed');
-  assert.equal(afterCompletion.completedInPlan, 2079);
+  assert.equal(afterCompletion.completedInPlan, firstWird.endOffset);
   assert.equal(afterCompletion.canComplete, false);
 
   await assert.rejects(
@@ -72,7 +72,7 @@ test('daily plan is stored, completed once, and history is persisted', async (t)
     'SELECT completed_ayahs FROM khatmah_plans WHERE id = ?',
     [plan.id]
   );
-  assert.equal(stored.completed_ayahs, 2079);
+  assert.equal(stored.completed_ayahs,firstWird.endOffset);
 });
 
 test('missed days are offered in order and can be caught up without skipping', async (t) => {
@@ -101,11 +101,11 @@ test('missed days are offered in order and can be caught up without skipping', a
   wird = await KhatmahService.completeDailyWird(db);
   assert.equal(wird?.status, 'overdue');
   assert.equal(wird?.dayIndex, 2);
-
+  const thirdWirdEndOffset = wird.endOffset;
   wird = await KhatmahService.completeDailyWird(db);
   assert.equal(wird?.status, 'pending');
   assert.equal(wird?.dayIndex, 3);
-  assert.equal(wird?.completedInPlan, 3 * 1559);
+  assert.equal(wird?.completedInPlan,thirdWirdEndOffset);
 });
 
 test('legacy partial progress resumes at the exact next ayah after schema migration', async (t) => {
