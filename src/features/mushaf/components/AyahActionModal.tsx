@@ -250,7 +250,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               </View>
               <View style={styles.actionDetails}>
                 <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
-                  ترديد وتكرار
+                 استمع وردد
                 </Text>
                 <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   كرّر كل آية مع تأخير زمني قابل للتعديل
