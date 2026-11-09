@@ -71,7 +71,10 @@
     "updates": {
       "url": "https://u.expo.dev/5abac0ca-47ec-4150-a826-ceece6914cdf",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "assetPatternsToBeBundled": [
+        "assets/fonts/**/*"
+      ]
     }
   }
 }
