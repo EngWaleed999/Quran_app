@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
 
   helperText: {
     fontSize: 11,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
 
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 12,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
     lineHeight: 18,
   },
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
   },
 
   ruleTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
   },
 
@@ -941,7 +941,7 @@ const styles = StyleSheet.create({
   },
 
   definitionIcon: {
-    marginTop: 2,
+    marginTop: 3,
   },
 
   definitionLabel: {
@@ -951,9 +951,9 @@ const styles = StyleSheet.create({
 
   definitionText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 22,
-    textAlign: 'justify',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
 
@@ -961,8 +961,9 @@ const styles = StyleSheet.create({
 //     flex: 1,
 //     fontSize: 13,
 //     lineHeight: 22,
-//     textAlign: 'auto',
+//     textAlign: 'right',
 //     writingDirection: 'rtl',
+//     //paddingHorizontal: 1,
 //   },
 
   occurrenceSectionTitleRow: {

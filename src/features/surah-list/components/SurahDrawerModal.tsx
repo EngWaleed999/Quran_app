@@ -21,6 +21,7 @@ import { Bookmark } from '../../bookmarks/types/bookmark.types';
 import { KhatmahModal } from '../../khatmah/components/KhatmahModal';
 import { BookmarksModal } from '../../bookmarks/components/BookmarksModal';
 import { NotesModal } from '../../notes/components/NotesModal';
+import { AdhkarView } from '../../adhkar/components/AdhkarView';
 import { DailyWird } from '../../khatmah/types/khatmah.types';
 
 interface SurahDrawerModalProps {
@@ -37,7 +38,7 @@ interface SurahDrawerModalProps {
   onWirdChange?: (wird: DailyWird | null) => void;
 }
 
-type NavRouteTab = 'surahs' | 'khatma' | 'bookmarks' | 'notes';
+type NavRouteTab = 'surahs' | 'khatma' | 'bookmarks' | 'notes' | 'adhkar';
 
 export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
   visible,
@@ -55,6 +56,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<NavRouteTab>('surahs');
+  const [adhkarCategory, setAdhkarCategory] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<Surah>>(null);
 
   const allSurahs = useMemo(() => QuranRepository.getAllSurahsSync(db), [db]);
@@ -173,7 +175,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
           </View>
 
           <Text style={[styles.surahMeta, { color: theme.colors.onSurfaceVariant }]}>
-            الجزء {toArabicNumerals(item.jozz_start)} • - • الحزب {toArabicNumerals(Math.ceil(item.jozz_start * 2))} • {toArabicNumerals(item.ayahs_count)} آية
+            الجزء  {toArabicNumerals(item.jozz_start)} • - • الحزب {toArabicNumerals(Math.ceil(item.jozz_start * 2))} • {toArabicNumerals(item.ayahs_count)}  آية
           </Text>
         </View>
 
@@ -195,6 +197,14 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
         return { title: 'الفواصل المحفوظة', subtitle: 'العلامات المرجعية للقراءة والمتابعة' };
       case 'notes':
         return { title: 'ملاحظاتي', subtitle: 'الفوائد والخواطر القرآنية المحفوظة' };
+      case 'adhkar':
+        if (adhkarCategory) {
+          return {
+            title: adhkarCategory === 'favorites' ? 'الأذكار المفضلة' : adhkarCategory,
+            subtitle: 'الأذكار والأدعية',
+          };
+        }
+        return { title: 'الأذكار والأدعية', subtitle: 'أذكار اليوم والليلة والمأثورات النبوية' };
       default:
         return { title: 'فهرس القرآن الكريم', subtitle: '١١٤ سُورَة • ٣٠ جُزءاً' };
     }
@@ -221,7 +231,17 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
             },
           ]}
         >
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="إغلاق الفهرس">
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={() => {
+              if (activeTab === 'adhkar' && adhkarCategory !== null) {
+                setAdhkarCategory(null);
+                return;
+              }
+              onClose();
+            }}
+            accessibilityLabel={activeTab === 'adhkar' && adhkarCategory !== null ? 'الرجوع إلى الأقسام' : 'إغلاق الفهرس'}
+          >
             <MaterialCommunityIcons name="arrow-right" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
 
@@ -315,6 +335,16 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
                 onClose();
                 onSelectPage(note.page, note.verseKey);
               }}
+            />
+          )}
+
+          {activeTab === 'adhkar' && (
+            <AdhkarView
+              embedded
+              visible
+              selectedCategory={adhkarCategory}
+              onSelectCategory={setAdhkarCategory}
+              onClose={onClose}
             />
           )}
         </View>
@@ -413,6 +443,27 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
               الملاحظات
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navTab}
+            onPress={() => setActiveTab('adhkar')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons
+              name={activeTab === 'adhkar' ? 'hands-pray' : 'hands-pray'}
+              size={22}
+              color={activeTab === 'adhkar' ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={[
+                styles.navTabText,
+                { color: activeTab === 'adhkar' ? theme.colors.primary : theme.colors.onSurfaceVariant },
+                activeTab === 'adhkar' && styles.activeNavTabText,
+              ]}
+            >
+              الأذكار
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -424,7 +475,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -470,7 +521,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   surahRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 5,
@@ -495,7 +546,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   surahTitleRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
@@ -504,7 +555,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 18,
     fontWeight: 'bold',
-    textAlign: 'right',
+    textAlign: 'start',
     writingDirection: 'rtl',
     flexShrink: 0,
   },
@@ -537,11 +588,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     lineHeight: 16,
-    textAlign: 'auto',
+    textAlign: 'start',
   },
   surahMeta: {
     fontSize: 12,
-    textAlign: 'right',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   pageIndicatorWrapper: {
@@ -557,7 +608,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bottomNavContainer: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     borderTopWidth: 1,
     paddingVertical: 8,
     paddingBottom: 8,

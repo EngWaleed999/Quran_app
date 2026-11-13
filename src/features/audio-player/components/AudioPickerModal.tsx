@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   header: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 18,
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   subtitle: {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 12,
     lineHeight: 18,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   closeButton: {
@@ -379,13 +379,13 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontWeight: 'bold',
     fontSize: 14,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
     marginTop: 4,
     marginBottom: 4,
   },
   reciterRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: QuranColors.parchmentBorder,
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textDark,
     fontWeight: '600',
     lineHeight: 22,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   reciterSubtitle: {
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     color: QuranColors.textMuted,
     lineHeight: 18,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   selectedText: {
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
   },
   optionsRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     gap: 7,
     flexWrap: 'wrap',
   },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   helperText: {
     color: QuranColors.textMuted,
     fontSize: 11,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
     marginTop: 3,
   },
@@ -494,14 +494,14 @@ const styles = StyleSheet.create({
     borderColor: QuranColors.parchmentBorder,
     borderRadius: 10,
     marginTop: 8,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   downloadSummaryText: {
     color: QuranColors.emeraldDark,
     fontSize: 13,
     fontWeight: '600',
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   deleteButton: {

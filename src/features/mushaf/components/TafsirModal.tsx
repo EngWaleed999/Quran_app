@@ -187,7 +187,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
             {ayah.ayahText ? (
               <View style={[styles.ayahBox, isDark && styles.ayahBoxDark]}>
                 <Text style={[styles.ayahText, isDark && styles.ayahTextDark]}>
-                  ﴿ {ayah.ayahText} ﴾
+                  ﴿ {ayah.ayahTextUthmani || ayah.ayahText} ﴾
                 </Text>
               </View>
             ) : null}
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: QuranColors.nightSurface,
   },
   headerBar: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tabsRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 10,
@@ -409,13 +409,13 @@ const styles = StyleSheet.create({
     fontSize: 16.5,
     lineHeight: 32,
     color: '#2C2B29',
-    textAlign: 'auto'
+    textAlign: 'start'
 ,
     writingDirection: 'rtl',
   },
   tafsirBodyTextDark: {
     color: '#D8D5CD',
-    textAlign: 'auto'
+    textAlign: 'start'
 ,
     writingDirection: 'rtl',
   },

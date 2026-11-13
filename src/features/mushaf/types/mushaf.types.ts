@@ -8,6 +8,7 @@ export interface Ayah {
   aya_no: number;
   aya_text: string;
   aya_text_emlaey: string;
+  aya_text_uthmani?: string;
   sura_name_ar?: string;
 }
 

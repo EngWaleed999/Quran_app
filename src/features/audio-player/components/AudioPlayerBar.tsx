@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   header: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 6,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 11,
     marginTop: 2,
-        textAlign: 'auto'
+        textAlign: 'start'
 ,
     writingDirection: 'rtl',
   },

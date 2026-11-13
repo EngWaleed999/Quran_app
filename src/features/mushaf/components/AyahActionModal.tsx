@@ -52,7 +52,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
     bookmarks.some((item) => item.type === type && item.verseKey === ayah.verseKey);
 
   const handleShare = async () => {
-    const text = ayah.ayahText?.trim();
+    const text = (ayah.ayahTextUthmani || ayah.ayahText)?.trim();
 
     if (!text) {
       console.warn('[AyahShare] Empty ayah text:', ayah.verseKey);
@@ -63,7 +63,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
       `سورة ${ayah.suraName} - الآية ${toArabicNumerals(ayah.ayaNo)}` +
       ` (صفحة ${toArabicNumerals(ayah.page)}):\n\n` +
       `﴿ ${text} ﴾\n\n` +
-      'القرآن الكريم';
+      'تطبيق بيان ';
 
     try {
       const result = await Share.share(
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   header: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row' ,
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
@@ -460,12 +460,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   badgesRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   badgePill: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -537,13 +537,13 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 15,
     fontWeight: 'bold',
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     writingDirection: 'rtl',
   },
   actionSubtitle: {
     fontSize: 12,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     writingDirection: 'rtl',
   },

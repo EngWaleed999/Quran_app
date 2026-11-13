@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerBar: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 6,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   searchFieldWrapper: {
     flex: 1,
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 15,
-    textAlign: 'auto',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   loadingContainer: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   chipsContainer: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pageCard: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     padding: 14,
@@ -502,12 +502,12 @@ const styles = StyleSheet.create({
   },
   pageCardSubtitle: {
     fontSize: 12,
-    textAlign: 'auto'
+    textAlign: 'start'
 ,
     writingDirection: 'rtl',
   },
   jumpBtnBadge: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -525,13 +525,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    textAlign: 'auto'
+    textAlign: 'start'
 ,
     writingDirection: 'rtl',
     marginBottom: 8,
   },
   surahCard: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     padding: 12,
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   surahTitleRow: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   },
   surahMetaText: {
     fontSize: 12,
-    textAlign: 'auto'
+    textAlign: 'start'
 ,
     writingDirection: 'rtl',
   },
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ayahCardHeader: {
-    flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   },
   ayahSnippetText: {
     fontSize: 15,
-    textAlign: 'auto'
+    textAlign: 'start'
 ,
     writingDirection: 'rtl',
     lineHeight: 24,

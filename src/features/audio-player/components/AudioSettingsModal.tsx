@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 13,
     lineHeight: 20,
-    textAlign: "auto",
+    textAlign: "start",
     writingDirection: "rtl",
   },
   closeButton: {
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 12,
     lineHeight: 21,
-    textAlign: "right",
+    textAlign: "start",
     writingDirection: "rtl",
   },
   optionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: QuranColors.textMuted,
     fontSize: 12,
-    textAlign: "auto",
+    textAlign: "start",
     writingDirection: "rtl",
     marginTop: 3,
   },
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     color: QuranColors.textMuted,
     fontSize: 12,
     lineHeight: 20,
-    textAlign: "auto",
+    textAlign: "start",
     writingDirection: "rtl",
   },
   saveButton: {

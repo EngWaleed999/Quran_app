@@ -183,14 +183,18 @@ const styles = StyleSheet.create({
   },
   typeStripe: { width: 4 },
   cardContent: { flex: 1, padding: 12, gap: 5 },
-  cardTitleRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: 'bold' },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   typeBadgeText: { fontSize: 11, fontWeight: 'bold' },
-  meta: { fontSize: 12, textAlign: 'auto'
-, writingDirection: 'rtl' },
-  snippet: { marginTop: 2, fontFamily: 'UthmanicHafs', fontSize: 13, lineHeight: 23, textAlign: 'auto'
-, writingDirection: 'rtl' },
+  meta: {
+    fontSize: 12, textAlign: 'start'
+    , writingDirection: 'rtl'
+  },
+  snippet: {
+    marginTop: 2, fontFamily: 'UthmanicHafs', fontSize: 13, lineHeight: 23, textAlign: 'start'
+    , writingDirection: 'rtl'
+  },
   removeButton: { width: 42, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingTop: 70, gap: 12 },
   emptyTitle: { fontSize: 17, fontWeight: 'bold' },

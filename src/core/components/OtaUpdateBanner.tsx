@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   contentRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
@@ -264,22 +264,22 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 13.5,
     fontWeight: 'bold',
-    textAlign: 'right',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   subText: {
     fontSize: 11,
-    textAlign: 'right',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   errorSubText: {
     fontSize: 11,
     color: '#D32F2F',
-    textAlign: 'right',
+    textAlign: 'start',
     writingDirection: 'rtl',
   },
   actionsRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },

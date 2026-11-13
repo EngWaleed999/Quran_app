@@ -35,6 +35,7 @@ import { OtaUpdateBanner } from '../../../core/components/OtaUpdateBanner';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 import { TajweedModal } from '../../tajweed/components/TajweedModal';
+import { UthmaniTextService } from '../../../core/database/uthmaniTextService';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -345,21 +346,22 @@ export const MushafPageView: React.FC = () => {
       const suraName = matchingAyah?.sura_name_ar || pageMetadata.surahNames[0] || '';
       const jozz = matchingAyah?.jozz || pageMetadata.jozz;
 
+      // استخراج النص القرآني العثماني المشكل القياسي
+      let uthmaniText = matchingAyah?.aya_text_uthmani?.trim();
+      if (!uthmaniText) {
+        uthmaniText = (await UthmaniTextService.getAyahText(suraNo, ayaNo)) || undefined;
+      }
+      const finalAyahText = uthmaniText || matchingAyah?.aya_text_emlaey?.trim() || '';
+
       setSelectedAyah({
-
         verseKey,
-
         suraNo,
-
         ayaNo,
-
         page: pageNum,
-
         suraName,
-
         jozz,
-
-        ayahText: matchingAyah?.aya_text_emlaey?.trim() || '',
+        ayahText: finalAyahText,
+        ayahTextUthmani: uthmaniText || finalAyahText,
       });
     },
     [db, pageMetadata]

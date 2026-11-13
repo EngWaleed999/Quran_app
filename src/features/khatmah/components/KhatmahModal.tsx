@@ -568,7 +568,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               اختر عدد الختمات والمدة، وسنحدد لك ورداً يومياً بمدى دقيق من الآيات والصفحات.
             </Text>
 
-            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'auto' }]}>كم ختمة تريد؟</Text>
+            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'start' }]}>كم ختمة تريد؟</Text>
             <View style={styles.choices}>
               {[1, 2, 3, 5, 10, 20].map((value) => (
                 <TouchableOpacity
@@ -595,14 +595,14 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               ))}
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'auto' }]}>خلال كم يوماً؟</Text>
+            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'start' }]}>خلال كم يوماً؟</Text>
             <TextInput
               value={durationDays}
               onChangeText={(value) =>
                 setDurationDays(value.replace(/[^0-9]/g, ''))
               }
               keyboardType="number-pad"
-              textAlign="right"
+              textAlign="start"
               style={[
                 styles.daysInput,
                 {
@@ -615,7 +615,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
               accessibilityLabel="مدة الختمة بالأيام"
             />
 
-            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'auto' }]}>من أين تبدأ؟</Text>
+            <Text style={[styles.label, { color: theme.colors.primary, textAlign: 'start' }]}>من أين تبدأ؟</Text>
             <View style={styles.startChoices}>
               <TouchableOpacity
                 onPress={() => setStartFrom('beginning')}
@@ -691,7 +691,7 @@ export const KhatmahModal: React.FC<KhatmahModalProps> = ({
                   value={startAyahInput}
                   onChangeText={(value) => setStartAyahInput(value.replace(/[^0-9]/g, '').slice(0, 3))}
                   keyboardType="number-pad"
-                  textAlign="right"
+                  textAlign="start"
                   style={[styles.daysInput, { color: theme.colors.onSurface, backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
                   maxLength={3}
                   accessibilityLabel="رقم آية بداية الختمة"
@@ -867,12 +867,12 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: QuranColors.textMuted,
     fontSize: 12,
-    textAlign: 'auto',
+    textAlign: 'start',
   },
   planTitle: {
     fontWeight: 'bold',
     fontSize: 18,
-    textAlign: 'auto',
+    textAlign: 'start',
   },
   progressTrack: {
     height: 8,
@@ -924,13 +924,13 @@ const styles = StyleSheet.create({
   metric: {
     color: QuranColors.emerald,
     fontSize: 24,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     fontWeight: 'bold',
   },
   metricSub: {
     color: QuranColors.textMuted,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     fontSize: 12,
     lineHeight: 20,
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
     color: QuranColors.emerald,
     fontWeight: '600',
     fontSize: 12,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     lineHeight: 20,
   },
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontSize: 13,
     fontWeight: 'bold',
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     writingDirection: 'rtl',
   },
@@ -1135,7 +1135,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 25,
     fontWeight: 'bold',
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
   },
   historyRow: {
@@ -1154,13 +1154,13 @@ const styles = StyleSheet.create({
     color: QuranColors.emeraldDark,
     fontSize: 11,
     fontWeight: 'bold',
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
   },
   historyDate: {
     color: QuranColors.textMuted,
     fontSize: 10,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
   },
   historyRangeBlock: {
@@ -1169,14 +1169,14 @@ const styles = StyleSheet.create({
   },
   historyRange: {
     color: QuranColors.textDark,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     writingDirection: 'rtl',
     fontSize: 11,
   },
   historyTime: {
     color: QuranColors.textMuted,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
     fontSize: 10,
   },
@@ -1252,7 +1252,7 @@ const styles = StyleSheet.create({
   surahPickerName: {
     flex: 1,
     fontSize: 14,
-    textAlign: 'auto'
+    textAlign: 'start'
     ,
   },
   finishedProgress: {
