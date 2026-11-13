@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, ScrollView, Share, I18nManager } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, ScrollView, Share, I18nManager, Alert } from 'react-native';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
@@ -14,7 +14,10 @@ export interface SelectedAyahInfo {
   page: number;
   suraName: string;
   jozz: number;
+
   ayahText?: string;
+
+  ayahTextUthmani?: string;
 }
 
 interface AyahActionModalProps {
@@ -27,6 +30,7 @@ interface AyahActionModalProps {
   onOpenTafsir?: (ayah: SelectedAyahInfo) => void;
   onPlayAudio?: (ayah: SelectedAyahInfo) => void;
   onRepeatAudio?: (ayah: SelectedAyahInfo) => void;
+  onOpenTajweed?: (ayah: SelectedAyahInfo) => void;
 }
 
 export const AyahActionModal: React.FC<AyahActionModalProps> = ({
@@ -37,6 +41,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
   onToggleBookmark,
   onOpenNote,
   onOpenTafsir,
+  onOpenTajweed,
   onPlayAudio,
   onRepeatAudio,
 }) => {
@@ -47,14 +52,33 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
     bookmarks.some((item) => item.type === type && item.verseKey === ayah.verseKey);
 
   const handleShare = async () => {
+    const text = ayah.ayahText?.trim();
+
+    if (!text) {
+      console.warn('[AyahShare] Empty ayah text:', ayah.verseKey);
+      return;
+    }
+
+    const message =
+      `سورة ${ayah.suraName} - الآية ${toArabicNumerals(ayah.ayaNo)}` +
+      ` (صفحة ${toArabicNumerals(ayah.page)}):\n\n` +
+      `﴿ ${text} ﴾\n\n` +
+      'القرآن الكريم';
+
     try {
-      const message =
-        'سورة ' + ayah.suraName + ' - الآية ' + toArabicNumerals(ayah.ayaNo) +
-        ' (صفحة ' + toArabicNumerals(ayah.page) + '):\n\n' +
-        '﴿ ' + (ayah.ayahText || '') + ' ﴾\n\n  القرآن الكريم';
-      await Share.share({ message });
+      const result = await Share.share(
+        {
+          message,
+          title: 'مشاركة الآية',
+        },
+        {
+          dialogTitle: 'مشاركة الآية',
+        }
+      );
+
+      console.log('[AyahShare] Share result:', result);
     } catch (error) {
-      console.warn('Share error:', error);
+      console.error('[AyahShare] Native share failed:', error);
     }
   };
 
@@ -152,20 +176,20 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
                 type === 'tracking'
                   ? 'فاصل متابعة'
                   : type === 'reading'
-                  ? 'فاصل قراءة'
-                  : 'فاصل حفظ';
+                    ? 'فاصل قراءة'
+                    : 'فاصل حفظ';
               const subtitle =
                 type === 'tracking'
                   ? 'تحديد موضع أريد متابعة القراءة منه'
                   : type === 'reading'
-                  ? 'تحديد موضع القراءة الحالي'
-                  : 'تحديد موضع أراجع أو أحفظ منه';
+                    ? 'تحديد موضع القراءة الحالي'
+                    : 'تحديد موضع أراجع أو أحفظ منه';
               const icon =
                 type === 'tracking'
                   ? 'flag-checkered'
                   : type === 'reading'
-                  ? 'bookmark-check'
-                  : 'school-outline';
+                    ? 'bookmark-check'
+                    : 'school-outline';
               const tint = BOOKMARK_TYPE_COLORS[type];
               return (
                 <TouchableOpacity
@@ -250,7 +274,7 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
               </View>
               <View style={styles.actionDetails}>
                 <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
-                 استمع وردد
+                  استمع وردد
                 </Text>
                 <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   كرّر كل آية مع تأخير زمني قابل للتعديل
@@ -262,6 +286,40 @@ export const AyahActionModal: React.FC<AyahActionModalProps> = ({
                 color={theme.colors.onSurfaceVariant}
               />
             </TouchableOpacity>
+
+            <TouchableOpacity
+                  style={[styles.actionRow, actionBoxDynamicStyle]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    onClose();
+                    onOpenTajweed?.(ayah);
+                  }}
+                >
+                  <View style={[styles.actionIconBox, actionIconBoxDynamicStyle]}>
+                    <MaterialCommunityIcons
+                      name="book-open-variant"
+                      size={24}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+
+                  <View style={styles.actionDetails}>
+                    <Text style={[styles.actionTitle, { color: theme.colors.onSurface }]}>
+                      أحكام التجويد
+                    </Text>
+
+                    <Text style={[styles.actionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                      تعرّف على الأحكام ومواضعها في الآية
+                    </Text>
+                  </View>
+
+                  <MaterialCommunityIcons
+                    name="chevron-left"
+                    size={20}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </TouchableOpacity>
+
 
             <TouchableOpacity
               style={[styles.actionRow, actionBoxDynamicStyle]}
@@ -480,13 +538,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     textAlign: 'auto'
-,
+    ,
     writingDirection: 'rtl',
   },
   actionSubtitle: {
     fontSize: 12,
     textAlign: 'auto'
-,
+    ,
     writingDirection: 'rtl',
   },
 });

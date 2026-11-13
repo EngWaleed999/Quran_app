@@ -10,7 +10,7 @@ interface PageHeaderProps {
   surahNames?: string[];
   surahName?: string;
   jozzNumber: number;
-  pageNumber?: number;
+  //pageNumber?: number;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
   onOpenSurahList: () => void;
@@ -22,7 +22,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   surahNames,
   surahName,
   jozzNumber,
-  pageNumber,
+ // pageNumber,
   onOpenSearch,
   onOpenSettings,
   onOpenSurahList,
@@ -92,9 +92,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </View>
 
           <Text style={[styles.textSide, { color: theme.colors.onSurfaceVariant }]}>
-            {pageNumber
-              ? 'صفحة ' + toArabicNumerals(pageNumber)
-              : 'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
+            {
+            //pageNumber
+            //  ? 'صفحة ' + toArabicNumerals(pageNumber)
+               'الحزب ' + toArabicNumerals(Math.ceil(jozzNumber * 2))}
           </Text>
         </View>
 

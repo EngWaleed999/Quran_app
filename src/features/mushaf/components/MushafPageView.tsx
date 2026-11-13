@@ -32,6 +32,9 @@ import { KhatmahService } from '../../khatmah/services/khatmahService';
 import { DailyWird } from '../../khatmah/types/khatmah.types';
 import { AyahNote } from '../../notes/types/note.types';
 import { OtaUpdateBanner } from '../../../core/components/OtaUpdateBanner';
+import { AppText as Text } from '../../../core/theme/components/AppText';
+import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
+import { TajweedModal } from '../../tajweed/components/TajweedModal';
 
 const TOTAL_PAGES = 604;
 const LAST_PAGE_KEY = '@quran_last_page_read';
@@ -47,6 +50,7 @@ export const MushafPageView: React.FC = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pagerRef = useRef<PagerView>(null);
+  const pageSeekRequestRef = useRef(0);
   const metadataRequestRef = useRef(0);
   const lockedTopInsetRef = useRef<number | null>(null);
 
@@ -65,6 +69,7 @@ export const MushafPageView: React.FC = () => {
   const [dailyWird, setDailyWird] = useState<DailyWird | null>(null);
   const [selectedAyah, setSelectedAyah] = useState<SelectedAyahInfo | null>(null);
   const [tafsirAyah, setTafsirAyah] = useState<SelectedAyahInfo | null>(null);
+  const [tajweedAyah, setTajweedAyah] = useState<SelectedAyahInfo | null>(null);
   const [audioPicker, setAudioPicker] = useState<AudioPickerState | null>(null);
 
   const [searchHighlightVerseKey, setSearchHighlightVerseKey] = useState<string | null>(null);
@@ -191,7 +196,8 @@ export const MushafPageView: React.FC = () => {
   useEffect(() => {
     if (Platform.OS === 'android') {
       // في الوضع الليلي نجعل خلفية شريط النظام بيضاء بأيقونات داكنة، وفي الفاتح/الأخضر خلفية سوداء بأيقونات فاتحة
-      NavigationBar.setStyle(theme.dark ? 'dark' : 'light');     }
+      NavigationBar.setStyle(theme.dark ? 'light' : 'dark');
+    }
   }, [theme.dark]);
 
   useEffect(() => {
@@ -286,6 +292,7 @@ export const MushafPageView: React.FC = () => {
   }, [db, currentPage, isReady]);
 
   const handlePageSelected = useCallback((position: number) => {
+    pageSeekRequestRef.current += 1;
     const pageNum = position + 1;
     setCurrentPage(pageNum);
     AsyncStorage.setItem(LAST_PAGE_KEY, pageNum.toString()).catch(() => undefined);
@@ -339,13 +346,20 @@ export const MushafPageView: React.FC = () => {
       const jozz = matchingAyah?.jozz || pageMetadata.jozz;
 
       setSelectedAyah({
+
         verseKey,
+
         suraNo,
+
         ayaNo,
+
         page: pageNum,
+
         suraName,
+
         jozz,
-        ayahText: matchingAyah?.aya_text_emlaey || '',
+
+        ayahText: matchingAyah?.aya_text_emlaey?.trim() || '',
       });
     },
     [db, pageMetadata]
@@ -400,6 +414,44 @@ export const MushafPageView: React.FC = () => {
     if (currentPage > 1) pagerRef.current?.setPage(currentPage - 2);
   }, [currentPage]);
 
+  const handleSeekToPage = useCallback(
+    async (targetPage: number) => {
+
+      if (
+        !Number.isInteger(targetPage) ||
+        targetPage < 1 ||
+        targetPage > TOTAL_PAGES ||
+        targetPage === currentPage
+      ) {
+        return;
+      }
+
+      const requestId = ++pageSeekRequestRef.current;
+
+      // حمّل بيانات الصفحة قبل الانتقال إليها.
+      // الصفحة الحالية ستظل ظاهرة أثناء التحميل.
+
+      const asset = await SvgMushafRepository.getPageAsset(
+        db,
+        targetPage
+      );
+
+      if (
+        requestId !== pageSeekRequestRef.current ||
+        !asset
+      ) {
+        return;
+      }
+
+      pagerRef.current?.setPageWithoutAnimation(
+        targetPage - 1
+      );
+
+    },
+    [db, currentPage]
+  );
+
+
   if (!isReady) {
     return <View style={[styles.blankContainer, { backgroundColor: theme.colors.background }]} />;
   }
@@ -431,16 +483,16 @@ export const MushafPageView: React.FC = () => {
         animated
       />
       <Animated.View style={[styles.headerDock, { top: fixedTopInset + 2 }]} pointerEvents="box-none">
-      <PageHeader
-        surahNames={pageMetadata.surahNames}
-        jozzNumber={pageMetadata.jozz}
-        pageNumber={currentPage}
-        onOpenSearch={() => { setIsControlsVisible(true); setIsSearchOpen(true); }}
-        onOpenSettings={() => { setIsControlsVisible(true); setIsSettingsOpen(true); }}
-        onOpenSurahList={() => { setIsControlsVisible(true); setIsSurahListOpen(true); }}
-        controlsAnim={controlsAnim}
-        isControlsVisible={isControlsVisible}
-      />
+        <PageHeader
+          surahNames={pageMetadata.surahNames}
+          jozzNumber={pageMetadata.jozz}
+          //  pageNumber={currentPage}
+          onOpenSearch={() => { setIsControlsVisible(true); setIsSearchOpen(true); }}
+          onOpenSettings={() => { setIsControlsVisible(true); setIsSettingsOpen(true); }}
+          onOpenSurahList={() => { setIsControlsVisible(true); setIsSurahListOpen(true); }}
+          controlsAnim={controlsAnim}
+          isControlsVisible={isControlsVisible}
+        />
       </Animated.View>
 
       <View
@@ -513,9 +565,37 @@ export const MushafPageView: React.FC = () => {
             totalPages={TOTAL_PAGES}
             onNextPage={handleNextPage}
             onPrevPage={handlePrevPage}
+            onSeekPage={handleSeekToPage}
           />
         </Animated.View>
       </View>
+
+      {/* Page number shown only in fullscreen mode */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.fullscreenPageIndicator,
+          {
+            bottom: Math.max(insets.bottom, 8) + 6,
+            opacity: controlsAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [1, 0],
+            }),
+            backgroundColor: theme.colors.surfaceVariant,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
+        <Text
+          style={{
+            color: theme.colors.onSurfaceVariant,
+            fontSize: 13,
+            fontWeight: '600',
+          }}
+        >
+          صفحة {toArabicNumerals(currentPage)}
+        </Text>
+      </Animated.View>
 
       <SearchModal
         visible={isSearchOpen}
@@ -579,6 +659,7 @@ export const MushafPageView: React.FC = () => {
         onToggleBookmark={handleToggleBookmark}
         onOpenNote={handleOpenNote}
         onOpenTafsir={(ayah) => setTafsirAyah(ayah)}
+        onOpenTajweed={(ayah) => setTajweedAyah(ayah)}
         onPlayAudio={(ayah) => handleOpenAudio(ayah, 'tilawah')}
         onRepeatAudio={(ayah) => handleOpenAudio(ayah, 'repeat')}
       />
@@ -596,6 +677,11 @@ export const MushafPageView: React.FC = () => {
         ayah={tafsirAyah}
         onClose={() => setTafsirAyah(null)}
         db={db}
+      />
+      <TajweedModal
+        visible={tajweedAyah !== null}
+        ayah={tajweedAyah}
+        onClose={() => setTajweedAyah(null)}
       />
     </View>
   );
@@ -635,4 +721,14 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   bottomBarWrapper: {},
+  fullscreenPageIndicator: {
+    position: 'absolute',
+    alignSelf: 'center',
+    zIndex: 25,
+    paddingHorizontal: 13,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    elevation: 3,
+  },
 });

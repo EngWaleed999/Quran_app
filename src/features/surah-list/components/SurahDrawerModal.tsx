@@ -1,5 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, FlatList, Modal, I18nManager } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+  I18nManager,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from '../../../core/theme/components/AppText';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,7 +22,6 @@ import { KhatmahModal } from '../../khatmah/components/KhatmahModal';
 import { BookmarksModal } from '../../bookmarks/components/BookmarksModal';
 import { NotesModal } from '../../notes/components/NotesModal';
 import { DailyWird } from '../../khatmah/types/khatmah.types';
-import { useAudioStore } from '../../audio-player/stores/useAudioStore';
 
 interface SurahDrawerModalProps {
   visible: boolean;
@@ -52,37 +59,40 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
 
   const allSurahs = useMemo(() => QuranRepository.getAllSurahsSync(db), [db]);
 
-  const currentSurahIndex = useMemo(() => {
-    const activeAyahSura = useAudioStore.getState().activeAyah?.suraNo;
-    if (activeAyahSura) {
-      const idx = allSurahs.findIndex((s) => s.sura_no === activeAyahSura);
-      if (idx >= 0) return idx;
-    }
-
-    if (currentSurahNames && currentSurahNames.length > 0) {
-      const cleanTarget = currentSurahNames[0].trim();
-      const idx = allSurahs.findIndex(
-        (s) => s.sura_name_ar.trim() === cleanTarget || cleanTarget.includes(s.sura_name_ar.trim())
-      );
-      if (idx >= 0) return idx;
-    }
+  const currentSurahNos = useMemo(() => {
 
     const surahsOnPage = allSurahs.filter(
-      (s) => currentPage >= s.page_start && currentPage <= s.page_end
+      (surah) =>
+        currentPage >= surah.page_start &&
+        currentPage <= surah.page_end
     );
-    if (surahsOnPage.length === 1) {
-      return allSurahs.findIndex((s) => s.sura_no === surahsOnPage[0].sura_no);
-    }
-    if (surahsOnPage.length > 1) {
-      const startingSurah = surahsOnPage.find((s) => s.page_start === currentPage);
-      if (startingSurah) {
-        return allSurahs.findIndex((s) => s.sura_no === startingSurah.sura_no);
-      }
-      return allSurahs.findIndex((s) => s.sura_no === surahsOnPage[0].sura_no);
+
+    if (surahsOnPage.length > 0) {
+      return new Set(
+        surahsOnPage.map((surah) => surah.sura_no)
+      );
     }
 
-    return -1;
+    // Fallback using page metadata if page ranges are incomplete.
+    const currentNames = new Set(
+      (currentSurahNames ?? []).map(name => name.trim())
+    );
+
+    return new Set(
+      allSurahs
+        .filter(surah => currentNames.has(surah.sura_name_ar.trim()))
+        .map(surah => surah.sura_no)
+    );
+
   }, [allSurahs, currentPage, currentSurahNames]);
+
+  const currentSurahIndex = useMemo(
+    () =>
+      allSurahs.findIndex(
+        surah => currentSurahNos.has(surah.sura_no)
+      ),
+    [allSurahs, currentSurahNos]
+  );
 
   useEffect(() => {
     if (visible) {
@@ -107,9 +117,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
   };
 
   const renderSurahItem = ({ item }: { item: Surah }) => {
-    const isCurrentSurah = currentSurahIndex >= 0 && allSurahs[currentSurahIndex]?.sura_no === item.sura_no;
-    const isPageSurah = currentPage >= item.page_start && currentPage <= item.page_end;
-    const isCurrent = isCurrentSurah || (currentSurahIndex < 0 && isPageSurah);
+    const isCurrent = currentSurahNos.has(item.sura_no);
 
     return (
       <TouchableOpacity
@@ -147,7 +155,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
                 isCurrent && { color: theme.colors.primary, fontWeight: 'bold' },
               ]}
             >
-               {item.sura_name_ar}
+              {item.sura_name_ar}
             </Text>
             <View
               style={[
@@ -249,9 +257,11 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              initialNumToRender={114}
-              maxToRenderPerBatch={114}
-              windowSize={11}
+              initialNumToRender={12}
+              maxToRenderPerBatch={12}
+              updateCellsBatchingPeriod={50}
+              windowSize={7}
+              removeClippedSubviews={Platform.OS === 'android'}
               // Dynamic layout allows font diacritics and badges without clipping
               onScrollToIndexFailed={(info) => {
                 setTimeout(() => {
@@ -557,7 +567,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    
+
   },
   navTabText: {
     fontSize: 11,

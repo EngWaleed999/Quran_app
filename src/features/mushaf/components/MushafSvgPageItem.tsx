@@ -99,11 +99,20 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
     };
   }, [db, page, isNear, pageAsset]);
 
+  
   // التحقق من وجود سورة تبدأ في هذه الصفحة من قاعدة البيانات
-  const surahHeader = useMemo(() => {
-    if (!db || !isNear) return null;
-    return QuranRepository.getSurahStartingOnPage(db, page);
-  }, [db, page, isNear]);
+const CUSTOM_BANNER_PAGES = new Set([1, 2]);
+
+const surahHeaders = useMemo(() => {
+  if (!db || !isNear || !CUSTOM_BANNER_PAGES.has(page)) {
+    return [];
+  }
+
+  return QuranRepository.getSurahsStartingOnPage(db, page);
+
+}, [db, page, isNear]);
+
+
 
   // Use pre-cached normalized geometry if available; otherwise compute after first paint
   const [normalizedData, setNormalizedData] = useState<NormalizedPageData | null>(() => {
@@ -289,12 +298,18 @@ const MushafSvgPageItemComponent: React.FC<MushafSvgPageItemProps> = ({
   return (
     <View style={styles.pageContainer}>
       {/* بنر اسم السورة المخصص للصفحتين 1 و 2 بدلاً من الخط المتجهي الخارجي */}
-      {page <= 2 && surahHeader && (
-        <View style={styles.bannerWrapper} onTouchEnd={onToggleControls}>
+      {surahHeaders.length > 0 &&  (
+        <View
+          pointerEvents="none"
+          style={styles.bannerOverlay}
+         >
+            {surahHeaders.map((surah) => (
           <SurahBanner
-            surahName={surahHeader.sura_name_ar}
-            suraNo={surahHeader.sura_no}
-          />
+        key={surah.sura_no}
+        surahName={surah.sura_name_ar}
+        suraNo={surah.sura_no}
+      />
+            ))}
         </View>
       )}
 
@@ -353,12 +368,13 @@ export const MushafSvgPageItem = React.memo(
 );
 
 const styles = StyleSheet.create({
-  pageContainer: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'transparent',
-  },
+pageContainer: {
+  flex: 1,
+  width: '100%',
+  height: '100%',
+  position: 'relative',
+  backgroundColor: 'transparent',
+},
   bannerWrapper: {
     width: '100%',
     paddingHorizontal: 8,
@@ -378,4 +394,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  bannerOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 5,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
 });
