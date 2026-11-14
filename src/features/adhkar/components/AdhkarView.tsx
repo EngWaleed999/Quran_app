@@ -10,6 +10,7 @@ import {
   TextInput,
   Share,
   BackHandler,
+  PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -287,6 +288,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
               ]}
             >
               <Text
+                numberOfLines={1}
                 style={[
                   styles.categoryBadgeText,
                   { color: theme.colors.primary },
@@ -299,7 +301,9 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
             {item.isFavorite ? (
               <View style={styles.favoriteBadge}>
                 <MaterialCommunityIcons name="star" size={13} color="#FFFFFF" />
-                <Text style={styles.favoriteBadgeText}>مفضلة</Text>
+                <Text
+                  numberOfLines={1}
+                  style={styles.favoriteBadgeText}>مفضلة</Text>
               </View>
             ) : null}
           </View>
@@ -367,12 +371,15 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
               size={20}
               color="#FFFFFF"
             />
-            <Text style={styles.counterText}>
+            <Text
+              numberOfLines={1}
+
+              style={styles.counterText}>
               {isCompleted
                 ? `اكتمل (${toArabicNumerals(item.count)}) • انقر لجولة جديدة`
                 : `${toArabicNumerals(currentCount)} / ${toArabicNumerals(
-                    item.count
-                  )}`}
+                  item.count
+                )}`}
             </Text>
           </TouchableOpacity>
 
@@ -509,7 +516,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
           initialNumToRender={8}
           maxToRenderPerBatch={10}
           windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android'}
+          removeClippedSubviews={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <MaterialCommunityIcons
@@ -653,6 +660,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
           >
             <View style={styles.progressHeader}>
               <Text
+
                 style={[
                   styles.progressPercent,
                   {
@@ -665,6 +673,8 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                 {toArabicNumerals(downloadProgress?.percentage || 0)}٪
               </Text>
               <Text
+                numberOfLines={1}
+
                 style={[
                   styles.progressLabel,
                   {
@@ -716,7 +726,10 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
               onPress={handleCancelDownload}
               activeOpacity={0.7}
             >
-              <Text style={styles.cancelDownloadBtnText}>إلغاء التنزيل</Text>
+              <Text
+                numberOfLines={1}
+
+                style={styles.cancelDownloadBtnText}>إلغاء التنزيل</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -828,12 +841,13 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
                       color={theme.colors.primary}
                     />
                     <Text
+                      numberOfLines={1}
                       style={[
                         styles.syncBadgeText,
                         { color: theme.colors.primary },
                       ]}
                     >
-                      تحديث الأذكار من الإصدار
+                      تحديث الأذكار
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -971,6 +985,7 @@ export const AdhkarView: React.FC<AdhkarViewProps> = ({
     </Modal>
   );
 };
+console.log('[========]', PixelRatio.getFontScale())
 
 const styles = StyleSheet.create({
   container: {
@@ -1132,19 +1147,26 @@ const styles = StyleSheet.create({
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   progressPercent: {
     fontSize: 16,
     fontWeight: 'bold',
+    writingDirection: 'rtl',
+
   },
   progressLabel: {
+    textAlign: 'start',
+    writingDirection: 'rtl',
+
     fontSize: 13,
     fontWeight: 'bold',
   },
   progressBar: {
     height: 6,
     borderRadius: 3,
+    writingDirection: 'rtl',
+    alignItems: 'flex-start',
   },
   helperText: {
     fontSize: 11.5,
@@ -1218,6 +1240,7 @@ const styles = StyleSheet.create({
   syncRowWrapper: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
+    alignItems: 'center',
     marginBottom: 10,
     marginTop: 2,
   },
@@ -1225,15 +1248,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 14,
     borderWidth: 1,
+    flexShrink: 0,
+    flexWrap: 'nowrap'
   },
   syncBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    textAlign: 'start'
+    textAlign: 'start',
+
   },
   categoryCard: {
     flexDirection: 'row',
@@ -1305,6 +1331,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 11,
     fontWeight: 'bold',
+    flexShrink: 0
   },
   favoriteBadge: {
     flexDirection: 'row',

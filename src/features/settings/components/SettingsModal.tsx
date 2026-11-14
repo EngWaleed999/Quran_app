@@ -325,7 +325,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 size={20}
                 color="#FFFFFF"
               />
-              <Text style={styles.contactButtonText}>
+              <Text
+              numberOfLines={1}
+               style={styles.contactButtonText}>
                 تواصل مع المطور أو اطلب ميزة
               </Text>
             </TouchableOpacity>

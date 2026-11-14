@@ -151,6 +151,7 @@ export const SurahDrawerModal: React.FC<SurahDrawerModalProps> = ({
         <View style={styles.surahDetails}>
           <View style={styles.surahTitleRow}>
             <Text
+            numberOfLines={1}
               style={[
                 styles.surahName,
                 { color: theme.colors.onSurface },
