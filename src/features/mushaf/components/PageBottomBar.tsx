@@ -1,129 +1,3 @@
-// import React from 'react';
-// import { View, StyleSheet, TouchableOpacity } from 'react-native';
-// import { AppText as Text } from '../../../core/theme/components/AppText';
-// import { ProgressBar } from 'react-native-paper';
-// import { QuranColors } from '../../../core/theme/theme';
-// import { useTheme } from 'react-native-paper';
-// import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
-
-// interface PageBottomBarProps {
-//   currentPage: number;
-//   totalPages?: number;
-//   onNextPage: () => void;
-//   onPrevPage: () => void;
-// }
-
-// export const PageBottomBar: React.FC<PageBottomBarProps> = ({
-//   currentPage,
-//   totalPages = 604,
-//   onNextPage,
-//   onPrevPage,
-// }) => {
-//   const theme = useTheme();
-//   const progress = currentPage / totalPages;
-
-//   return (
-//     <View style={[styles.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outline }]}>
-//       {/* Visual Progress Bar (Inverted scaleX to fill from Right-to-Left matching authentic Quran order) */}
-//       <View style={styles.progressWrapper}>
-//         <ProgressBar
-//           progress={progress}
-//           color={theme.colors.secondary}
-//           style={styles.progressBar}
-//         />
-//       </View>
-
-//       <View style={styles.barContent}>
-//         {/* Right: Previous Page Button (returns towards Page 1 on the right in RTL) */}
-//         <TouchableOpacity
-//           style={[styles.navButton, { backgroundColor: theme.colors.surfaceVariant }]}
-//           onPress={onPrevPage}
-//           disabled={currentPage <= 1}
-//           accessibilityLabel="الصفحة السابقة"
-//         >
-//           <Text style={[styles.navButtonText, { color: theme.colors.primary }, currentPage <= 1 && styles.disabledText]}>
-//             السابقة
-//           </Text>
-//         </TouchableOpacity>
-
-//         {/* Center: Current Page indicator */}
-//         <View style={styles.centerInfo}>
-//           <Text style={[styles.pageText, { color: theme.colors.onSurface }]}>
-//             صفحة {toArabicNumerals(currentPage)} من {toArabicNumerals(totalPages)}
-//           </Text>
-//         </View>
-
-//         {/* Left: Next Page Button (advances towards Page 604 on the left in RTL) */}
-//         <TouchableOpacity
-//           style={[styles.navButton, { backgroundColor: theme.colors.surfaceVariant }]}
-//           onPress={onNextPage}
-//           disabled={currentPage >= totalPages}
-//           accessibilityLabel="الصفحة التالية"
-//         >
-//           <Text style={[styles.navButtonText, { color: theme.colors.primary }, currentPage >= totalPages && styles.disabledText]}>
-//             التالية
-//           </Text>
-//         </TouchableOpacity>
-//       </View>
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     backgroundColor: '#FFF8F0FF',
-//     borderTopWidth: 1,
-//     borderTopColor: QuranColors.parchmentBorder,
-//     paddingBottom: 16,
-//     paddingTop: 4,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: -2 },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 3,
-//     elevation: 8,
-//   },
-//   progressWrapper: {
-//     transform: [{ scaleX: -1 }],
-//   },
-//   progressBar: {
-//     height: 3,
-//     backgroundColor: 'rgba(197, 155, 39, 0.2)',
-//   },
-//   barContent: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     paddingHorizontal: 16,
-//     paddingTop: 8,
-//   },
-//   navButton: {
-//     minWidth: 84,
-//     minHeight: 44, // Generous touch target
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     paddingHorizontal: 12,
-//     borderRadius: 8,
-//     backgroundColor: 'rgba(31, 81, 63, 0.08)',
-//   },
-//   navButtonText: {
-//     fontSize: 15,
-//     fontWeight: 'bold',
-//     color: QuranColors.emerald,
-//   },
-//   disabledText: {
-//     color: '#CCC',
-//   },
-//   centerInfo: {
-//     alignItems: 'center',
-//   },
-//   pageText: {
-//     fontSize: 15,
-//     fontWeight: 'bold',
-//     color: QuranColors.textDark,
-//   },
-// });
-
-//================================================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -137,6 +11,133 @@ import { AppText as Text } from '../../../core/theme/components/AppText';
 import { useTheme } from 'react-native-paper';
 import { toArabicNumerals } from '../../../core/utils/arabicNumbers';
 
+ 
+const SURAH_PAGE_RANGES: { name: string; start: number; end: number }[] = [
+  { name: 'الفَاتِحة', start: 1, end: 1 },
+  { name: 'البَقَرَة', start: 2, end: 49 },
+  { name: 'آل عِمران', start: 50, end: 76 },
+  { name: 'النِّسَاء', start: 77, end: 106 },
+  { name: 'المَائدة', start: 106, end: 127 },
+  { name: 'الأنعَام', start: 128, end: 150 },
+  { name: 'الأعرَاف', start: 151, end: 176 },
+  { name: 'الأنفَال', start: 177, end: 186 },
+  { name: 'التوبَة', start: 187, end: 207 },
+  { name: 'يُونس', start: 208, end: 221 },
+  { name: 'هُود', start: 221, end: 235 },
+  { name: 'يُوسُف', start: 235, end: 248 },
+  { name: 'الرَّعد', start: 249, end: 255 },
+  { name: 'إبراهِيم', start: 255, end: 261 },
+  { name: 'الحِجر', start: 262, end: 267 },
+  { name: 'النَّحل', start: 267, end: 281 },
+  { name: 'الإسرَاء', start: 282, end: 293 },
+  { name: 'الكَهف', start: 293, end: 304 },
+  { name: 'مَريَم', start: 305, end: 312 },
+  { name: 'طه', start: 312, end: 321 },
+  { name: 'الأنبيَاء', start: 322, end: 331 },
+  { name: 'الحج', start: 332, end: 341 },
+  { name: 'المؤمنُون', start: 342, end: 349 },
+  { name: 'النور', start: 350, end: 359 },
+  { name: 'الفُرقَان', start: 359, end: 366 },
+  { name: 'الشعراء', start: 367, end: 376 },
+  { name: 'النَّمل', start: 377, end: 385 },
+  { name: 'القَصَص', start: 385, end: 396 },
+  { name: 'العَنكبُوت', start: 396, end: 404 },
+  { name: 'الرُّوم', start: 404, end: 410 },
+  { name: 'لُقمَان', start: 411, end: 414 },
+  { name: 'السَّجدة', start: 415, end: 417 },
+  { name: 'الأحزَاب', start: 418, end: 427 },
+  { name: 'سَبإ', start: 428, end: 434 },
+  { name: 'فَاطِر', start: 434, end: 440 },
+  { name: 'يسٓ', start: 440, end: 445 },
+  { name: 'الصَّافَات', start: 446, end: 452 },
+  { name: 'صٓ', start: 453, end: 458 },
+  { name: 'الزُّمَر', start: 458, end: 467 },
+  { name: 'غَافِر', start: 467, end: 476 },
+  { name: 'فُصِّلَت', start: 477, end: 482 },
+  { name: 'الشُّورى', start: 483, end: 489 },
+  { name: 'الزُّخرُف', start: 489, end: 495 },
+  { name: 'الدُّخان', start: 496, end: 498 },
+  { name: 'الجاثِية', start: 499, end: 502 },
+  { name: 'الأحقَاف', start: 502, end: 506 },
+  { name: 'مُحمد', start: 507, end: 510 },
+  { name: 'الفَتح', start: 511, end: 515 },
+  { name: 'الحُجُرَات', start: 515, end: 517 },
+  { name: 'قٓ', start: 518, end: 520 },
+  { name: 'الذَّاريَات', start: 520, end: 523 },
+  { name: 'الطُّور', start: 523, end: 525 },
+  { name: 'النَّجم', start: 526, end: 528 },
+  { name: 'القَمَر', start: 528, end: 531 },
+  { name: 'الرَّحمٰن', start: 531, end: 534 },
+  { name: 'الوَاقِعة', start: 534, end: 537 },
+  { name: 'الحدِيد', start: 537, end: 541 },
+  { name: 'المُجَادلة', start: 542, end: 545 },
+  { name: 'الحَشر', start: 545, end: 548 },
+  { name: 'المُمتَحنَة', start: 549, end: 551 },
+  { name: 'الصَّف', start: 551, end: 552 },
+  { name: 'الجُمعَة', start: 553, end: 554 },
+  { name: 'المُنَافِقُونَ', start: 554, end: 555 },
+  { name: 'التغَابُن', start: 556, end: 557 },
+  { name: 'الطَّلَاق', start: 558, end: 559 },
+  { name: 'التَّحرِيم', start: 560, end: 561 },
+  { name: 'المُلك', start: 562, end: 564 },
+  { name: 'القَلَم', start: 564, end: 566 },
+  { name: 'الحَاقة', start: 566, end: 568 },
+  { name: 'المَعَارج', start: 568, end: 570 },
+  { name: 'نُوح', start: 570, end: 571 },
+  { name: 'الجِن', start: 572, end: 573 },
+  { name: 'المُزمل', start: 574, end: 575 },
+  { name: 'المُدثر', start: 575, end: 577 },
+  { name: 'القِيَامة', start: 577, end: 578 },
+  { name: 'الإنسَان', start: 578, end: 580 },
+  { name: 'المُرسَلات', start: 580, end: 581 },
+  { name: 'النَّبَإ', start: 582, end: 583 },
+  { name: 'النَّازعَات', start: 583, end: 584 },
+  { name: 'عَبَسَ', start: 585, end: 586 },
+  { name: 'التَّكوير', start: 586, end: 586 },
+  { name: 'الانفِطَار', start: 587, end: 587 },
+  { name: 'المُطَففين', start: 587, end: 589 },
+  { name: 'الانشِقَاق', start: 589, end: 590 },
+  { name: 'البُرُوج', start: 590, end: 590 },
+  { name: 'الطَّارق', start: 591, end: 591 },
+  { name: 'الأعلى', start: 591, end: 592 },
+  { name: 'الغَاشِية', start: 592, end: 593 },
+  { name: 'الفَجر', start: 593, end: 594 },
+  { name: 'البَلَد', start: 594, end: 595 },
+  { name: 'الشَّمس', start: 595, end: 595 },
+  { name: 'اللَّيل', start: 595, end: 596 },
+  { name: 'الضُّحى', start: 596, end: 596 },
+  { name: 'الشَّرح', start: 596, end: 597 },
+  { name: 'التِّين', start: 597, end: 597 },
+  { name: 'العَلَق', start: 597, end: 598 },
+  { name: 'القَدر', start: 598, end: 598 },
+  { name: 'البَينَة', start: 598, end: 599 },
+  { name: 'الزَّلزَلة', start: 599, end: 599 },
+  { name: 'العَاديَات', start: 599, end: 600 },
+  { name: 'القَارعَة', start: 600, end: 600 },
+  { name: 'التَّكاثُر', start: 600, end: 600 },
+  { name: 'العَصر', start: 601, end: 601 },
+  { name: 'الهُمَزة', start: 601, end: 601 },
+  { name: 'الفِيل', start: 601, end: 601 },
+  { name: 'قُرَيش', start: 602, end: 602 },
+  { name: 'المَاعُون', start: 602, end: 602 },
+  { name: 'الكَوثر', start: 602, end: 602 },
+  { name: 'الكافِرون', start: 603, end: 603 },
+  { name: 'النَّصر', start: 603, end: 603 },
+  { name: 'المَسَد', start: 603, end: 603 },
+  { name: 'الإخلَاص', start: 604, end: 604 },
+  { name: 'الفَلَق', start: 604, end: 604 },
+  { name: 'النَّاس', start: 604, end: 604 },
+];
+
+function getSurahsForPage(page: number): string {
+  const surahs = SURAH_PAGE_RANGES.filter(
+    (s) => page >= s.start && page <= s.end
+  );
+  if (surahs.length === 0) return '';
+  if (surahs.length === 1) return 'سورة ' + surahs[0].name;
+  return 'سورة ' + surahs.map((s) => s.name).join(' • ');
+}
+
 interface PageBottomBarProps {
   currentPage: number;
   totalPages?: number;
@@ -147,6 +148,7 @@ interface PageBottomBarProps {
 
 const THUMB_SIZE = 18;
 const TOUCH_HORIZONTAL_MARGIN = 16;
+const TOOLTIP_WIDTH = 180;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -362,6 +364,42 @@ export const PageBottomBar: React.FC<PageBottomBarProps> = ({
             },
           ]}
         />
+
+        {isDragging && trackWidth > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.barTooltip,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.primary,
+                transform: [
+                  {
+                    translateX:
+                      travelWidth > 0
+                        ? thumbX.interpolate({
+                            inputRange: [0, travelWidth],
+                            outputRange: [
+                              0,
+                              Math.max(0, trackWidth - TOOLTIP_WIDTH),
+                            ],
+                            extrapolate: 'clamp',
+                          })
+                        : 0,
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text
+              style={[styles.barTooltipText, { color: theme.colors.primary }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {getSurahsForPage(previewPage)}
+            </Text>
+          </Animated.View>
+        ) : null}
       </View>
 
       <View style={styles.barContent}>
@@ -476,5 +514,29 @@ const styles = StyleSheet.create({
   pageText: {
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  barTooltip: {
+    position: 'absolute',
+    top: -42,
+    width: TOOLTIP_WIDTH,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 8,
+    zIndex: 99,
+  },
+  barTooltipText: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
 });
